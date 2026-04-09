@@ -8,6 +8,8 @@ namespace FCRevolution.Backend.Hosting.WebSockets;
 
 internal sealed class BackendControlWebSocketHandler
 {
+    private const string WebSocketButtonDeviceType = "websocket-button";
+
     private static bool TryResolveIncomingPort(
         SocketClientMessage incoming,
         RemoteControlLeaseCoordinator leaseCoordinator,
@@ -144,19 +146,15 @@ internal sealed class BackendControlWebSocketHandler
                                 new SocketMessage("claimed", "控制权已切换", buttonSessionId.Value.ToString(), buttonPlayer, buttonPortId));
                         }
 
-                        var buttonRequest = new ButtonStateRequest(
-                            Player: buttonPlayer,
-                            Pressed: incoming.Pressed ?? false,
-                            PortId: buttonPortId,
-                            ActionId: incoming.Button);
-                        if (!RemoteControlRequestCompatibility.TryBuildGenericInputRequest(
-                                buttonRequest,
-                                "websocket-button",
-                                out var genericButtonRequest))
-                        {
-                            await codec.SendSocketMessageAsync(new SocketMessage("error", "按键无效", buttonSessionId.Value.ToString(), buttonPlayer, buttonPortId));
-                            break;
-                        }
+                        var actionId = incoming.Button.Trim();
+                        var genericButtonRequest = new SetInputStateRequest(
+                        [
+                            new InputActionValueDto(
+                                buttonPortId,
+                                WebSocketButtonDeviceType,
+                                actionId,
+                                (incoming.Pressed ?? false) ? 1f : 0f)
+                        ]);
 
                         var pressedOk = await remoteControlContract.SetInputStateAsync(
                             buttonSessionId.Value,

@@ -18,8 +18,6 @@ internal sealed class RecordingRuntimeBridge : IBackendRuntimeBridge
 
     public bool ClaimControlResult { get; set; }
 
-    public bool SetButtonStateResult { get; set; }
-
     public bool SetInputStateResult { get; set; }
 
     public BackendStreamSubscription? StreamSubscription { get; set; }
@@ -39,8 +37,6 @@ internal sealed class RecordingRuntimeBridge : IBackendRuntimeBridge
     public List<(Guid SessionId, ReleaseControlRequest Request)> ReleaseCalls { get; } = [];
 
     public List<(Guid SessionId, RefreshHeartbeatRequest Request)> HeartbeatCalls { get; } = [];
-
-    public List<(Guid SessionId, ButtonStateRequest Request)> ButtonCalls { get; } = [];
 
     public List<(Guid SessionId, SetInputStateRequest Request)> InputStateCalls { get; } = [];
 
@@ -86,12 +82,6 @@ internal sealed class RecordingRuntimeBridge : IBackendRuntimeBridge
     {
         HeartbeatCalls.Add((sessionId, request));
         return Task.CompletedTask;
-    }
-
-    public Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default)
-    {
-        ButtonCalls.Add((sessionId, request));
-        return Task.FromResult(SetButtonStateResult);
     }
 
     public Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default)

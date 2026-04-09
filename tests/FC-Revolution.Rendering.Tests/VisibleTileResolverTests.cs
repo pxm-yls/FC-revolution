@@ -1,4 +1,4 @@
-using FCRevolution.Core.Mappers;
+using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Common;
 
 namespace FC_Revolution.Rendering.Tests;
@@ -20,7 +20,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 4,
             coarseScrollY: 0,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 256,
             screenHeight: 240);
 
@@ -47,7 +47,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 1,
             coarseScrollY: 0,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 16,
             screenHeight: 8);
 
@@ -72,7 +72,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 31,
             coarseScrollY: 0,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 16,
             screenHeight: 8);
 
@@ -83,14 +83,14 @@ public sealed class VisibleTileResolverTests
     }
 
     [Theory]
-    [InlineData(MirroringMode.Horizontal, 1, 11)]
-    [InlineData(MirroringMode.Horizontal, 2, 22)]
-    [InlineData(MirroringMode.Vertical, 2, 11)]
-    [InlineData(MirroringMode.Vertical, 3, 22)]
-    [InlineData(MirroringMode.SingleLower, 3, 11)]
-    [InlineData(MirroringMode.SingleUpper, 0, 22)]
+    [InlineData(FrameMirroringMode.Horizontal, 1, 11)]
+    [InlineData(FrameMirroringMode.Horizontal, 2, 22)]
+    [InlineData(FrameMirroringMode.Vertical, 2, 11)]
+    [InlineData(FrameMirroringMode.Vertical, 3, 22)]
+    [InlineData(FrameMirroringMode.SingleLower, 3, 11)]
+    [InlineData(FrameMirroringMode.SingleUpper, 0, 22)]
     public void Resolve_MapsLogicalNametables_AccordingToMirroring(
-        MirroringMode mirroringMode,
+        FrameMirroringMode mirroringMode,
         int nametableSelect,
         byte expectedTileId)
     {
@@ -130,7 +130,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 0,
             coarseScrollY: 0,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 32,
             screenHeight: 32);
 
@@ -155,7 +155,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 5,
             coarseScrollY: 4,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 24,
             screenHeight: 16,
             screenOffsetY: 7,
@@ -171,7 +171,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 5,
             coarseScrollY: 4,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 24,
             screenHeight: 16,
             screenOffsetY: 7,
@@ -190,7 +190,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 5,
             coarseScrollY: 4,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: 24,
             screenHeight: 16,
             screenOffsetY: 7,
@@ -227,7 +227,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: firstStripHeight);
 
@@ -239,7 +239,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: secondStripHeight);
 
@@ -254,7 +254,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: firstStripHeight,
             screenOffsetY: 0,
@@ -271,7 +271,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: secondStripHeight,
             screenOffsetY: firstStripHeight,
@@ -289,7 +289,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: firstStripHeight,
             screenOffsetY: 0,
@@ -304,7 +304,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX: 2,
             coarseScrollY: 3,
             nametableSelect: 0,
-            mirrorMode: MirroringMode.Vertical,
+            mirrorMode: FrameMirroringMode.Vertical,
             screenWidth: screenWidth,
             screenHeight: secondStripHeight,
             screenOffsetY: firstStripHeight,
@@ -347,7 +347,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX,
             coarseScrollY,
             nametableSelect,
-            MirroringMode.Vertical,
+            FrameMirroringMode.Vertical,
             screenWidth,
             screenHeight);
         VisibleTile[] expected = VisibleTileResolver.ResolveArray(
@@ -358,7 +358,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX,
             coarseScrollY,
             nametableSelect,
-            MirroringMode.Vertical,
+            FrameMirroringMode.Vertical,
             screenWidth,
             screenHeight);
 
@@ -375,7 +375,7 @@ public sealed class VisibleTileResolverTests
             coarseScrollX,
             coarseScrollY,
             nametableSelect,
-            MirroringMode.Vertical,
+            FrameMirroringMode.Vertical,
             screenWidth,
             screenHeight);
         Assert.Equal(expectedCount, warmupCount);
@@ -394,7 +394,7 @@ public sealed class VisibleTileResolverTests
                 coarseScrollX,
                 coarseScrollY,
                 nametableSelect,
-                MirroringMode.Vertical,
+                FrameMirroringMode.Vertical,
                 screenWidth,
                 screenHeight);
         }

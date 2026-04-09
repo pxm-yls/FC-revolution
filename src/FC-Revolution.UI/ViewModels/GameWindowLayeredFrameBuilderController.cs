@@ -1,40 +1,32 @@
 using System;
-using FCRevolution.Core.PPU;
-using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Abstractions;
-using FCRevolution.Rendering.Common;
 using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed class GameWindowLayeredFrameBuilderController
 {
-    private readonly Func<PpuRenderStateSnapshot> _captureRenderState;
-    private readonly Func<PpuRenderStateSnapshot, IFrameMetadata?, FrameMetadata> _extractFrameMetadata;
-    private readonly Func<IFrameMetadata, LayeredFrameData> _buildLayeredFrame;
+    private readonly Func<LayeredFrameData> _captureLayeredFrame;
+    private readonly Action _resetTemporalHistory;
     private readonly Action<Exception> _logFailure;
-    private IFrameMetadata? _previousRenderMetadata;
     private bool _didLogFailure;
 
-    public GameWindowLayeredFrameBuilderController(INesRenderStateProvider renderStateProvider)
+    public GameWindowLayeredFrameBuilderController(ILayeredFrameProvider layeredFrameProvider)
         : this(
-            renderStateProvider.CaptureRenderStateSnapshot,
-            ExtractFrameMetadata,
-            BuildLayeredFrame,
+            layeredFrameProvider.CaptureLayeredFrame,
+            layeredFrameProvider.ResetTemporalHistory,
             ex => StartupDiagnostics.WriteException("game-window", "failed to build layered frame data", ex))
     {
-        ArgumentNullException.ThrowIfNull(renderStateProvider);
+        ArgumentNullException.ThrowIfNull(layeredFrameProvider);
     }
 
     internal GameWindowLayeredFrameBuilderController(
-        Func<PpuRenderStateSnapshot> captureRenderState,
-        Func<PpuRenderStateSnapshot, IFrameMetadata?, FrameMetadata> extractFrameMetadata,
-        Func<IFrameMetadata, LayeredFrameData> buildLayeredFrame,
+        Func<LayeredFrameData> captureLayeredFrame,
+        Action resetTemporalHistory,
         Action<Exception> logFailure)
     {
-        _captureRenderState = captureRenderState ?? throw new ArgumentNullException(nameof(captureRenderState));
-        _extractFrameMetadata = extractFrameMetadata ?? throw new ArgumentNullException(nameof(extractFrameMetadata));
-        _buildLayeredFrame = buildLayeredFrame ?? throw new ArgumentNullException(nameof(buildLayeredFrame));
+        _captureLayeredFrame = captureLayeredFrame ?? throw new ArgumentNullException(nameof(captureLayeredFrame));
+        _resetTemporalHistory = resetTemporalHistory ?? throw new ArgumentNullException(nameof(resetTemporalHistory));
         _logFailure = logFailure ?? throw new ArgumentNullException(nameof(logFailure));
     }
 
@@ -42,10 +34,7 @@ internal sealed class GameWindowLayeredFrameBuilderController
     {
         try
         {
-            var renderState = _captureRenderState();
-            var metadata = _extractFrameMetadata(renderState, _previousRenderMetadata);
-            _previousRenderMetadata = metadata;
-            return _buildLayeredFrame(metadata);
+            return _captureLayeredFrame();
         }
         catch (Exception ex)
         {
@@ -55,21 +44,10 @@ internal sealed class GameWindowLayeredFrameBuilderController
                 _logFailure(ex);
             }
 
-            _previousRenderMetadata = null;
+            _resetTemporalHistory();
             return null;
         }
     }
 
-    public void ResetTemporalHistory()
-    {
-        _previousRenderMetadata = null;
-    }
-
-    private static FrameMetadata ExtractFrameMetadata(
-        PpuRenderStateSnapshot snapshot,
-        IFrameMetadata? previousRenderMetadata) =>
-        new RenderDataExtractor().Extract(snapshot, previousRenderMetadata);
-
-    private static LayeredFrameData BuildLayeredFrame(IFrameMetadata metadata) =>
-        LayeredFrameBuilder.Build(metadata);
+    public void ResetTemporalHistory() => _resetTemporalHistory();
 }

@@ -579,31 +579,37 @@ public class MacMetalStabilityTests
     private static void DrainUi() => AvaloniaThreadingTestHelper.DrainJobs();
 
     private static GameWindowViewModel CreateViewModel(string romPath, MacUpscaleMode upscaleMode = MacUpscaleMode.None)
-        => new("Test Game", romPath, GameAspectRatioMode.Native, new Dictionary<int, Dictionary<NesButton, Key>>
-        {
-            [0] = new Dictionary<NesButton, Key>
-            {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X,
-                [NesButton.Start] = Key.Enter,
-                [NesButton.Select] = Key.RightShift,
-                [NesButton.Up] = Key.Up,
-                [NesButton.Down] = Key.Down,
-                [NesButton.Left] = Key.Left,
-                [NesButton.Right] = Key.Right,
-            },
-            [1] = new Dictionary<NesButton, Key>
-            {
-                [NesButton.A] = Key.U,
-                [NesButton.B] = Key.O,
-                [NesButton.Start] = Key.RightCtrl,
-                [NesButton.Select] = Key.Space,
-                [NesButton.Up] = Key.I,
-                [NesButton.Down] = Key.K,
-                [NesButton.Left] = Key.J,
-                [NesButton.Right] = Key.L,
-            }
-        }, upscaleMode: upscaleMode);
+        => new(
+            "Test Game",
+            romPath,
+            GameAspectRatioMode.Native,
+            NesInputTestAdapter.BuildBindingsByPort(
+                new Dictionary<int, Dictionary<NesButton, Key>>
+                {
+                    [0] = new Dictionary<NesButton, Key>
+                    {
+                        [NesButton.A] = Key.Z,
+                        [NesButton.B] = Key.X,
+                        [NesButton.Start] = Key.Enter,
+                        [NesButton.Select] = Key.RightShift,
+                        [NesButton.Up] = Key.Up,
+                        [NesButton.Down] = Key.Down,
+                        [NesButton.Left] = Key.Left,
+                        [NesButton.Right] = Key.Right,
+                    },
+                    [1] = new Dictionary<NesButton, Key>
+                    {
+                        [NesButton.A] = Key.U,
+                        [NesButton.B] = Key.O,
+                        [NesButton.Start] = Key.RightCtrl,
+                        [NesButton.Select] = Key.Space,
+                        [NesButton.Up] = Key.I,
+                        [NesButton.Down] = Key.K,
+                        [NesButton.Left] = Key.J,
+                        [NesButton.Right] = Key.L,
+                    }
+                }),
+            upscaleMode: upscaleMode);
 
     private static void InvokeLoadRom(GameWindowViewModel vm, string romPath)
     {

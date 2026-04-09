@@ -59,7 +59,7 @@ public sealed class GameWindowSessionRuntimeControllerTests
 
         var debugSurface = new FakeDebugSurface
         {
-            State = new CoreDebugState { PC = 0x8000 }
+            State = new CoreDebugState { InstructionPointer = 0x8000, InstructionPointerLabel = "PC" }
         };
         debugSurface.SeedRange(expectedMemoryStart, DebugViewModel.MemoryPageSize, 0x10);
         debugSurface.SeedRange(expectedStackStart, DebugViewModel.StackPageSize, 0x20);
@@ -88,7 +88,7 @@ public sealed class GameWindowSessionRuntimeControllerTests
         Assert.Equal((byte)0x20, snapshot.StackPage[0]);
         Assert.Equal((byte)0x30, snapshot.ZeroPage[0]);
         Assert.Equal((byte)0x40, snapshot.Disasm[0]);
-        Assert.Equal((ushort)0x8000, snapshot.State.PC);
+        Assert.Equal((ushort)0x8000, snapshot.State.InstructionPointer);
     }
 
     [Fact]

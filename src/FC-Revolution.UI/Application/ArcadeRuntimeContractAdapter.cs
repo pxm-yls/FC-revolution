@@ -12,7 +12,6 @@ using FCRevolution.Contracts.RemoteControl;
 using FCRevolution.Contracts.Roms;
 using FCRevolution.Contracts.Sessions;
 using FCRevolution.Core;
-using FCRevolution.Core.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Models;
 
@@ -33,7 +32,7 @@ public sealed class ArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
 
     public ArcadeRuntimeContractAdapter(
         IReadOnlyList<RomLibraryItem> romLibrary,
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverridesByPortAction,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
         Func<GameAspectRatioMode> getAspectRatioMode,
@@ -51,7 +50,7 @@ public sealed class ArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
         _sessionRemoteControlService = new SessionRemoteControlService(gameSessionService, reportStatus);
         _sessionLifecycleService = new SessionLifecycleService(
             romLibrary,
-            romInputOverrides,
+            romInputOverridesByPortAction,
             globalInputBindings,
             gameSessionService,
             getAspectRatioMode,
@@ -131,14 +130,6 @@ public sealed class ArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
     {
         Dispatcher.UIThread.Post(() => _sessionRemoteControlService.RefreshHeartbeat(sessionId, request));
         return Task.CompletedTask;
-    }
-
-    public async Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default)
-    {
-        if (RemoteControlRequestCompatibility.TryBuildGenericInputRequest(request, "arcade-adapter", out var genericRequest))
-            return await SetInputStateAsync(sessionId, genericRequest, cancellationToken);
-
-        return await Dispatcher.UIThread.InvokeAsync(() => _sessionRemoteControlService.SetButtonState(sessionId, request));
     }
 
     public async Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default)

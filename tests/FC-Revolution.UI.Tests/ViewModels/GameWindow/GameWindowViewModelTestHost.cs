@@ -102,10 +102,11 @@ internal sealed class GameWindowViewModelTestHost : IDisposable
                 [NesButton.Right] = Key.L,
             }
         };
+        var inputBindingsByPort = NesInputTestAdapter.BuildBindingsByPort(inputMaps);
 
         return coreSession == null
-            ? new GameWindowViewModel("Test Game", romPath, GameAspectRatioMode.Native, inputMaps, extraInputBindings)
-            : new GameWindowViewModel("Test Game", romPath, GameAspectRatioMode.Native, inputMaps, coreSession, extraInputBindings);
+            ? new GameWindowViewModel("Test Game", romPath, GameAspectRatioMode.Native, inputBindingsByPort, extraInputBindings)
+            : new GameWindowViewModel("Test Game", romPath, GameAspectRatioMode.Native, inputBindingsByPort, coreSession, extraInputBindings);
     }
 
     private static string CreateTestRomFile()

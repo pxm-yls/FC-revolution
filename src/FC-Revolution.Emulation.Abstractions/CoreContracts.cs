@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using FCRevolution.Core.PPU;
 
 namespace FCRevolution.Emulation.Abstractions;
 
@@ -21,7 +20,7 @@ public static class CoreCapabilityIds
     public const string DebugMemory = "debug-memory";
     public const string DebugRegisters = "debug-registers";
     public const string Disassembly = "disassembly";
-    public const string SystemNesRenderState = "system-nes-render-state";
+    public const string LayeredFrame = "layered-frame";
 }
 
 public sealed record CoreManifest(
@@ -182,11 +181,6 @@ public interface ICoreDebugSurface
 public interface ICoreInputStateWriter
 {
     void SetInputState(string portId, string actionId, float value);
-}
-
-public interface INesRenderStateProvider
-{
-    PpuRenderStateSnapshot CaptureRenderStateSnapshot();
 }
 
 public interface ITimeTravelService

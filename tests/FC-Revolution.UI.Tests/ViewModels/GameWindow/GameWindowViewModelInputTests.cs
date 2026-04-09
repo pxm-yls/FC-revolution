@@ -5,6 +5,7 @@ using FCRevolution.Core.PPU;
 using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.Rendering.Abstractions;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.Tests;
@@ -158,14 +159,14 @@ public sealed class GameWindowViewModelInputTests
         Assert.Contains("remote-client (127.0.0.1)", vm.RemoteControlStatusText);
         Assert.Equal("1P 已切换为 127.0.0.1 网页控制", vm.TransientMessage);
 
-        var remoteApplied = vm.SetRemoteButtonState(0, NesButton.B, true, "127.0.0.1", "remote-client");
+        var remoteApplied = vm.SetRemoteInputState("p1", NesInputTestAdapter.ActionId(NesButton.B), 1f, "127.0.0.1", "remote-client");
         Assert.True(remoteApplied);
         Assert.Equal((byte)NesButton.B, host.ReadCombinedInputMask(0));
 
         vm.OnKeyDown(Key.X);
         Assert.Equal((byte)NesButton.B, host.ReadCombinedInputMask(0));
 
-        var remoteReleasedButton = vm.SetRemoteButtonState(0, NesButton.B, false, "127.0.0.1", "remote-client");
+        var remoteReleasedButton = vm.SetRemoteInputState("p1", NesInputTestAdapter.ActionId(NesButton.B), 0f, "127.0.0.1", "remote-client");
         Assert.True(remoteReleasedButton);
         Assert.Equal(0, host.ReadCombinedInputMask(0));
 
@@ -264,7 +265,7 @@ public sealed class GameWindowViewModelInputTests
             CoreCapabilityIds.TimeTravel,
             CoreCapabilityIds.DebugMemory,
             CoreCapabilityIds.InputState,
-            CoreCapabilityIds.SystemNesRenderState);
+            CoreCapabilityIds.LayeredFrame);
 
         public IInputSchema InputSchema { get; }
 
@@ -305,7 +306,7 @@ public sealed class GameWindowViewModelInputTests
                 var type when type == typeof(ITimeTravelService) => _timeTravelService,
                 var type when type == typeof(ICoreDebugSurface) => _debugSurface,
                 var type when type == typeof(ICoreInputStateWriter) => InputWriter,
-                var type when type == typeof(INesRenderStateProvider) => _renderStateProvider,
+                var type when type == typeof(ILayeredFrameProvider) => _renderStateProvider,
                 _ => null
             };
 
@@ -388,31 +389,24 @@ public sealed class GameWindowViewModelInputTests
         }
     }
 
-    private sealed class FakeRenderStateProvider : INesRenderStateProvider
+    private sealed class FakeRenderStateProvider : ILayeredFrameProvider
     {
-        public PpuRenderStateSnapshot CaptureRenderStateSnapshot() =>
-            new()
-            {
-                NametableBytes = new byte[0x1000],
-                PatternTableBytes = new byte[0x2000],
-                PaletteColors = new uint[32],
-                OamBytes = new byte[256],
-                MirroringMode = MirroringMode.Horizontal,
-                FineScrollX = 0,
-                FineScrollY = 0,
-                CoarseScrollX = 0,
-                CoarseScrollY = 0,
-                NametableSelect = 0,
-                UseBackgroundPatternTableHighBank = false,
-                UseSpritePatternTableHighBank = false,
-                Use8x16Sprites = false,
-                ShowBackground = true,
-                ShowSprites = true,
-                ShowBackgroundLeft8 = true,
-                ShowSpritesLeft8 = true,
-                HasCapturedBackgroundScanlineStates = false,
-                BackgroundScanlineStates = []
-            };
+        public LayeredFrameData CaptureLayeredFrame() =>
+            new(
+                256,
+                240,
+                [],
+                new uint[32],
+                [],
+                [],
+                showBackground: true,
+                showSprites: true,
+                showBackgroundLeft8: true,
+                showSpritesLeft8: true);
+
+        public void ResetTemporalHistory()
+        {
+        }
     }
 
     private sealed class FakeInputSchema(IReadOnlyList<InputActionDescriptor> actions) : IInputSchema

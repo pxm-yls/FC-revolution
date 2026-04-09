@@ -10,7 +10,7 @@ namespace FC_Revolution.UI.Tests;
 public sealed class EmbeddedBackendRuntimeBridgeTests
 {
     [Fact]
-    public async Task SetButtonStateAsync_WithActionId_DelegatesToGenericInputPath()
+    public async Task SetInputStateAsync_DelegatesToAdapter()
     {
         var adapter = new RecordingArcadeRuntimeContractAdapter
         {
@@ -19,9 +19,12 @@ public sealed class EmbeddedBackendRuntimeBridgeTests
         var bridge = new EmbeddedBackendRuntimeBridge(adapter);
         var sessionId = Guid.NewGuid();
 
-        var changed = await bridge.SetButtonStateAsync(
+        var changed = await bridge.SetInputStateAsync(
             sessionId,
-            new ButtonStateRequest(Player: 1, Pressed: true, PortId: "p2", ActionId: "x"));
+            new SetInputStateRequest(
+            [
+                new InputActionValueDto("p2", "gamepad", "x", 1f)
+            ]));
 
         Assert.True(changed);
         var inputCall = Assert.Single(adapter.InputCalls);
@@ -30,38 +33,11 @@ public sealed class EmbeddedBackendRuntimeBridgeTests
         Assert.Equal("p2", action.PortId);
         Assert.Equal("x", action.ActionId);
         Assert.Equal(1f, action.Value);
-        Assert.Empty(adapter.ButtonCalls);
-    }
-
-    [Fact]
-    public async Task SetButtonStateAsync_WithLegacyButton_FallsBackToLegacyPath()
-    {
-        var adapter = new RecordingArcadeRuntimeContractAdapter
-        {
-            SetButtonStateResult = true
-        };
-        var bridge = new EmbeddedBackendRuntimeBridge(adapter);
-        var sessionId = Guid.NewGuid();
-
-        var changed = await bridge.SetButtonStateAsync(
-            sessionId,
-            new ButtonStateRequest(Player: 0, Button: NesButtonDto.B, Pressed: true));
-
-        Assert.True(changed);
-        var buttonCall = Assert.Single(adapter.ButtonCalls);
-        Assert.Equal(sessionId, buttonCall.SessionId);
-        Assert.Equal(NesButtonDto.B, buttonCall.Request.Button);
-        Assert.True(buttonCall.Request.Pressed);
-        Assert.Empty(adapter.InputCalls);
     }
 
     private sealed class RecordingArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
     {
-        public bool SetButtonStateResult { get; set; }
-
         public bool SetInputStateResult { get; set; }
-
-        public List<(Guid SessionId, ButtonStateRequest Request)> ButtonCalls { get; } = [];
 
         public List<(Guid SessionId, SetInputStateRequest Request)> InputCalls { get; } = [];
 
@@ -95,12 +71,6 @@ public sealed class EmbeddedBackendRuntimeBridgeTests
 
         public Task RefreshHeartbeatAsync(Guid sessionId, RefreshHeartbeatRequest request, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
-
-        public Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default)
-        {
-            ButtonCalls.Add((sessionId, request));
-            return Task.FromResult(SetButtonStateResult);
-        }
 
         public Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default)
         {

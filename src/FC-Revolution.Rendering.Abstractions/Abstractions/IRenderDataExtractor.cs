@@ -1,12 +1,10 @@
-using FCRevolution.Core.PPU;
-
 namespace FCRevolution.Rendering.Abstractions;
 
 public interface IRenderDataExtractor
 {
     FrameMetadata Extract(
-        PpuRenderStateSnapshot snapshot,
+        RenderStateSnapshot snapshot,
         IFrameMetadata? previousFrame = null,
-        int screenWidth = FCRevolution.Core.NesConstants.ScreenWidth,
-        int screenHeight = FCRevolution.Core.NesConstants.ScreenHeight);
+        int screenWidth = 256,
+        int screenHeight = 240);
 }

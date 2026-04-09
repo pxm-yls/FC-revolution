@@ -3,6 +3,7 @@ using FCRevolution.Core.Mappers;
 using FCRevolution.Core.PPU;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Common;
+using CoreMirroringMode = FCRevolution.Core.Mappers.MirroringMode;
 
 namespace FC_Revolution.Rendering.Tests;
 
@@ -12,7 +13,7 @@ public sealed class RenderDataExtractorTests
     public void Extract_BatchWithPreviousFrame_RemainsStable_AndWithinAllocationBudget()
     {
         var ppu = new Ppu2C02();
-        var cartridge = new TestCartridge(MirroringMode.Vertical);
+        var cartridge = new TestCartridge(CoreMirroringMode.Vertical);
         cartridge.PatternTable[0x0123] = 0xAB;
         cartridge.PatternTable[0x1FFE] = 0xCD;
         ppu.InsertCartridge(cartridge);
@@ -43,8 +44,8 @@ public sealed class RenderDataExtractorTests
         var extractor = new RenderDataExtractor();
 
         // Warm-up to reduce one-time runtime noise in allocation sampling.
-        _ = extractor.Extract(ppu.CaptureRenderStateSnapshot(), previousFrame: previous);
-        FrameMetadata baseline = extractor.Extract(ppu.CaptureRenderStateSnapshot(), previousFrame: previous);
+        _ = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), previousFrame: previous);
+        FrameMetadata baseline = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), previousFrame: previous);
 
         const int iterations = 200;
         const long allocationCeilingBytes = 40 * 1024 * 1024;
@@ -52,7 +53,7 @@ public sealed class RenderDataExtractorTests
         long beforeBytes = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < iterations; i++)
         {
-            FrameMetadata current = extractor.Extract(ppu.CaptureRenderStateSnapshot(), previousFrame: previous);
+            FrameMetadata current = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), previousFrame: previous);
             AssertMetadataEquivalent(baseline, current);
         }
         long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - beforeBytes;
@@ -66,7 +67,7 @@ public sealed class RenderDataExtractorTests
     public void Extract_CapturesScrollVisibleTilesAndSprites()
     {
         var ppu = new Ppu2C02();
-        var cartridge = new TestCartridge(MirroringMode.Vertical);
+        var cartridge = new TestCartridge(CoreMirroringMode.Vertical);
         cartridge.PatternTable[0x0123] = 0xAB;
         ppu.InsertCartridge(cartridge);
         ppu.Vram[4] = 0x44;
@@ -80,12 +81,12 @@ public sealed class RenderDataExtractorTests
         SetScrollState(ppu, fineX: 1, fineY: 0, coarseX: 4, coarseY: 0, nametableSelect: 0);
 
         var extractor = new RenderDataExtractor();
-        FrameMetadata metadata = extractor.Extract(ppu.CaptureRenderStateSnapshot(), screenWidth: 16, screenHeight: 8);
+        FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), screenWidth: 16, screenHeight: 8);
 
         Assert.Equal(1, metadata.FineScrollX);
         Assert.Equal(4, metadata.CoarseScrollX);
         Assert.Equal(0, metadata.NametableSelect);
-        Assert.Equal(MirroringMode.Vertical, metadata.MirrorMode);
+        Assert.Equal(FrameMirroringMode.Vertical, metadata.MirrorMode);
         Assert.Equal(64, metadata.Sprites.Length);
         Assert.Equal((byte)20, metadata.Sprites[0].Y);
         Assert.Equal((byte)7, metadata.Sprites[0].TileId);
@@ -103,7 +104,7 @@ public sealed class RenderDataExtractorTests
     public void Extract_GeneratesMotionVectors_FromPreviousFrame()
     {
         var ppu = new Ppu2C02();
-        ppu.InsertCartridge(new TestCartridge(MirroringMode.Horizontal));
+        ppu.InsertCartridge(new TestCartridge(CoreMirroringMode.Horizontal));
         ppu.Oam[0] = 11;
         ppu.Oam[1] = 5;
         ppu.Oam[2] = 0;
@@ -122,7 +123,7 @@ public sealed class RenderDataExtractorTests
             nametableSelect: 0);
 
         var extractor = new RenderDataExtractor();
-        FrameMetadata metadata = extractor.Extract(ppu.CaptureRenderStateSnapshot(), previousFrame: previous);
+        FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), previousFrame: previous);
 
         Assert.Equal(64, metadata.MotionVectors.Length);
         Assert.Equal(new System.Numerics.Vector2(-12f, -7f), metadata.BackgroundMotionVector);
@@ -133,7 +134,7 @@ public sealed class RenderDataExtractorTests
     public void Extract_ScalesMotionVectors_ForCurrentRenderResolution()
     {
         var ppu = new Ppu2C02();
-        ppu.InsertCartridge(new TestCartridge(MirroringMode.Horizontal));
+        ppu.InsertCartridge(new TestCartridge(CoreMirroringMode.Horizontal));
         ppu.Oam[0] = 11;
         ppu.Oam[1] = 5;
         ppu.Oam[2] = 0;
@@ -153,7 +154,7 @@ public sealed class RenderDataExtractorTests
 
         var extractor = new RenderDataExtractor();
         FrameMetadata metadata = extractor.Extract(
-            ppu.CaptureRenderStateSnapshot(),
+            RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()),
             previousFrame: previous,
             screenWidth: 512,
             screenHeight: 120);
@@ -226,7 +227,7 @@ public sealed class RenderDataExtractorTests
 
     private sealed class TestCartridge : ICartridge
     {
-        public TestCartridge(MirroringMode mirroring)
+        public TestCartridge(CoreMirroringMode mirroring)
         {
             Mirroring = mirroring;
         }
@@ -235,7 +236,7 @@ public sealed class RenderDataExtractorTests
 
         public int MapperNumber => 0;
 
-        public MirroringMode Mirroring { get; }
+        public CoreMirroringMode Mirroring { get; }
 
         public bool IrqActive => false;
 

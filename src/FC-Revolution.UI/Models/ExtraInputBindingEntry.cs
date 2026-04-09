@@ -5,19 +5,19 @@ using System.Linq;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FCRevolution.Core.Input;
+using FC_Revolution.UI.Adapters.Nes;
 
 namespace FC_Revolution.UI.Models;
 
 public sealed class ExtraInputButtonOption
 {
-    public ExtraInputButtonOption(NesButton button, string label)
+    public ExtraInputButtonOption(string actionId, string label)
     {
-        Button = button;
+        ActionId = actionId;
         Label = label;
     }
 
-    public NesButton Button { get; }
+    public string ActionId { get; }
 
     public string Label { get; }
 
@@ -63,16 +63,9 @@ public sealed partial class ExtraInputButtonPickerItem : ObservableObject
 public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptureBinding
 {
     private static readonly IReadOnlyList<ExtraInputButtonOption> SharedButtonOptions =
-    [
-        new(NesButton.A, "A"),
-        new(NesButton.B, "B"),
-        new(NesButton.Select, "Select"),
-        new(NesButton.Start, "Start"),
-        new(NesButton.Up, "Up"),
-        new(NesButton.Down, "Down"),
-        new(NesButton.Left, "Left"),
-        new(NesButton.Right, "Right")
-    ];
+        NesInputAdapter.GetControllerActions()
+            .Select(action => new ExtraInputButtonOption(action.ActionId, action.DisplayName))
+            .ToArray();
 
     // 连发键使用的单个 FC 按钮
     [ObservableProperty]
@@ -183,11 +176,11 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         return true;
     }
 
-    public IReadOnlyList<NesButton> GetButtons()
+    public IReadOnlyList<string> GetActionIds()
     {
         return Kind == ExtraInputBindingKind.Turbo
-            ? [PrimaryButtonOption.Button]
-            : _comboButtonList.Select(o => o.Button).ToList();
+            ? [PrimaryButtonOption.ActionId]
+            : _comboButtonList.Select(o => o.ActionId).ToList();
     }
 
     /// <summary>打开组合键的按钮选择器。</summary>
@@ -199,7 +192,7 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
 
     private void RemoveComboButtonByOption(ExtraInputButtonOption option)
     {
-        _comboButtonList.RemoveAll(item => item.Button == option.Button);
+        _comboButtonList.RemoveAll(item => string.Equals(item.ActionId, option.ActionId, StringComparison.OrdinalIgnoreCase));
         RebuildComboChips();
         SyncButtonPickerSelection();
         OnPropertyChanged(nameof(SummaryText));
@@ -244,7 +237,8 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
             return;
         }
 
-        var existingIndex = _comboButtonList.FindIndex(item => item.Button == option.Button);
+        var existingIndex = _comboButtonList.FindIndex(item =>
+            string.Equals(item.ActionId, option.ActionId, StringComparison.OrdinalIgnoreCase));
         if (existingIndex >= 0)
             _comboButtonList.RemoveAt(existingIndex);
         else
@@ -264,8 +258,8 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     private bool IsOptionSelected(ExtraInputButtonOption option)
     {
         return Kind == ExtraInputBindingKind.Turbo
-            ? option.Button == PrimaryButtonOption.Button
-            : _comboButtonList.Any(item => item.Button == option.Button);
+            ? string.Equals(option.ActionId, PrimaryButtonOption.ActionId, StringComparison.OrdinalIgnoreCase)
+            : _comboButtonList.Any(item => string.Equals(item.ActionId, option.ActionId, StringComparison.OrdinalIgnoreCase));
     }
 
     public ExtraInputBindingProfile ToProfile() => new()
@@ -273,7 +267,7 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         Player = Player,
         Kind = Kind.ToString(),
         Key = SelectedKey.ToString(),
-        Buttons = GetButtons().Select(button => button.ToString()).ToList(),
+        Buttons = GetActionIds().ToList(),
         TurboHz = TurboHz
     };
 
@@ -334,10 +328,11 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
 
     private static ExtraInputButtonOption? ParseButton(string? value)
     {
-        if (!Enum.TryParse<NesButton>(value, out var parsedButton))
+        if (string.IsNullOrWhiteSpace(value))
             return null;
 
-        return SharedButtonOptions.FirstOrDefault(option => option.Button == parsedButton);
+        return SharedButtonOptions.FirstOrDefault(option =>
+            string.Equals(option.ActionId, value.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static string FormatKey(Key key) => key switch

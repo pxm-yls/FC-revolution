@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -126,7 +126,7 @@ internal sealed class MainWindowInputBindingsController
 
     public void EnsureRomInputOverrideForEditing(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings)
@@ -140,7 +140,7 @@ internal sealed class MainWindowInputBindingsController
 
     public void LoadRomProfileInputOverride(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
         var profile = RomConfigProfile.Load(romPath);
@@ -154,7 +154,7 @@ internal sealed class MainWindowInputBindingsController
 
     public void SaveRomProfileInputOverride(
         string romPath,
-        Dictionary<int, Dictionary<NesButton, Key>>? inputOverride,
+        Dictionary<int, Dictionary<string, Key>>? inputOverride,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
         var profile = RomConfigProfile.Load(romPath);
@@ -187,12 +187,12 @@ internal sealed class MainWindowInputBindingsController
 
     public GlobalInputBindingViewState BuildGlobalInputBindingViewState(
         SystemConfigProfile? profile,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
     {
         var playerOverrides = profile == null
-            ? new Dictionary<int, Dictionary<NesButton, Key>>()
+            ? new Dictionary<int, Dictionary<string, Key>>()
             : BuildPlayerInputMaps(profile);
         var inputBindings = BuildInputBindingEntries(
             playerOverrides,
@@ -207,11 +207,11 @@ internal sealed class MainWindowInputBindingsController
 
     public RomInputBindingViewState BuildRomInputBindingViewState(
         string? currentRomPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
     {
@@ -225,7 +225,7 @@ internal sealed class MainWindowInputBindingsController
             var clonedGlobalInputs = globalInputBindings
                 .Select(entry =>
                 {
-                    var cloned = new InputBindingEntry(entry.Player, entry.ActionName, entry.Button, entry.SelectedKey, configurableKeys);
+                    var cloned = new InputBindingEntry(entry.Player, entry.ActionId, entry.ActionName, entry.SelectedKey, configurableKeys);
                     cloned.ApplyLayout(inputBindingLayout);
                     return cloned;
                 })
@@ -235,7 +235,7 @@ internal sealed class MainWindowInputBindingsController
         }
 
         var romInputs = BuildInputBindingEntries(
-            overrideMap ?? new Dictionary<int, Dictionary<NesButton, Key>>(),
+            overrideMap ?? new Dictionary<int, Dictionary<string, Key>>(),
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);
@@ -245,24 +245,25 @@ internal sealed class MainWindowInputBindingsController
         return new RomInputBindingViewState(true, romInputs, romExtra);
     }
 
-    public Dictionary<int, Dictionary<NesButton, Key>> GetEffectivePlayerInputMaps(
+    public Dictionary<int, Dictionary<string, Key>> GetEffectivePlayerInputMaps(
         string? romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps)
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps)
     {
         var source = romPath != null && romInputOverrides.TryGetValue(romPath, out var overrideMap)
             ? overrideMap
             : BuildPlayerInputMaps(globalInputBindings);
 
-        var result = new Dictionary<int, Dictionary<NesButton, Key>>();
+        var result = new Dictionary<int, Dictionary<string, Key>>();
         foreach (var player in GetSupportedPlayers())
         {
             var playerDefaults = defaultKeyMaps[player];
             var playerMap = source.TryGetValue(player, out var map) ? map : BuildInputMap(globalInputBindings, player);
             result[player] = playerDefaults.ToDictionary(
                 pair => pair.Key,
-                pair => playerMap.TryGetValue(pair.Key, out var key) ? key : pair.Value);
+                pair => playerMap.TryGetValue(pair.Key, out var key) ? key : pair.Value,
+                StringComparer.OrdinalIgnoreCase);
         }
 
         return result;
@@ -280,9 +281,9 @@ internal sealed class MainWindowInputBindingsController
         return source.Select(CloneExtraInputBindingProfile).ToList();
     }
 
-    public Dictionary<int, Dictionary<NesButton, Key>> BuildPlayerInputMaps(IEnumerable<InputBindingEntry> entries)
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(IEnumerable<InputBindingEntry> entries)
     {
-        var maps = new Dictionary<int, Dictionary<NesButton, Key>>();
+        var maps = new Dictionary<int, Dictionary<string, Key>>();
         foreach (var player in GetSupportedPlayers())
             maps[player] = BuildInputMap(entries, player);
 
@@ -292,22 +293,22 @@ internal sealed class MainWindowInputBindingsController
     public List<ExtraInputBindingProfile> BuildExtraInputBindingProfiles(IEnumerable<ExtraInputBindingEntry> entries) =>
         entries.Select(entry => entry.ToProfile()).ToList();
 
-    public Dictionary<int, Dictionary<NesButton, Key>> BuildPlayerInputMaps(SystemConfigProfile profile)
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(SystemConfigProfile profile)
     {
-        var maps = new Dictionary<int, Dictionary<NesButton, Key>>();
+        var maps = new Dictionary<int, Dictionary<string, Key>>();
 
         foreach (var player in GetSupportedPlayers())
         {
             if (!profile.PlayerInputOverrides.TryGetValue(GetPlayerOverrideKey(player), out var playerMap))
                 continue;
 
-            var map = new Dictionary<NesButton, Key>();
+            var map = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in playerMap)
             {
-                if (Enum.TryParse<NesButton>(pair.Key, out var button) &&
+                if (NesInputAdapter.IsControllerAction(pair.Key) &&
                     Enum.TryParse<Key>(pair.Value, out var key))
                 {
-                    map[button] = key;
+                    map[pair.Key] = key;
                 }
             }
 
@@ -318,22 +319,22 @@ internal sealed class MainWindowInputBindingsController
         return maps;
     }
 
-    public Dictionary<int, Dictionary<NesButton, Key>> BuildPlayerInputMaps(RomConfigProfile profile)
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(RomConfigProfile profile)
     {
-        var maps = new Dictionary<int, Dictionary<NesButton, Key>>();
+        var maps = new Dictionary<int, Dictionary<string, Key>>();
 
         foreach (var player in GetSupportedPlayers())
         {
             if (!profile.PlayerInputOverrides.TryGetValue(GetPlayerOverrideKey(player), out var playerMap))
                 continue;
 
-            var map = new Dictionary<NesButton, Key>();
+            var map = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in playerMap)
             {
-                if (Enum.TryParse<NesButton>(pair.Key, out var button) &&
+                if (NesInputAdapter.IsControllerAction(pair.Key) &&
                     Enum.TryParse<Key>(pair.Value, out var key))
                 {
-                    map[button] = key;
+                    map[pair.Key] = key;
                 }
             }
 
@@ -370,8 +371,8 @@ internal sealed class MainWindowInputBindingsController
     private static IReadOnlyList<int> GetSupportedPlayers() => [0, 1];
 
     private static List<InputBindingEntry> BuildInputBindingEntries(
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> playerOverrides,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, Dictionary<string, Key>> playerOverrides,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
     {
@@ -379,12 +380,12 @@ internal sealed class MainWindowInputBindingsController
         foreach (var player in GetSupportedPlayers())
         {
             var playerMap = playerOverrides.TryGetValue(player, out var map) ? map : null;
-            foreach (var button in defaultKeyMaps[player].Keys)
+            foreach (var actionId in defaultKeyMaps[player].Keys)
             {
-                var selectedKey = playerMap != null && playerMap.TryGetValue(button, out var key)
+                var selectedKey = playerMap != null && playerMap.TryGetValue(actionId, out var key)
                     ? key
-                    : defaultKeyMaps[player][button];
-                var entry = new InputBindingEntry(player, GetButtonDisplayName(button), button, selectedKey, configurableKeys);
+                    : defaultKeyMaps[player][actionId];
+                var entry = new InputBindingEntry(player, actionId, GetActionDisplayName(actionId), selectedKey, configurableKeys);
                 entry.ApplyLayout(inputBindingLayout);
                 inputBindings.Add(entry);
             }
@@ -398,22 +399,18 @@ internal sealed class MainWindowInputBindingsController
         IReadOnlyList<Key> configurableKeys) =>
         profiles.Select(profile => ExtraInputBindingEntry.FromProfile(profile, configurableKeys)).ToList();
 
-    private static Dictionary<NesButton, Key> BuildInputMap(IEnumerable<InputBindingEntry> entries, int player) =>
-        entries.Where(entry => entry.Player == player).ToDictionary(entry => entry.Button, entry => entry.SelectedKey);
+    private static Dictionary<string, Key> BuildInputMap(IEnumerable<InputBindingEntry> entries, int player) =>
+        entries.Where(entry => entry.Player == player).ToDictionary(entry => entry.ActionId, entry => entry.SelectedKey, StringComparer.OrdinalIgnoreCase);
 
     private static Dictionary<string, Dictionary<string, string>> BuildPlayerInputOverrideProfiles(
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> playerInputMaps) =>
+        IReadOnlyDictionary<int, Dictionary<string, Key>> playerInputMaps) =>
         playerInputMaps.ToDictionary(
             pair => GetPlayerOverrideKey(pair.Key),
-            pair => pair.Value.ToDictionary(button => button.Key.ToString(), button => button.Value.ToString()),
+            pair => pair.Value.ToDictionary(button => button.Key, button => button.Value.ToString(), StringComparer.OrdinalIgnoreCase),
             StringComparer.Ordinal);
 
     private static string GetPlayerOverrideKey(int player) => player == 0 ? "Player1" : "Player2";
 
-    private static string GetButtonDisplayName(NesButton button) => button switch
-    {
-        NesButton.Select => "Select",
-        NesButton.Start => "Start",
-        _ => button.ToString()
-    };
+    private static string GetActionDisplayName(string actionId) =>
+        NesInputAdapter.TryGetDisplayName(actionId, out var displayName) ? displayName : actionId;
 }

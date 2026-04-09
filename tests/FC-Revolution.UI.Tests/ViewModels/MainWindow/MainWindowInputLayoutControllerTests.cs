@@ -24,7 +24,7 @@ public sealed class MainWindowInputLayoutControllerTests
 
         controller.MoveInputBindingLayoutSlot(
             layout,
-            NesButton.A,
+            NesInputTestAdapter.ActionId(NesButton.A),
             deltaX: 20,
             deltaY: 20,
             globalEntries,
@@ -111,5 +111,10 @@ public sealed class MainWindowInputLayoutControllerTests
     }
 
     private static InputBindingEntry CreateInputBinding(NesButton button) =>
-        new(player: 0, actionName: button.ToString(), button, Key.Z, ConfigurableKeys);
+        new(
+            player: 0,
+            actionId: NesInputTestAdapter.ActionId(button),
+            actionName: button.ToString(),
+            selectedKey: Key.Z,
+            availableKeys: ConfigurableKeys);
 }

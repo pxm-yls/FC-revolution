@@ -25,7 +25,7 @@ public sealed class MainWindowInputStateControllerTests
         Assert.Equal(1, binding.Player);
         Assert.Equal(Key.Q, binding.Key);
         Assert.Equal(ExtraInputBindingKind.Turbo, binding.Kind);
-        Assert.Equal([NesButton.A, NesButton.B], binding.Buttons);
+        Assert.Equal(NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B), binding.ActionIds);
     }
 
     [Fact]
@@ -56,15 +56,15 @@ public sealed class MainWindowInputStateControllerTests
     public void BuildEffectiveHandledKeys_MergesKeyMapAndExtraBindingKeys()
     {
         var controller = new MainWindowInputStateController();
-        var effectiveKeyMap = new Dictionary<Key, (int Player, NesButton Button)>
+        var effectiveKeyMap = new Dictionary<Key, (int Player, string ActionId)>
         {
-            [Key.Z] = (0, NesButton.A),
-            [Key.X] = (0, NesButton.B)
+            [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A)),
+            [Key.X] = (0, NesInputTestAdapter.ActionId(NesButton.B))
         };
         var extraBindings = new List<ResolvedExtraInputBinding>
         {
-            new(0, Key.Q, ExtraInputBindingKind.Turbo, [NesButton.A]),
-            new(1, Key.Z, ExtraInputBindingKind.Combo, [NesButton.Select])
+            new(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A)),
+            new(1, Key.Z, ExtraInputBindingKind.Combo, NesInputTestAdapter.ActionIds(NesButton.Select))
         };
 
         var keys = controller.BuildEffectiveHandledKeys(effectiveKeyMap, extraBindings);
@@ -80,15 +80,15 @@ public sealed class MainWindowInputStateControllerTests
     {
         var controller = new MainWindowInputStateController();
         var pressedKeys = new HashSet<Key> { Key.Z, Key.Q, Key.W };
-        var effectiveKeyMap = new Dictionary<Key, (int Player, NesButton Button)>
+        var effectiveKeyMap = new Dictionary<Key, (int Player, string ActionId)>
         {
-            [Key.Z] = (0, NesButton.A),
-            [Key.I] = (1, NesButton.B)
+            [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A)),
+            [Key.I] = (1, NesInputTestAdapter.ActionId(NesButton.B))
         };
         var extraBindings = new List<ResolvedExtraInputBinding>
         {
-            new(0, Key.Q, ExtraInputBindingKind.Turbo, [NesButton.B]),
-            new(1, Key.W, ExtraInputBindingKind.Combo, [NesButton.Select, NesButton.Start])
+            new(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.B)),
+            new(1, Key.W, ExtraInputBindingKind.Combo, NesInputTestAdapter.ActionIds(NesButton.Select, NesButton.Start))
         };
 
         var withoutTurboPulse = controller.BuildDesiredMasks(
@@ -116,11 +116,11 @@ public sealed class MainWindowInputStateControllerTests
         var transitions = controller.BuildMaskTransitions(
             desiredMask: (byte)((byte)NesButton.A | (byte)NesButton.Start),
             currentMask: (byte)((byte)NesButton.A | (byte)NesButton.Select),
-            controllerButtons: [NesButton.A, NesButton.B, NesButton.Select, NesButton.Start]);
+            controllerActionIds: NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B, NesButton.Select, NesButton.Start));
 
         Assert.Equal(2, transitions.Count);
-        Assert.Contains(transitions, t => t.Button == NesButton.Select && !t.DesiredPressed);
-        Assert.Contains(transitions, t => t.Button == NesButton.Start && t.DesiredPressed);
+        Assert.Contains(transitions, t => t.ActionId == NesInputTestAdapter.ActionId(NesButton.Select) && !t.DesiredPressed);
+        Assert.Contains(transitions, t => t.ActionId == NesInputTestAdapter.ActionId(NesButton.Start) && t.DesiredPressed);
     }
 
     [Fact]
@@ -129,11 +129,11 @@ public sealed class MainWindowInputStateControllerTests
         var controller = new MainWindowInputStateController();
         var noTurboBindings = new List<ResolvedExtraInputBinding>
         {
-            new(0, Key.W, ExtraInputBindingKind.Combo, [NesButton.A])
+            new(0, Key.W, ExtraInputBindingKind.Combo, NesInputTestAdapter.ActionIds(NesButton.A))
         };
         var activeTurboBindings = new List<ResolvedExtraInputBinding>
         {
-            new(0, Key.Q, ExtraInputBindingKind.Turbo, [NesButton.A])
+            new(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))
         };
 
         var noTurboInactive = controller.BuildTurboPulseDecision(

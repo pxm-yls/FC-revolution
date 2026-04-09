@@ -4,8 +4,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -340,10 +340,10 @@ public partial class MainWindowViewModel
             enabled => IsRomInputOverrideEnabled = enabled,
             () => OnPropertyChanged(nameof(RomInputOverrideSummary)));
 
-    public void MoveInputBindingLayoutSlot(NesButton button, double deltaX, double deltaY)
+    public void MoveInputBindingLayoutSlot(string actionId, double deltaX, double deltaY)
         => _inputLayoutController.MoveInputBindingLayoutSlot(
             _inputBindingLayout,
-            button,
+            actionId,
             deltaX,
             deltaY,
             _globalInputBindings,
@@ -386,7 +386,7 @@ public partial class MainWindowViewModel
             _globalExtraInputBindingsPlayer2);
     }
 
-    private Dictionary<int, Dictionary<NesButton, Key>> GetEffectivePlayerInputMaps(string? romPath = null)
+    private Dictionary<int, Dictionary<string, Key>> GetEffectivePlayerInputMaps(string? romPath = null)
         => _inputBindingsController.GetEffectivePlayerInputMaps(
             romPath,
             _romInputOverrides,
@@ -426,9 +426,8 @@ public partial class MainWindowViewModel
             effectiveInputBindingState.EffectiveExtraBindings,
             _player1InputMask,
             _player2InputMask,
-            GetControllerButtons(),
+            GetControllerActionIds(),
             GetInputPortId,
-            GetInputActionId,
             _romLock,
             _inputStateWriter,
             UpdateInputMask);
@@ -449,39 +448,10 @@ public partial class MainWindowViewModel
             RefreshActiveInputState();
     }
 
-    private static string GetButtonDisplayName(NesButton button) => button switch
-    {
-        NesButton.Select => "Select",
-        NesButton.Start => "Start",
-        _ => button.ToString()
-    };
-
-    private static IReadOnlyList<NesButton> GetControllerButtons() =>
-    [
-        NesButton.A,
-        NesButton.B,
-        NesButton.Select,
-        NesButton.Start,
-        NesButton.Up,
-        NesButton.Down,
-        NesButton.Left,
-        NesButton.Right
-    ];
+    private static IReadOnlyList<string> GetControllerActionIds() =>
+        NesInputAdapter.GetControllerActions().Select(action => action.ActionId).ToArray();
 
     private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
-
-    private static string GetInputActionId(NesButton button) => button switch
-    {
-        NesButton.A => "a",
-        NesButton.B => "b",
-        NesButton.Select => "select",
-        NesButton.Start => "start",
-        NesButton.Up => "up",
-        NesButton.Down => "down",
-        NesButton.Left => "left",
-        NesButton.Right => "right",
-        _ => throw new ArgumentOutOfRangeException(nameof(button), button, "Unsupported NES button mapping.")
-    };
 
     public void OnKeyDown(Key key) => OnKeyDown(key, KeyModifiers.None);
 

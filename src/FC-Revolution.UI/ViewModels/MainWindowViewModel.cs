@@ -25,19 +25,18 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using FCRevolution.Backend.Hosting;
-using FCRevolution.Core;
-using FCRevolution.Core.Input;
-using FCRevolution.Core.Replay;
 using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
+using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.AppServices;
-using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Audio;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.Models.Previews;
 using FC_Revolution.UI.Views;
@@ -49,8 +48,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private const int EmulatorFramesPerSecond = 60;
     private const double MinShortRewindSeconds = 1d;
     private const double MaxShortRewindSeconds = 30d;
-    private static readonly int PreviewSourceWidth = NesConstants.ScreenWidth;
-    private static readonly int PreviewSourceHeight = NesConstants.ScreenHeight;
+    private static readonly int PreviewSourceWidth = FrameRenderDefaults.Width;
+    private static readonly int PreviewSourceHeight = FrameRenderDefaults.Height;
     private const int PreviewDurationSeconds = 60;
     private const int PreviewPlaybackFps = 30;
     private const int PreviewSourceFps = 60;
@@ -113,37 +112,13 @@ public partial class MainWindowViewModel : ViewModelBase
         Key.Enter, Key.Space, Key.LeftShift, Key.RightShift,
         Key.LeftCtrl, Key.RightCtrl
     ];
-    private static readonly IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> DefaultKeyMaps =
-        new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
-        {
-            [0] = new Dictionary<NesButton, Key>
-            {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X,
-                [NesButton.Select] = Key.A,
-                [NesButton.Start] = Key.S,
-                [NesButton.Up] = Key.Up,
-                [NesButton.Down] = Key.Down,
-                [NesButton.Left] = Key.Left,
-                [NesButton.Right] = Key.Right,
-            },
-            [1] = new Dictionary<NesButton, Key>
-            {
-                [NesButton.A] = Key.U,
-                [NesButton.B] = Key.O,
-                [NesButton.Select] = Key.RightCtrl,
-                [NesButton.Start] = Key.Enter,
-                [NesButton.Up] = Key.I,
-                [NesButton.Down] = Key.K,
-                [NesButton.Left] = Key.J,
-                [NesButton.Right] = Key.L,
-            }
-        };
+    private static readonly IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> DefaultKeyMaps =
+        NesInputAdapter.GetDefaultKeyMaps();
     private readonly IEmulatorCoreSession _coreSession;
     private readonly ICoreInputStateWriter _inputStateWriter;
     private readonly ITimeTravelService _timeTravelService;
     private readonly BranchTree _branchTree = new();
-    private readonly NesAudioPlayer _audio = new();
+    private readonly CoreAudioPlayer _audio = new();
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _previewTimer;
     private readonly Stopwatch _fpsWatch = Stopwatch.StartNew();
@@ -174,12 +149,12 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ObservableCollection<ShortcutBindingEntry> _sharedGameShortcutBindings = new();
     private readonly ObservableCollection<ShortcutBindingEntry> _gameWindowShortcutBindings = new();
     private readonly object _romLock = new();
-    private readonly Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> _romInputOverrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<int, Dictionary<string, Key>>> _romInputOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<ExtraInputBindingProfile>> _romExtraInputOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ShortcutBindingEntry> _shortcutBindings = new(StringComparer.Ordinal);
     private readonly HashSet<Key> _pressedKeys = [];
     private readonly TimelineRepository _timelineRepository = new();
-    private readonly ReplayLogWriter _replayLogWriter = new();
+    private readonly TimelineInputLogWriter _replayLogWriter = new();
     private readonly ILanArcadeService _lanArcadeService;
     private readonly ILanArcadeDiagnosticsService _lanArcadeDiagnosticsService = new LanArcadeDiagnosticsService();
     private readonly IRomResourceImportService _romResourceImportService = new RomResourceImportService();
@@ -3075,7 +3050,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (TimelineMode != TimelineMode.FullTimeline || !_replayLogWriter.IsOpen)
             return;
 
-        _replayLogWriter.Append(new FrameInputRecord(_timeTravelService.CurrentFrame, _player1InputMask, _player2InputMask));
+        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _player1InputMask, _player2InputMask);
     }
 
     private void ReopenReplayLog(bool resetFile)
@@ -3278,9 +3253,11 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusText = landed < 0 ? "无可用回溯快照" : $"已回退 {allowedSeconds:0.00} 秒（{allowedFrames} 帧）至帧 {landed}";
     }
 
-    private void UpdateInputMask(int player, NesButton button, bool pressed)
+    private void UpdateInputMask(int player, string actionId, bool pressed)
     {
-        var bit = (byte)button;
+        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+            return;
+
         if (player == 0)
             _player1InputMask = pressed ? (byte)(_player1InputMask | bit) : (byte)(_player1InputMask & ~bit);
         else

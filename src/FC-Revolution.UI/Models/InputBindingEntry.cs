@@ -3,17 +3,16 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
-using FCRevolution.Core.Input;
 
 namespace FC_Revolution.UI.Models;
 
 public sealed partial class InputBindingEntry : ObservableObject, IKeyCaptureBinding
 {
-    public InputBindingEntry(int player, string actionName, NesButton button, Key selectedKey, IReadOnlyList<Key> availableKeys)
+    public InputBindingEntry(int player, string actionId, string actionName, Key selectedKey, IReadOnlyList<Key> availableKeys)
     {
         Player = player;
+        ActionId = actionId;
         ActionName = actionName;
-        Button = button;
         _selectedKey = selectedKey;
         AvailableKeys = availableKeys;
     }
@@ -24,7 +23,7 @@ public sealed partial class InputBindingEntry : ObservableObject, IKeyCaptureBin
 
     public string ActionName { get; }
 
-    public NesButton Button { get; }
+    public string ActionId { get; }
 
     [ObservableProperty]
     private double _centerX;
@@ -95,7 +94,7 @@ public sealed partial class InputBindingEntry : ObservableObject, IKeyCaptureBin
 
     public void ApplyLayout(InputBindingLayoutProfile layout)
     {
-        var slot = layout.GetSlot(Button);
+        var slot = layout.GetSlot(ActionId);
         CenterX = slot.CenterX;
         CenterY = slot.CenterY;
         EditorWidth = slot.Width;

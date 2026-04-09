@@ -80,19 +80,6 @@ public sealed class BackendContractClient : IBackendContractClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default)
-    {
-        if (RemoteControlRequestCompatibility.TryBuildGenericInputRequest(request, "http-client", out var genericRequest))
-            return await SetInputStateAsync(sessionId, genericRequest, cancellationToken);
-
-        using var response = await _httpClient.PostAsJsonAsync($"api/sessions/{sessionId}/buttons", request, cancellationToken);
-        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-            return false;
-
-        response.EnsureSuccessStatusCode();
-        return true;
-    }
-
     public async Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default)
     {
         using var response = await _httpClient.PostAsJsonAsync($"api/sessions/{sessionId}/input", request, cancellationToken);

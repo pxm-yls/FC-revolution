@@ -18,40 +18,39 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
 
         var plan = runtimeController.BuildApplyPlan(
             inputStateController,
-            new Dictionary<Key, (int Player, NesButton Button)>
+            new Dictionary<Key, (int Player, string ActionId)>
             {
-                [Key.Z] = (0, NesButton.A)
+                [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A))
             },
             [],
             player1CurrentMask: 0,
             player2CurrentMask: 0,
-            ControllerButtons,
-            GetInputPortId,
-            GetInputActionId);
+            ControllerActionIds,
+            GetInputPortId);
 
         Assert.Equal((byte)NesButton.A, plan.DesiredPlayer1Mask);
         Assert.Equal((byte)0, plan.DesiredPlayer2Mask);
         var write = Assert.Single(plan.WriteRequests);
         Assert.Equal(0, write.Player);
-        Assert.Equal(NesButton.A, write.Button);
+        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), write.ActionId);
         Assert.True(write.DesiredPressed);
         Assert.Equal("p1", write.PortId);
         Assert.Equal("a", write.ActionId);
         Assert.Equal(1f, write.Value);
 
         var writer = new FakeInputStateWriter();
-        var maskUpdates = new List<(int Player, NesButton Button, bool Pressed)>();
+        var maskUpdates = new List<(int Player, string ActionId, bool Pressed)>();
         runtimeController.ApplyPlan(
             plan,
             new object(),
             writer,
-            (player, button, pressed) => maskUpdates.Add((player, button, pressed)));
+            (player, actionId, pressed) => maskUpdates.Add((player, actionId, pressed)));
 
         var call = Assert.Single(writer.Calls);
         Assert.Equal("p1", call.PortId);
         Assert.Equal("a", call.ActionId);
         Assert.Equal(1f, call.Value);
-        Assert.Equal([(0, NesButton.A, true)], maskUpdates);
+        Assert.Equal([(0, "a", true)], maskUpdates);
     }
 
     [Fact]
@@ -63,17 +62,16 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
 
         var plan = runtimeController.BuildApplyPlan(
             inputStateController,
-            new Dictionary<Key, (int Player, NesButton Button)>(),
+            new Dictionary<Key, (int Player, string ActionId)>(),
             [],
             player1CurrentMask: (byte)NesButton.A,
             player2CurrentMask: 0,
-            ControllerButtons,
-            GetInputPortId,
-            GetInputActionId);
+            ControllerActionIds,
+            GetInputPortId);
 
         var write = Assert.Single(plan.WriteRequests);
         Assert.Equal(0, write.Player);
-        Assert.Equal(NesButton.A, write.Button);
+        Assert.Equal("a", write.ActionId);
         Assert.False(write.DesiredPressed);
         Assert.Equal(0f, write.Value);
     }
@@ -87,7 +85,7 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
         runtimeController.PressKey(Key.Q);
         runtimeController.UpdateTurboPulse(
             inputStateController,
-            [new ResolvedExtraInputBinding(0, Key.Q, ExtraInputBindingKind.Turbo, [NesButton.A])]);
+            [new ResolvedExtraInputBinding(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
 
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/another.nes");
 
@@ -95,8 +93,7 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
         Assert.Empty(runtimeController.PressedKeys);
     }
 
-    private static IReadOnlyList<NesButton> ControllerButtons =>
-    [
+    private static IReadOnlyList<string> ControllerActionIds => NesInputTestAdapter.ActionIds(
         NesButton.A,
         NesButton.B,
         NesButton.Select,
@@ -104,23 +101,9 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
         NesButton.Up,
         NesButton.Down,
         NesButton.Left,
-        NesButton.Right
-    ];
+        NesButton.Right);
 
     private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
-
-    private static string GetInputActionId(NesButton button) => button switch
-    {
-        NesButton.A => "a",
-        NesButton.B => "b",
-        NesButton.Select => "select",
-        NesButton.Start => "start",
-        NesButton.Up => "up",
-        NesButton.Down => "down",
-        NesButton.Left => "left",
-        NesButton.Right => "right",
-        _ => throw new ArgumentOutOfRangeException(nameof(button), button, null)
-    };
 
     private sealed class FakeInputStateWriter : ICoreInputStateWriter
     {

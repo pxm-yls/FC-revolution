@@ -1,5 +1,4 @@
 using System;
-using FCRevolution.Core.Input;
 
 namespace FC_Revolution.UI.Models;
 
@@ -78,17 +77,17 @@ public sealed class InputBindingLayoutProfile
         A = defaults.A;
     }
 
-    public InputBindingLayoutSlot GetSlot(NesButton button) => button switch
+    public InputBindingLayoutSlot GetSlot(string actionId) => actionId.Trim().ToLowerInvariant() switch
     {
-        NesButton.Up => Up,
-        NesButton.Down => Down,
-        NesButton.Left => Left,
-        NesButton.Right => Right,
-        NesButton.Select => Select,
-        NesButton.Start => Start,
-        NesButton.B => B,
-        NesButton.A => A,
-        _ => throw new ArgumentOutOfRangeException(nameof(button), button, null)
+        "up" => Up,
+        "down" => Down,
+        "left" => Left,
+        "right" => Right,
+        "select" => Select,
+        "start" => Start,
+        "b" => B,
+        "a" => A,
+        _ => throw new ArgumentOutOfRangeException(nameof(actionId), actionId, null)
     };
 
     public void Sanitize()

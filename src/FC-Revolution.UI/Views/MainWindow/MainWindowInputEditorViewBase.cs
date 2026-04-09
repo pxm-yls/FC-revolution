@@ -141,7 +141,7 @@ public abstract class MainWindowInputEditorViewBase : MainWindowHostedControlBas
             return;
 
         _lastLayoutDragPoint = currentPoint;
-        ViewModel.MoveInputBindingLayoutSlot(_draggingLayoutEntry.Button, delta.X, delta.Y);
+        ViewModel.MoveInputBindingLayoutSlot(_draggingLayoutEntry.ActionId, delta.X, delta.Y);
         e.Handled = true;
     }
 

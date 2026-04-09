@@ -11,6 +11,8 @@ namespace FCRevolution.Backend.Hosting.Endpoints;
 
 internal static class BackendApiEndpointModule
 {
+    private const string ButtonCompatDeviceType = "http-button-edge";
+
     internal static void Map(WebApplication app, BackendHostOptions options)
     {
         app.MapGet("/api/health", () => Results.Json(new { ok = true, port = options.Port }, BackendJsonDefaults.SerializerOptions));
@@ -92,20 +94,15 @@ internal static class BackendApiEndpointModule
             return Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions);
         });
 
-        app.MapPost("/api/sessions/{sessionId:guid}/buttons", async (Guid sessionId, ButtonStateRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
+        app.MapPost("/api/sessions/{sessionId:guid}/buttons", async (Guid sessionId, ButtonCompatRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
         {
-            if (RemoteControlRequestCompatibility.TryBuildGenericInputRequest(request, "http-button-compat", out var genericRequest))
-            {
-                var genericOk = await contract.SetInputStateAsync(sessionId, genericRequest, cancellationToken);
-                return genericOk
-                    ? Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions)
-                    : Results.Conflict(new { error = "输入状态未能应用到当前会话" });
-            }
+            if (!TryBuildInputRequest(request, out var genericRequest))
+                return Results.BadRequest(new { error = "按键输入无效" });
 
-            var ok = await contract.SetButtonStateAsync(sessionId, request, cancellationToken);
+            var ok = await contract.SetInputStateAsync(sessionId, genericRequest, cancellationToken);
             return ok
                 ? Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions)
-                : Results.Conflict(new { error = "当前会话未由该控制端持有" });
+                : Results.Conflict(new { error = "输入状态未能应用到当前会话" });
         });
 
         app.MapPost("/api/sessions/{sessionId:guid}/input", async (Guid sessionId, SetInputStateRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
@@ -128,4 +125,50 @@ internal static class BackendApiEndpointModule
             return Results.Json(new { ok = true, count = sessions.Count }, BackendJsonDefaults.SerializerOptions);
         });
     }
+
+    private static bool TryBuildInputRequest(ButtonCompatRequest request, out SetInputStateRequest inputStateRequest)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        inputStateRequest = default!;
+
+        var actionId = request.ActionId;
+        if (string.IsNullOrWhiteSpace(actionId))
+            actionId = request.Button;
+
+        if (string.IsNullOrWhiteSpace(actionId))
+            return false;
+
+        string? portId = null;
+        if (!string.IsNullOrWhiteSpace(request.PortId))
+        {
+            portId = RemoteControlPorts.NormalizePortId(request.PortId);
+            if (portId == null)
+                return false;
+        }
+        else if (request.Player is { } playerValue && RemoteControlPorts.TryGetPortId(playerValue, out var mappedPortId))
+        {
+            portId = mappedPortId;
+        }
+
+        if (string.IsNullOrWhiteSpace(portId))
+            return false;
+
+        inputStateRequest = new SetInputStateRequest(
+        [
+            new InputActionValueDto(
+                portId,
+                ButtonCompatDeviceType,
+                actionId.Trim(),
+                request.Pressed ? 1f : 0f)
+        ]);
+        return true;
+    }
+
+    private sealed record ButtonCompatRequest(
+        int? Player = null,
+        bool Pressed = false,
+        string? PortId = null,
+        string? ActionId = null,
+        string? Button = null);
 }

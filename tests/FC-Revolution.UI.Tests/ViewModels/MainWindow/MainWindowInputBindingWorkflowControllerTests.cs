@@ -67,13 +67,13 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         {
             ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.W, ConfigurableKeys)
         };
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase)
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase)
         {
-            [romPath] = new Dictionary<int, Dictionary<NesButton, Key>>
+            [romPath] = new Dictionary<int, Dictionary<string, Key>>
             {
-                [0] = new Dictionary<NesButton, Key>
+                [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
                 {
-                    [NesButton.A] = Key.F9
+                    [NesInputTestAdapter.ActionId(NesButton.A)] = Key.F9
                 }
             }
         };
@@ -86,7 +86,7 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
                     Player = 0,
                     Kind = nameof(ExtraInputBindingKind.Turbo),
                     Key = nameof(Key.Q),
-                    Buttons = [nameof(NesButton.A)]
+                    Buttons = [NesInputTestAdapter.ActionId(NesButton.A)]
                 }
             ]
         };
@@ -101,10 +101,10 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
             globalExtraBindings,
             BuildDefaultKeyMaps());
 
-        Assert.Equal((0, NesButton.A), state.EffectiveKeyMap[Key.F9]);
-        Assert.Equal((0, NesButton.B), state.EffectiveKeyMap[Key.X]);
-        Assert.Equal((1, NesButton.A), state.EffectiveKeyMap[Key.I]);
-        Assert.Equal((1, NesButton.B), state.EffectiveKeyMap[Key.K]);
+        Assert.Equal((0, NesInputTestAdapter.ActionId(NesButton.A)), state.EffectiveKeyMap[Key.F9]);
+        Assert.Equal((0, NesInputTestAdapter.ActionId(NesButton.B)), state.EffectiveKeyMap[Key.X]);
+        Assert.Equal((1, NesInputTestAdapter.ActionId(NesButton.A)), state.EffectiveKeyMap[Key.I]);
+        Assert.Equal((1, NesInputTestAdapter.ActionId(NesButton.B)), state.EffectiveKeyMap[Key.K]);
 
         var extra = Assert.Single(state.EffectiveExtraBindings);
         Assert.Equal(Key.Q, extra.Key);
@@ -145,7 +145,7 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         workflowController.RefreshRomInputBindings(
             inputOverrideController,
             currentRom: null,
-            new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
             globalInputBindings,
             globalExtraInputBindings,
@@ -171,21 +171,31 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         Assert.Empty(romExtraInputBindingsPlayer2);
     }
 
-    private static IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> BuildDefaultKeyMaps() =>
-        new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
-        {
-            [0] = new Dictionary<NesButton, Key>
+    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
+        BuildReadOnlyMaps(NesInputTestAdapter.BuildPlayerMaps(
+            new Dictionary<int, Dictionary<NesButton, Key>>
             {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X
-            },
-            [1] = new Dictionary<NesButton, Key>
-            {
-                [NesButton.A] = Key.I,
-                [NesButton.B] = Key.K
-            }
-        };
+                [0] = new()
+                {
+                    [NesButton.A] = Key.Z,
+                    [NesButton.B] = Key.X
+                },
+                [1] = new()
+                {
+                    [NesButton.A] = Key.I,
+                    [NesButton.B] = Key.K
+                }
+            }));
+
+    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildReadOnlyMaps(
+        Dictionary<int, Dictionary<string, Key>> maps)
+    {
+        var readOnly = new Dictionary<int, IReadOnlyDictionary<string, Key>>();
+        foreach (var (player, bindings) in maps)
+            readOnly[player] = bindings;
+        return readOnly;
+    }
 
     private static InputBindingEntry CreateInputBinding(int player, NesButton button, Key key) =>
-        new(player, button.ToString(), button, key, ConfigurableKeys);
+        new(player, NesInputTestAdapter.ActionId(button), button.ToString(), key, ConfigurableKeys);
 }

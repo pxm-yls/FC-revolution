@@ -9,5 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
     <ProjectReference Include="..\..\FC-Revolution.Emulation.Abstractions\FC-Revolution.Emulation.Abstractions.csproj" />
+    <ProjectReference Include="..\..\FC-Revolution.Rendering.Abstractions\FC-Revolution.Rendering.Abstractions.csproj" />
+    <ProjectReference Include="..\..\FC-Revolution.Rendering.Pipeline\FC-Revolution.Rendering.Pipeline.csproj" />
   </ItemGroup>
 </Project>

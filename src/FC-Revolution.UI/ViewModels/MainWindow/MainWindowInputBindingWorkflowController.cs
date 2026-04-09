@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Storage;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record MainWindowEffectiveInputBindingState(
-    IReadOnlyDictionary<Key, (int Player, NesButton Button)> EffectiveKeyMap,
+    IReadOnlyDictionary<Key, (int Player, string ActionId)> EffectiveKeyMap,
     IReadOnlyList<ResolvedExtraInputBinding> EffectiveExtraBindings,
     IReadOnlySet<Key> EffectiveHandledKeys);
 
@@ -19,7 +18,7 @@ internal sealed class MainWindowInputBindingWorkflowController
     public void BuildAndApplyGlobalInputBindingViewState(
         MainWindowInputBindingsController inputBindingsController,
         SystemConfigProfile? profile,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         ObservableCollection<InputBindingEntry> globalInputBindings,
@@ -58,7 +57,7 @@ internal sealed class MainWindowInputBindingWorkflowController
     public void RefreshRomInputBindings(
         MainWindowInputOverrideController inputOverrideController,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
@@ -68,7 +67,7 @@ internal sealed class MainWindowInputBindingWorkflowController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         Action<bool> setRomInputOverrideEnabled,
@@ -114,11 +113,11 @@ internal sealed class MainWindowInputBindingWorkflowController
         MainWindowInputBindingsController inputBindingsController,
         MainWindowInputStateController inputStateController,
         string? romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps)
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps)
     {
         ArgumentNullException.ThrowIfNull(inputBindingsController);
         ArgumentNullException.ThrowIfNull(inputStateController);
@@ -176,14 +175,14 @@ internal sealed class MainWindowInputBindingWorkflowController
             globalExtraInputBindingsPlayer2);
     }
 
-    private static Dictionary<Key, (int Player, NesButton Button)> BuildEffectiveKeyMap(
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> playerMaps)
+    private static Dictionary<Key, (int Player, string ActionId)> BuildEffectiveKeyMap(
+        IReadOnlyDictionary<int, Dictionary<string, Key>> playerMaps)
     {
-        var keyMap = new Dictionary<Key, (int Player, NesButton Button)>();
+        var keyMap = new Dictionary<Key, (int Player, string ActionId)>();
         foreach (var (player, bindings) in playerMaps)
         {
-            foreach (var (button, key) in bindings)
-                keyMap[key] = (player, button);
+            foreach (var (actionId, key) in bindings)
+                keyMap[key] = (player, actionId);
         }
 
         return keyMap;

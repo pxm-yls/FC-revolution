@@ -1,5 +1,6 @@
 using System;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.Rendering.Abstractions;
 
 namespace FC_Revolution.UI.Infrastructure;
 
@@ -23,10 +24,10 @@ internal static class CoreSessionCapabilityResolver
         return RequireCapability<ICoreInputStateWriter>(coreSession);
     }
 
-    public static INesRenderStateProvider ResolveNesRenderStateProvider(IEmulatorCoreSession coreSession)
+    public static ILayeredFrameProvider ResolveLayeredFrameProvider(IEmulatorCoreSession coreSession)
     {
         ArgumentNullException.ThrowIfNull(coreSession);
-        return RequireCapability<INesRenderStateProvider>(coreSession);
+        return RequireCapability<ILayeredFrameProvider>(coreSession);
     }
 
     private static TCapability RequireCapability<TCapability>(IEmulatorCoreSession coreSession)

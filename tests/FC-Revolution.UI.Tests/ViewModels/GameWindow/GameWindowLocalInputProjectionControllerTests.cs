@@ -11,10 +11,10 @@ public sealed class GameWindowLocalInputProjectionControllerTests
     public void BuildDesiredLocalInputMasks_ProjectsPressedMappedKeysForTwoPlayers()
     {
         var pressedKeys = new HashSet<Key> { Key.Z, Key.I };
-        var keyMap = new Dictionary<Key, (int Player, NesButton Button)>
+        var keyMap = new Dictionary<Key, (int Player, string ActionId)>
         {
-            [Key.Z] = (0, NesButton.A),
-            [Key.I] = (1, NesButton.Up)
+            [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A)),
+            [Key.I] = (1, NesInputTestAdapter.ActionId(NesButton.Up))
         };
 
         var result = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
@@ -34,14 +34,14 @@ public sealed class GameWindowLocalInputProjectionControllerTests
 
         var result = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, NesButton Button)>(),
+            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
             extraInputBindings:
             [
                 new GameWindowResolvedExtraInputBinding(
                     Player: 0,
                     Key: Key.Q,
                     Kind: ExtraInputBindingKind.Combo,
-                    Buttons: [NesButton.A, NesButton.B, NesButton.A])
+                    ActionIds: NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B, NesButton.A))
             ],
             turboTickCounters: new Dictionary<Key, int>());
 
@@ -58,17 +58,17 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             Player: 0,
             Key: Key.Q,
             Kind: ExtraInputBindingKind.Turbo,
-            Buttons: [NesButton.A],
+            ActionIds: NesInputTestAdapter.ActionIds(NesButton.A),
             TurboHz: 10);
 
         var inOnWindow = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, NesButton Button)>(),
+            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
             extraInputBindings: [turboBinding],
             turboTickCounters: new Dictionary<Key, int> { [Key.Q] = 0 });
         var inOffWindow = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, NesButton Button)>(),
+            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
             extraInputBindings: [turboBinding],
             turboTickCounters: new Dictionary<Key, int> { [Key.Q] = 6 });
 

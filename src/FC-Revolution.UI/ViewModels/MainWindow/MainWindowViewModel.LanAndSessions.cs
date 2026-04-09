@@ -115,11 +115,11 @@ public partial class MainWindowViewModel
         var launchResult = _sessionLaunchController.Launch(
             rom.DisplayName,
             mapperDescription,
-            () => _gameSessionService.StartSessionWithCore(
+            () => _gameSessionService.StartSessionWithInputBindings(
                 rom.DisplayName,
                 rom.Path,
                 GameAspectRatioMode,
-                inputMaps,
+                InputBindingContractAdapter.BuildActionBindingsFromPlayerMaps(inputMaps),
                 extraInputBindings,
                 SyncLoadedFlags,
                 _macUpscaleMode,

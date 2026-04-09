@@ -30,7 +30,7 @@ public sealed class MainWindowInputOverrideControllerTests
         {
             ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys)
         };
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var saveCalls = 0;
         var refreshCalls = 0;
@@ -133,7 +133,7 @@ public sealed class MainWindowInputOverrideControllerTests
         var romExtraP2 = new ObservableCollection<ExtraInputBindingEntry>();
         var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.B, Key.X) };
         var globalExtra = new List<ExtraInputBindingEntry>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var saveCalls = 0;
         var refreshCalls = 0;
@@ -175,7 +175,7 @@ public sealed class MainWindowInputOverrideControllerTests
         var rom = CreateRom("NinjaGaiden", "/tmp/ng.nes");
         var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
         var globalExtra = new List<ExtraInputBindingEntry>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var romInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.B, Key.X) };
         var romExtra = new List<ExtraInputBindingEntry> { ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys) };
@@ -239,7 +239,7 @@ public sealed class MainWindowInputOverrideControllerTests
         var globalEntry = ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys);
         var romEntry = ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.W, ConfigurableKeys);
         var rom = CreateRom("Castlevania", "/tmp/cv.nes");
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
         var globalExtra = new List<ExtraInputBindingEntry>();
@@ -277,7 +277,7 @@ public sealed class MainWindowInputOverrideControllerTests
     }
 
     private static InputBindingEntry CreateInputBinding(int player, NesButton button, Key key) =>
-        new(player, button.ToString(), button, key, ConfigurableKeys);
+        new(player, NesInputTestAdapter.ActionId(button), button.ToString(), key, ConfigurableKeys);
 
     private static RomLibraryItem CreateRom(string name, string path) =>
         new(

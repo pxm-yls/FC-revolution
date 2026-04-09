@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -23,14 +22,14 @@ internal sealed class MainWindowInputLayoutController
 
     public void MoveInputBindingLayoutSlot(
         InputBindingLayoutProfile layout,
-        NesButton button,
+        string actionId,
         double deltaX,
         double deltaY,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
         Action<string> notifyPropertyChanged)
     {
-        var slot = layout.GetSlot(button);
+        var slot = layout.GetSlot(actionId);
         slot.CenterX += deltaX;
         slot.CenterY += deltaY;
         layout.Sanitize();

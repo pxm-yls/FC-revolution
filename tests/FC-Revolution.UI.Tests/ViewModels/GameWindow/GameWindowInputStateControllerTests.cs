@@ -20,13 +20,13 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.A, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
                 Assert.True(change.Pressed);
             },
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.B, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
                 Assert.True(change.Pressed);
             });
 
@@ -51,7 +51,7 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.A, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
                 Assert.False(change.Pressed);
             });
 
@@ -72,17 +72,17 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.A, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
                 Assert.False(change.Pressed);
             });
 
-        var remoteChanges = controller.SetRemoteButtonState(0, NesButton.B, pressed: true, allowLocalInput: false);
+        var remoteChanges = controller.SetRemoteActionState(0, NesInputTestAdapter.ActionId(NesButton.B), pressed: true, allowLocalInput: false);
         Assert.Collection(
             remoteChanges,
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.B, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
                 Assert.True(change.Pressed);
             });
 
@@ -92,7 +92,7 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.B, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
                 Assert.False(change.Pressed);
             });
 
@@ -102,7 +102,7 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal(0, change.Player);
-                Assert.Equal(NesButton.A, change.Button);
+                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
                 Assert.True(change.Pressed);
             });
 

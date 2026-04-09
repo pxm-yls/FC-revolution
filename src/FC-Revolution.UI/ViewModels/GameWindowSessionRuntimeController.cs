@@ -117,7 +117,7 @@ internal sealed class GameWindowSessionRuntimeController
             var memoryStart = (ushort)(request.MemoryPageIndex * DebugViewModel.MemoryPageSize);
             var stackStart = (ushort)(0x0100 + request.StackPageIndex * DebugViewModel.StackPageSize);
             var zeroPageStart = (ushort)(request.ZeroPageSliceIndex * DebugViewModel.ZeroPageSliceSize);
-            var disasmStart = unchecked((ushort)(state.PC + request.DisasmPageIndex * DebugViewModel.DisasmPageSize));
+            var disasmStart = unchecked((ushort)(state.InstructionPointer + request.DisasmPageIndex * DebugViewModel.DisasmPageSize));
 
             return new DebugRefreshSnapshot
             {

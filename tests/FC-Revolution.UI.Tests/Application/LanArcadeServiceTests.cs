@@ -190,8 +190,6 @@ public sealed class LanArcadeServiceTests
             Task.CompletedTask;
         public Task RefreshHeartbeatAsync(Guid sessionId, RefreshHeartbeatRequest request, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
-        public Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
         public Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
     }

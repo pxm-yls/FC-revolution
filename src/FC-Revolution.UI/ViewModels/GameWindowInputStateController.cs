@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.Core.Input;
+using System.Linq;
+using FC_Revolution.UI.Adapters.Nes;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal readonly record struct GameWindowInputStateChange(
     int Player,
-    NesButton Button,
+    string ActionId,
     bool Pressed);
 
 internal readonly record struct GameWindowInputStateSnapshot(
@@ -19,17 +20,10 @@ internal readonly record struct GameWindowInputStateSnapshot(
 
 internal sealed class GameWindowInputStateController
 {
-    private static readonly IReadOnlyList<NesButton> ControllerButtons =
-    [
-        NesButton.A,
-        NesButton.B,
-        NesButton.Select,
-        NesButton.Start,
-        NesButton.Up,
-        NesButton.Down,
-        NesButton.Left,
-        NesButton.Right
-    ];
+    private static readonly IReadOnlyList<string> ControllerActionIds =
+        NesInputAdapter.GetControllerActions()
+            .Select(action => action.ActionId)
+            .ToArray();
 
     private byte _player1CombinedMask;
     private byte _player2CombinedMask;
@@ -57,34 +51,38 @@ internal sealed class GameWindowInputStateController
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var button in ControllerButtons)
+        foreach (var actionId in ControllerActionIds)
         {
-            var bit = (byte)button;
+            if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+                continue;
+
             var currentMask = GetLocalMask(player);
             var desired = allowLocalInput && (desiredMask & bit) != 0;
             var current = (currentMask & bit) != 0;
             if (desired != current)
                 SetLocalMask(player, bit, desired);
 
-            ApplyCombinedButtonState(player, button, allowLocalInput, changes);
+            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         }
 
         return changes;
     }
 
-    public IReadOnlyList<GameWindowInputStateChange> SetRemoteButtonState(
+    public IReadOnlyList<GameWindowInputStateChange> SetRemoteActionState(
         int player,
-        NesButton button,
+        string actionId,
         bool pressed,
         bool allowLocalInput)
     {
         if (!IsSupportedPlayer(player))
             return Array.Empty<GameWindowInputStateChange>();
 
+        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+            return Array.Empty<GameWindowInputStateChange>();
+
         List<GameWindowInputStateChange> changes = [];
-        var bit = (byte)button;
         SetRemoteMask(player, bit, pressed);
-        ApplyCombinedButtonState(player, button, allowLocalInput, changes);
+        ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         return changes;
     }
 
@@ -94,11 +92,13 @@ internal sealed class GameWindowInputStateController
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var button in ControllerButtons)
+        foreach (var actionId in ControllerActionIds)
         {
-            var bit = (byte)button;
+            if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+                continue;
+
             SetRemoteMask(player, bit, pressed: false);
-            ApplyCombinedButtonState(player, button, allowLocalInput, changes);
+            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         }
 
         return changes;
@@ -110,18 +110,20 @@ internal sealed class GameWindowInputStateController
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var button in ControllerButtons)
-            ApplyCombinedButtonState(player, button, allowLocalInput, changes);
+        foreach (var actionId in ControllerActionIds)
+            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         return changes;
     }
 
-    private void ApplyCombinedButtonState(
+    private void ApplyCombinedActionState(
         int player,
-        NesButton button,
+        string actionId,
         bool allowLocalInput,
         List<GameWindowInputStateChange> changes)
     {
-        var bit = (byte)button;
+        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+            return;
+
         var localMask = GetLocalMask(player);
         var remoteMask = GetRemoteMask(player);
         var effectiveLocalMask = allowLocalInput ? localMask : (byte)0;
@@ -132,7 +134,7 @@ internal sealed class GameWindowInputStateController
             return;
 
         SetCombinedMask(player, bit, desired);
-        changes.Add(new GameWindowInputStateChange(player, button, desired));
+        changes.Add(new GameWindowInputStateChange(player, actionId, desired));
     }
 
     private static bool IsSupportedPlayer(int player) => player is 0 or 1;

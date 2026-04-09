@@ -9,10 +9,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using Avalonia.Media.Imaging;
 using FCRevolution.Backend.Hosting;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Rendering.Metal;
+using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 using FC_Revolution.UI.Views;
@@ -29,11 +29,11 @@ public sealed class GameSessionRegistry
 
     public bool HasAny => _sessions.Count > 0;
 
-    public ActiveGameSessionItem StartSession(
+    public ActiveGameSessionItem StartSessionWithInputBindings(
         string displayName,
         string romPath,
         GameAspectRatioMode aspectRatioMode,
-        IReadOnlyDictionary<int, Dictionary<NesButton, Avalonia.Input.Key>> inputMaps,
+        IReadOnlyDictionary<string, Dictionary<string, Avalonia.Input.Key>> inputBindingsByPort,
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
         Action? onSessionsChanged = null,
         MacUpscaleMode upscaleMode = MacUpscaleMode.None,
@@ -60,7 +60,7 @@ public sealed class GameSessionRegistry
                 displayName,
                 romPath,
                 aspectRatioMode,
-                inputMaps,
+                inputBindingsByPort,
                 extraInputBindings,
                 upscaleMode,
                 upscaleOutputResolution,
@@ -185,18 +185,6 @@ public sealed class GameSessionRegistry
         return session != null && session.ViewModel.SetRemoteInputState(portId, actionId, value, clientIp, clientName);
     }
 
-    public bool TrySetRemoteButtonState(Guid sessionId, int player, NesButton button, bool pressed, string? clientIp = null, string? clientName = null)
-    {
-        var session = FindSession(sessionId);
-        return session != null && session.ViewModel.SetRemoteButtonState(player, button, pressed, clientIp, clientName);
-    }
-
-    public void ClearRemoteButtons(Guid sessionId, int player)
-    {
-        var session = FindSession(sessionId);
-        session?.ViewModel.ClearRemoteButtons(player);
-    }
-
     public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null)
     {
         var session = FindSession(sessionId);
@@ -259,7 +247,7 @@ public sealed class GameSessionRegistry
         string displayName,
         string romPath,
         GameAspectRatioMode aspectRatioMode,
-        IReadOnlyDictionary<int, Dictionary<NesButton, Avalonia.Input.Key>> inputMaps,
+        IReadOnlyDictionary<string, Dictionary<string, Avalonia.Input.Key>> inputBindingsByPort,
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings,
         MacUpscaleMode upscaleMode,
         MacUpscaleOutputResolution upscaleOutputResolution,
@@ -272,12 +260,12 @@ public sealed class GameSessionRegistry
             .FirstOrDefault(candidate =>
                 candidate.GetParameters().Any(parameter => typeof(IEmulatorCoreSession).IsAssignableFrom(parameter.ParameterType)));
         if (constructor == null)
-            return new GameWindowViewModel(displayName, romPath, aspectRatioMode, inputMaps, extraInputBindings, upscaleMode, upscaleOutputResolution, enhancementMode, volume);
+            return new GameWindowViewModel(displayName, romPath, aspectRatioMode, inputBindingsByPort, extraInputBindings, upscaleMode, upscaleOutputResolution, enhancementMode, volume);
 
         var parameters = constructor.GetParameters();
         var arguments = new object?[parameters.Length];
         for (var i = 0; i < parameters.Length; i++)
-            arguments[i] = ResolveConstructorArgument(parameters[i], displayName, romPath, aspectRatioMode, inputMaps, extraInputBindings, upscaleMode, upscaleOutputResolution, enhancementMode, volume, coreSession);
+            arguments[i] = ResolveConstructorArgument(parameters[i], displayName, romPath, aspectRatioMode, inputBindingsByPort, extraInputBindings, upscaleMode, upscaleOutputResolution, enhancementMode, volume, coreSession);
 
         return (GameWindowViewModel)constructor.Invoke(arguments);
     }
@@ -287,7 +275,7 @@ public sealed class GameSessionRegistry
         string displayName,
         string romPath,
         GameAspectRatioMode aspectRatioMode,
-        IReadOnlyDictionary<int, Dictionary<NesButton, Avalonia.Input.Key>> inputMaps,
+        IReadOnlyDictionary<string, Dictionary<string, Avalonia.Input.Key>> inputBindingsByPort,
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings,
         MacUpscaleMode upscaleMode,
         MacUpscaleOutputResolution upscaleOutputResolution,
@@ -304,7 +292,7 @@ public sealed class GameSessionRegistry
             "displayName" => displayName,
             "romPath" => romPath,
             "aspectRatioMode" => aspectRatioMode,
-            "inputMaps" => inputMaps,
+            "inputBindingsByPort" => inputBindingsByPort,
             "extraInputBindings" => extraInputBindings,
             "upscaleMode" => upscaleMode,
             "upscaleOutputResolution" => upscaleOutputResolution,

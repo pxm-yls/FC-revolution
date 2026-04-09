@@ -676,7 +676,7 @@ public sealed partial class DebugViewModel : ViewModelBase, IDisposable
         var state = capturePlan.RequiresState ? _captureDebugState() : new CoreDebugState();
         var addressPlan = DebugLiveRefreshOrchestrator.BuildAddressPlan(
             request,
-            state.PC,
+            state.InstructionPointer,
             MemoryPageSize,
             StackPageSize,
             ZeroPageSliceSize,

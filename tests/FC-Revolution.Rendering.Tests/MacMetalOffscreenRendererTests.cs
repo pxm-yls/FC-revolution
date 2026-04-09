@@ -170,7 +170,7 @@ public sealed class MacMetalOffscreenRendererTests
         for (int i = 0; i < frameIndex; i++)
             nes.RunFrame();
 
-        FrameMetadata metadata = extractor.Extract(nes.Ppu.CaptureRenderStateSnapshot());
+        FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(nes.Ppu.CaptureRenderStateSnapshot()));
         LayeredFrameData frameData = LayeredFrameBuilder.Build(metadata);
         uint[] reference = ReferenceFrameRenderer.Render(frameData);
         uint[] gpuFrame = MacMetalOffscreenRenderer.Render(frameData);

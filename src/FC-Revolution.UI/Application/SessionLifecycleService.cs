@@ -5,7 +5,6 @@ using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Contracts.RemoteControl;
 using FCRevolution.Core;
-using FCRevolution.Core.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Models;
 
@@ -14,7 +13,7 @@ namespace FC_Revolution.UI.AppServices;
 internal sealed class SessionLifecycleService
 {
     private readonly IReadOnlyList<RomLibraryItem> _romLibrary;
-    private readonly IReadOnlyDictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> _romInputOverrides;
+    private readonly IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> _romInputOverrides;
     private readonly ObservableCollection<InputBindingEntry> _globalInputBindings;
     private readonly IGameSessionService _gameSessionService;
     private readonly Func<GameAspectRatioMode> _getAspectRatioMode;
@@ -27,7 +26,7 @@ internal sealed class SessionLifecycleService
 
     public SessionLifecycleService(
         IReadOnlyList<RomLibraryItem> romLibrary,
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
         Func<GameAspectRatioMode> getAspectRatioMode,
@@ -58,9 +57,9 @@ internal sealed class SessionLifecycleService
             return null;
 
         var inputMaps = _romInputOverrides.TryGetValue(rom.Path, out var overrideMap)
-            ? ClonePlayerInputMaps(overrideMap)
-            : BuildPlayerInputMaps(_globalInputBindings);
-        var session = _gameSessionService.StartSessionWithCore(
+            ? CloneActionBindings(overrideMap)
+            : InputBindingContractAdapter.BuildActionBindingsFromEntries(_globalInputBindings);
+        var session = _gameSessionService.StartSessionWithInputBindings(
             rom.DisplayName,
             rom.Path,
             _getAspectRatioMode(),
@@ -86,29 +85,13 @@ internal sealed class SessionLifecycleService
         return true;
     }
 
-    private static Dictionary<int, Dictionary<NesButton, Key>> BuildPlayerInputMaps(IEnumerable<InputBindingEntry> bindings)
-    {
-        var map = new Dictionary<int, Dictionary<NesButton, Key>>();
-        foreach (var entry in bindings)
-        {
-            if (!map.TryGetValue(entry.Player, out var playerBindings))
-            {
-                playerBindings = new Dictionary<NesButton, Key>();
-                map[entry.Player] = playerBindings;
-            }
-
-            playerBindings[entry.Button] = entry.SelectedKey;
-        }
-
-        return map;
-    }
-
-    private static Dictionary<int, Dictionary<NesButton, Key>> ClonePlayerInputMaps(
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> source)
+    private static Dictionary<string, Dictionary<string, Key>> CloneActionBindings(
+        IReadOnlyDictionary<string, Dictionary<string, Key>> source)
     {
         return source.ToDictionary(
             pair => pair.Key,
-            pair => new Dictionary<NesButton, Key>(pair.Value));
+            pair => new Dictionary<string, Key>(pair.Value, StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? ResolveOptionalCoreId(StartSessionRequest request)

@@ -75,7 +75,6 @@ public sealed class BackendApiEndpointTests
             CloseSessionResult = true,
             PreviewBytes = "png-bytes"u8.ToArray(),
             ClaimControlResult = true,
-            SetButtonStateResult = true,
             SetInputStateResult = true
         };
 
@@ -90,14 +89,21 @@ public sealed class BackendApiEndpointTests
             new ClaimControlRequest(ClientIp: "127.0.0.1", ClientName: "ipad", PortId: "p1"));
         using var legacyButton = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/buttons",
-            new ButtonStateRequest(0, NesButtonDto.A, true));
+            new
+            {
+                player = 0,
+                button = "A",
+                pressed = true
+            });
         using var genericButton = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/buttons",
-            new ButtonStateRequest(
-                Player: 1,
-                Pressed: true,
-                PortId: "p2",
-                ActionId: "right"));
+            new
+            {
+                player = 1,
+                pressed = true,
+                portId = "p2",
+                actionId = "right"
+            });
         using var genericInput = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/input",
             new SetInputStateRequest(
@@ -128,18 +134,20 @@ public sealed class BackendApiEndpointTests
         Assert.Equal(sessionId, bridge.ClaimCalls.Single().SessionId);
         Assert.Equal("127.0.0.1", bridge.ClaimCalls.Single().Request.ClientIp);
         Assert.Equal("p1", bridge.ClaimCalls.Single().Request.PortId);
-        var legacyButtonCall = Assert.Single(bridge.ButtonCalls);
-        Assert.Equal(NesButtonDto.A, legacyButtonCall.Request.Button);
-        Assert.Null(legacyButtonCall.Request.PortId);
-        Assert.Null(legacyButtonCall.Request.ActionId);
-        Assert.Equal(2, bridge.InputStateCalls.Count);
-        var genericButtonCall = bridge.InputStateCalls[0];
+        Assert.Equal(3, bridge.InputStateCalls.Count);
+        var legacyButtonCall = bridge.InputStateCalls[0];
+        Assert.Equal(sessionId, legacyButtonCall.SessionId);
+        var legacyButtonAction = Assert.Single(legacyButtonCall.Request.Actions);
+        Assert.Equal("p1", legacyButtonAction.PortId);
+        Assert.Equal("A", legacyButtonAction.ActionId);
+        Assert.Equal(1f, legacyButtonAction.Value);
+        var genericButtonCall = bridge.InputStateCalls[1];
         Assert.Equal(sessionId, genericButtonCall.SessionId);
         var genericButtonAction = Assert.Single(genericButtonCall.Request.Actions);
         Assert.Equal("p2", genericButtonAction.PortId);
         Assert.Equal("right", genericButtonAction.ActionId);
         Assert.Equal(1f, genericButtonAction.Value);
-        var inputCall = bridge.InputStateCalls[1];
+        var inputCall = bridge.InputStateCalls[2];
         Assert.Equal(sessionId, inputCall.SessionId);
         Assert.Equal(2, inputCall.Request.Actions.Count);
         Assert.Equal("p1", inputCall.Request.Actions[0].PortId);
@@ -168,7 +176,6 @@ public sealed class BackendApiEndpointTests
         {
             CloseSessionResult = false,
             ClaimControlResult = false,
-            SetButtonStateResult = false,
             SetInputStateResult = false
         };
 
@@ -179,7 +186,14 @@ public sealed class BackendApiEndpointTests
         using var claim = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/claim",
             new ClaimControlRequest(ClientIp: "127.0.0.1", PortId: "p1"));
-        using var button = await host.Client.PostAsJsonAsync($"api/sessions/{sessionId}/buttons", new ButtonStateRequest(0, NesButtonDto.B, true));
+        using var button = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/buttons",
+            new
+            {
+                player = 0,
+                pressed = true,
+                actionId = "b"
+            });
         using var input = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/input",
             new SetInputStateRequest([new InputActionValueDto("p1", "gamepad", "a", 1f)]));

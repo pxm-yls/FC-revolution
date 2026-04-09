@@ -2,6 +2,7 @@ using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Core.Sample.Managed;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
+using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Storage;
 using System.Reflection;
 
@@ -239,7 +240,7 @@ public sealed class EmulatorCoreHostTests
             Assert.True(session.TryGetCapability<ICoreDebugSurface>(out _));
             Assert.True(session.TryGetCapability<ITimeTravelService>(out _));
             Assert.True(session.TryGetCapability<ICoreInputStateWriter>(out _));
-            Assert.True(session.TryGetCapability<INesRenderStateProvider>(out _));
+            Assert.True(session.TryGetCapability<ILayeredFrameProvider>(out _));
             Assert.NotEmpty(videoPackets);
             Assert.Equal(256, videoPackets[^1].Width);
             Assert.Equal(240, videoPackets[^1].Height);

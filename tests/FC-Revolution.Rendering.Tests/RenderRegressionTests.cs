@@ -27,7 +27,7 @@ public sealed class RenderRegressionTests
         for (int i = 0; i < frameIndex; i++)
             nes.RunFrame();
 
-        FrameMetadata metadata = extractor.Extract(nes.Ppu.CaptureRenderStateSnapshot(), previous);
+        FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(nes.Ppu.CaptureRenderStateSnapshot()), previous);
         uint[] reconstructed = ReferenceFrameRenderer.Render(metadata);
         float diff = PixelDiff.Compare(nes.Ppu.FrameBuffer, reconstructed);
 

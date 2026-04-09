@@ -80,32 +80,32 @@ public sealed class MainWindowInputBindingsControllerTests
         var controller = new MainWindowInputBindingsController();
         var global = new List<InputBindingEntry>
         {
-            new(0, "A", NesButton.A, Key.Z, TestConfigurableKeys),
-            new(0, "B", NesButton.B, Key.X, TestConfigurableKeys),
-            new(1, "A", NesButton.A, Key.Enter, TestConfigurableKeys),
-            new(1, "B", NesButton.B, Key.S, TestConfigurableKeys)
+            new(0, "a", "A", Key.Z, TestConfigurableKeys),
+            new(0, "b", "B", Key.X, TestConfigurableKeys),
+            new(1, "a", "A", Key.Enter, TestConfigurableKeys),
+            new(1, "b", "B", Key.S, TestConfigurableKeys)
         };
         var globalExtra = new List<ExtraInputBindingEntry>
         {
             ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.A, TestConfigurableKeys)
         };
-        var defaultMaps = new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
+        var defaultMaps = new Dictionary<int, IReadOnlyDictionary<string, Key>>
         {
-            [0] = new Dictionary<NesButton, Key>
+            [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X
+                ["a"] = Key.Z,
+                ["b"] = Key.X
             },
-            [1] = new Dictionary<NesButton, Key>
+            [1] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Enter,
-                [NesButton.B] = Key.S
+                ["a"] = Key.Enter,
+                ["b"] = Key.S
             }
         };
 
         var state = controller.BuildRomInputBindingViewState(
             "/tmp/demo.nes",
-            new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
             global,
             globalExtra,
@@ -133,10 +133,10 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(4, state.InputBindings.Count);
         Assert.Empty(state.ExtraBindings);
 
-        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.A);
+        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "a");
         Assert.Equal(Key.Z, player1A.SelectedKey);
-        Assert.Equal(layout.GetSlot(NesButton.A).CenterX, player1A.CenterX, precision: 6);
-        Assert.Equal(layout.GetSlot(NesButton.A).CenterY, player1A.CenterY, precision: 6);
+        Assert.Equal(layout.GetSlot("a").CenterX, player1A.CenterX, precision: 6);
+        Assert.Equal(layout.GetSlot("a").CenterY, player1A.CenterY, precision: 6);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class MainWindowInputBindingsControllerTests
             {
                 ["Player1"] = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    [nameof(NesButton.A)] = nameof(Key.F9)
+                    ["a"] = nameof(Key.F9)
                 }
             },
             ExtraInputBindings =
@@ -160,7 +160,7 @@ public sealed class MainWindowInputBindingsControllerTests
                     Player = 1,
                     Kind = nameof(ExtraInputBindingKind.Combo),
                     Key = nameof(Key.A),
-                    Buttons = [nameof(NesButton.A), nameof(NesButton.B)]
+                    Buttons = ["a", "b"]
                 }
             ]
         };
@@ -171,8 +171,8 @@ public sealed class MainWindowInputBindingsControllerTests
             TestConfigurableKeys,
             layout);
 
-        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.A);
-        var player1B = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.B);
+        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "a");
+        var player1B = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "b");
         Assert.Equal(Key.F9, player1A.SelectedKey);
         Assert.Equal(Key.X, player1B.SelectedKey);
 
@@ -193,10 +193,10 @@ public sealed class MainWindowInputBindingsControllerTests
 
         var inputBindings = new List<InputBindingEntry>
         {
-            new(0, "A", NesButton.A, Key.F9, TestConfigurableKeys),
-            new(0, "B", NesButton.B, Key.X, TestConfigurableKeys),
-            new(1, "A", NesButton.A, Key.Enter, TestConfigurableKeys),
-            new(1, "B", NesButton.B, Key.S, TestConfigurableKeys)
+            new(0, "a", "A", Key.F9, TestConfigurableKeys),
+            new(0, "b", "B", Key.X, TestConfigurableKeys),
+            new(1, "a", "A", Key.Enter, TestConfigurableKeys),
+            new(1, "b", "B", Key.S, TestConfigurableKeys)
         };
         var extraBindings = new List<ExtraInputBindingEntry>
         {
@@ -217,14 +217,14 @@ public sealed class MainWindowInputBindingsControllerTests
             shortcuts,
             layout);
 
-        Assert.Equal(nameof(Key.F9), state.PlayerInputOverrides["Player1"][nameof(NesButton.A)]);
-        Assert.Equal(Key.Enter.ToString(), state.PlayerInputOverrides["Player2"][nameof(NesButton.A)]);
+        Assert.Equal(nameof(Key.F9), state.PlayerInputOverrides["Player1"]["a"]);
+        Assert.Equal(Key.Enter.ToString(), state.PlayerInputOverrides["Player2"]["a"]);
 
         var extra = Assert.Single(state.ExtraInputBindings);
         Assert.Equal(0, extra.Player);
         Assert.Equal(nameof(Key.A), extra.Key);
         Assert.Equal(12, extra.TurboHz);
-        Assert.Equal(nameof(NesButton.A), Assert.Single(extra.Buttons));
+        Assert.Equal("a", Assert.Single(extra.Buttons));
 
         Assert.Equal(nameof(Key.F9), state.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Key);
         Assert.Equal(nameof(KeyModifiers.Control), state.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Modifiers);
@@ -234,18 +234,18 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(layout.BridgeY, state.InputBindingLayout.BridgeY, precision: 6);
     }
 
-    private static IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> BuildDefaultKeyMaps() =>
-        new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
+    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
+        new Dictionary<int, IReadOnlyDictionary<string, Key>>
         {
-            [0] = new Dictionary<NesButton, Key>
+            [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X
+                ["a"] = Key.Z,
+                ["b"] = Key.X
             },
-            [1] = new Dictionary<NesButton, Key>
+            [1] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Enter,
-                [NesButton.B] = Key.S
+                ["a"] = Key.Enter,
+                ["b"] = Key.S
             }
         };
 }

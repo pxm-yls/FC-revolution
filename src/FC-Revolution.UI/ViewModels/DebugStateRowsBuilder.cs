@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -10,16 +11,12 @@ internal static class DebugStateRowsBuilder
 {
     public static void BuildRegisterRows(ObservableCollection<MemoryPageRow> target, CoreDebugState state)
     {
-        target.Clear();
-        target.Add(BuildPairRow("CPU-A", ("A", $"{state.A:X2}"), ("X", $"{state.X:X2}"), ("Y", $"{state.Y:X2}"), ("S", $"{state.S:X2}")));
-        target.Add(BuildPairRow("CPU-B", ("PC", $"{state.PC:X4}"), ("P", $"{state.P:X2}"), ("Flags", state.FlagLine.Replace("FLAGS ", "")), ("Cycles", state.CycleLine.Replace("CPU ", ""))));
+        BuildCategoryRows(target, state, "registers");
     }
 
     public static void BuildPpuRows(ObservableCollection<MemoryPageRow> target, CoreDebugState state)
     {
-        target.Clear();
-        target.Add(BuildTripleRow("PPU-A", ("Scanline", state.PpuScanline.ToString()), ("Dot", state.PpuCycle.ToString()), ("Frame", state.PpuFrame.ToString())));
-        target.Add(BuildTripleRow("PPU-B", ("CTRL", $"{state.PpuCtrl:X2}"), ("MASK", $"{state.PpuMask:X2}"), ("STAT", $"{state.PpuStatus:X2}")));
+        BuildCategoryRows(target, state, "video");
     }
 
     public static void BuildDisasmRows(
@@ -37,7 +34,7 @@ internal static class DebugStateRowsBuilder
                 var index = row * 3 + column;
                 var address = unchecked((ushort)(startAddress + index));
                 var opcode = index < opcodes.Count ? opcodes[index] : (byte)0;
-                var prefix = address == state.PC ? ">" : " ";
+                var prefix = address == state.InstructionPointer ? ">" : " ";
                 cells.Add(new MemoryCellItem
                 {
                     Address = address,
@@ -54,32 +51,27 @@ internal static class DebugStateRowsBuilder
         }
     }
 
-    private static MemoryPageRow BuildPairRow(string header, params (string Label, string Value)[] pairs)
+    private static void BuildCategoryRows(
+        ObservableCollection<MemoryPageRow> target,
+        CoreDebugState state,
+        string category)
     {
-        var cells = pairs
-            .Select((pair, index) => new MemoryCellItem
+        target.Clear();
+        foreach (var section in state.Sections.Where(section => string.Equals(section.Category, category, StringComparison.OrdinalIgnoreCase)))
+        {
+            target.Add(new MemoryPageRow
             {
-                Address = (ushort)index,
-                DisplayAddress = pair.Label,
-                Value = $"{pair.Label}:{pair.Value}"
-            })
-            .ToList();
-
-        return new MemoryPageRow { RowHeader = header, Cells = cells };
-    }
-
-    private static MemoryPageRow BuildTripleRow(string header, params (string Label, string Value)[] values)
-    {
-        var cells = values
-            .Select((pair, index) => new MemoryCellItem
-            {
-                Address = (ushort)index,
-                DisplayAddress = pair.Label,
-                Value = $"{pair.Label}:{pair.Value}"
-            })
-            .ToList();
-
-        return new MemoryPageRow { RowHeader = header, Cells = cells };
+                RowHeader = section.SectionId,
+                Cells = section.Values
+                    .Select((value, index) => new MemoryCellItem
+                    {
+                        Address = (ushort)index,
+                        DisplayAddress = value.Label,
+                        Value = $"{value.Label}:{value.Value}"
+                    })
+                    .ToList()
+            });
+        }
     }
 
     private static string Disasm(byte opcode) => opcode switch

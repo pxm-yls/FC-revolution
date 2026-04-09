@@ -47,14 +47,6 @@ public sealed class BackendContractFacade :
     public Task RefreshHeartbeatAsync(Guid sessionId, RefreshHeartbeatRequest request, CancellationToken cancellationToken = default) =>
         _remoteControlBridge.RefreshHeartbeatAsync(sessionId, request, cancellationToken);
 
-    public Task<bool> SetButtonStateAsync(Guid sessionId, ButtonStateRequest request, CancellationToken cancellationToken = default)
-    {
-        if (RemoteControlRequestCompatibility.TryBuildGenericInputRequest(request, "backend-contract-facade", out var genericRequest))
-            return SetInputStateAsync(sessionId, genericRequest, cancellationToken);
-
-        return _remoteControlBridge.SetButtonStateAsync(sessionId, request, cancellationToken);
-    }
-
     public Task<bool> SetInputStateAsync(Guid sessionId, SetInputStateRequest request, CancellationToken cancellationToken = default) =>
         _remoteControlBridge.SetInputStateAsync(sessionId, request, cancellationToken);
 

@@ -1,4 +1,3 @@
-using FCRevolution.Core;
 using FCRevolution.Rendering.Abstractions;
 using System.Numerics;
 
@@ -14,8 +13,8 @@ public static class LayeredFrameBuilder
 
     public static LayeredFrameData Build(
         IFrameMetadata metadata,
-        int frameWidth = NesConstants.ScreenWidth,
-        int frameHeight = NesConstants.ScreenHeight)
+        int frameWidth = FrameRenderDefaults.Width,
+        int frameHeight = FrameRenderDefaults.Height)
     {
         ArgumentNullException.ThrowIfNull(metadata);
         byte[] chrAtlas = BuildChrAtlas(metadata.PatternTable);
@@ -38,8 +37,8 @@ public static class LayeredFrameBuilder
 
     public static MotionTextureData BuildMotionTexture(
         IFrameMetadata metadata,
-        int frameWidth = NesConstants.ScreenWidth,
-        int frameHeight = NesConstants.ScreenHeight)
+        int frameWidth = FrameRenderDefaults.Width,
+        int frameHeight = FrameRenderDefaults.Height)
     {
         ArgumentNullException.ThrowIfNull(metadata);
         byte[] chrAtlas = BuildChrAtlas(metadata.PatternTable);

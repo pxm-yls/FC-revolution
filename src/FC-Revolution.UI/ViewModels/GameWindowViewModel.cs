@@ -12,15 +12,12 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using FCRevolution.Backend.Hosting;
 using FCRevolution.Core.Debug;
-using FCRevolution.Core;
-using FCRevolution.Core.Input;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Core.State;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Rendering.Abstractions;
-using FCRevolution.Rendering.Common;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Audio;
 using FC_Revolution.UI.Infrastructure;
@@ -31,8 +28,8 @@ namespace FC_Revolution.UI.ViewModels;
 
 public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
 {
-    private static readonly int ScreenWidth = NesConstants.ScreenWidth;
-    private static readonly int ScreenHeight = NesConstants.ScreenHeight;
+    private static readonly int ScreenWidth = FrameRenderDefaults.Width;
+    private static readonly int ScreenHeight = FrameRenderDefaults.Height;
     private static readonly GameWindowStatusToastController StatusToastController = new();
 
     private readonly IEmulatorCoreSession _coreSession;
@@ -54,9 +51,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private readonly GameWindowProfileTrustHandler _profileTrustHandler;
     private readonly GameWindowDisposeHandler _disposeHandler;
     private readonly ITimeTravelService _timeTravelService;
-    private readonly INesRenderStateProvider _nesRenderStateProvider;
     private readonly GameWindowLayeredFrameBuilderController _layeredFrameBuilder;
-    private readonly NesAudioPlayer _audio = new();
+    private readonly CoreAudioPlayer _audio = new();
 
     internal IEmulatorCoreSession CoreSession => _coreSession;
     internal string CoreId => _coreSession.RuntimeInfo.CoreId;
@@ -66,7 +62,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private readonly TimelineRepository _timelineRepository = new();
     private readonly string _romPath;
     private readonly string _romId;
-    private readonly Dictionary<Key, (int Player, NesButton Button)> _keyMap;
+    private readonly Dictionary<Key, (int Player, string ActionId)> _keyMap;
     private readonly IReadOnlyList<GameWindowResolvedExtraInputBinding> _extraInputBindings;
     private readonly HashSet<Key> _pressedKeys = [];
     private readonly BranchTree _branchTree = new();
@@ -111,7 +107,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         string displayName,
         string romPath,
         GameAspectRatioMode aspectRatioMode,
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> inputMaps,
+        IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
         MacUpscaleMode upscaleMode = MacUpscaleMode.None,
         MacUpscaleOutputResolution upscaleOutputResolution = MacUpscaleOutputResolution.Hd1080,
@@ -121,7 +117,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             displayName,
             romPath,
             aspectRatioMode,
-            inputMaps,
+            inputBindingsByPort,
             CreateDefaultCoreSession(),
             extraInputBindings,
             upscaleMode,
@@ -135,7 +131,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         string displayName,
         string romPath,
         GameAspectRatioMode aspectRatioMode,
-        IReadOnlyDictionary<int, Dictionary<NesButton, Key>> inputMaps,
+        IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
         IEmulatorCoreSession coreSession,
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
         MacUpscaleMode upscaleMode = MacUpscaleMode.None,
@@ -161,8 +157,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             ex => Dispatcher.UIThread.Post(
                 () => HandleSessionFailure("游戏运行异常，当前会话已停止，请重新启动游戏。", ex),
                 DispatcherPriority.Send));
-        _nesRenderStateProvider = CoreSessionCapabilityResolver.ResolveNesRenderStateProvider(coreSession);
-        _layeredFrameBuilder = new GameWindowLayeredFrameBuilderController(_nesRenderStateProvider);
+        _layeredFrameBuilder = new GameWindowLayeredFrameBuilderController(
+            CoreSessionCapabilityResolver.ResolveLayeredFrameProvider(coreSession));
         _enhancementMode = enhancementMode;
         DisplayName = displayName;
         _romPath = romPath;
@@ -254,15 +250,15 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
                 _coreSession.AudioReady -= OnAudioReady;
             },
             () => _sessionLoopHost.Stop(),
-            () => _uiTimer.Stop(),
-            () => _toastTimer.Stop(),
+            () => _uiTimer?.Stop(),
+            () => _toastTimer?.Stop(),
             () => _debugWindowHost.Close(),
             () => _audio.Dispose(),
             () => _coreSession.Dispose(),
             () => _framePresenter.Dispose());
         _timelineManifest = timelineState.Manifest;
         _currentBranchId = timelineState.CurrentBranchId;
-        _keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputMaps);
+        _keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputBindingsByPort);
         _extraInputBindings = GameWindowInputBindingResolver.ResolveExtraInputBindings(extraInputBindings);
         _statusText = $"正在启动 {displayName}";
         ScreenBitmap = _framePresenter.CurrentBitmap;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Contracts.RemoteControl;
-using FCRevolution.Core.Input;
+using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
@@ -12,30 +12,6 @@ namespace FC_Revolution.UI.ViewModels;
 public sealed partial class GameWindowViewModel
 {
     private static readonly GameWindowRemoteControlStateController RemoteControlStateController = new();
-    private static readonly IReadOnlyDictionary<string, NesButton> NesRemoteInputActionToButtonMap = new Dictionary<string, NesButton>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["a"] = NesButton.A,
-        ["x"] = NesButton.A,
-        ["turboa"] = NesButton.A,
-        ["b"] = NesButton.B,
-        ["y"] = NesButton.B,
-        ["turbob"] = NesButton.B,
-        ["select"] = NesButton.Select,
-        ["start"] = NesButton.Start,
-        ["up"] = NesButton.Up,
-        ["down"] = NesButton.Down,
-        ["left"] = NesButton.Left,
-        ["right"] = NesButton.Right
-    };
-    private static readonly HashSet<string> NesReservedRemoteInputActionIds = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "l1",
-        "r1",
-        "l2",
-        "r2",
-        "l3",
-        "r3"
-    };
 
     public void ApplyShortcutBindings(IReadOnlyDictionary<string, ShortcutGesture> shortcutBindings)
     {
@@ -156,14 +132,6 @@ public sealed partial class GameWindowViewModel
             _remoteControlWorkflow.BuildHeartbeatDecision(refreshed));
     }
 
-    public bool SetRemoteButtonState(int player, NesButton button, bool pressed, string? clientIp = null, string? clientName = null)
-    {
-        if (!RemoteControlPorts.TryGetPortId(player, out var portId))
-            return false;
-
-        return SetRemoteInputState(portId, GetInputActionId(button), pressed ? 1f : 0f, clientIp, clientName);
-    }
-
     public bool SetRemoteInputState(string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
     {
         var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
@@ -183,13 +151,13 @@ public sealed partial class GameWindowViewModel
             out var viewState);
 
         if (UsesNesRemoteInputBridge() &&
-            TryMapNesRemoteInputAction(normalizedActionId, out var mappedButton, out var isReserved))
+            NesInputAdapter.TryMapRemoteCompatibilityAction(normalizedActionId, out var mappedActionId, out var isReserved))
         {
             ApplyRemoteControlWorkflowDecision(
                 player,
                 viewState,
                 _remoteControlWorkflow.BuildButtonStateDecision(authorized),
-                isReserved ? null : mappedButton,
+                isReserved ? null : mappedActionId,
                 value >= 0.5f);
             return authorized;
         }
@@ -228,11 +196,11 @@ public sealed partial class GameWindowViewModel
     private bool CanAcceptLocalInput(int player) =>
         _remoteControlRuntime.GetPlayerControlSource(player) == GamePlayerControlSource.Local;
 
-    private void SetButtonState(int player, NesButton button, bool pressed)
+    private void SetActionState(int player, string actionId, bool pressed)
     {
-        ApplyInputStateChanges(_inputState.SetRemoteButtonState(
+        ApplyInputStateChanges(_inputState.SetRemoteActionState(
             player,
-            button,
+            actionId,
             pressed,
             CanAcceptLocalInput(player)));
     }
@@ -273,7 +241,7 @@ public sealed partial class GameWindowViewModel
         {
             _sessionRuntime.SetInputState(
                 GetInputPortId(change.Player),
-                GetInputActionId(change.Button),
+                change.ActionId,
                 change.Pressed ? 1f : 0f);
         }
     }
@@ -338,7 +306,7 @@ public sealed partial class GameWindowViewModel
         int player,
         GameWindowRemoteControlRuntimeViewState viewState,
         GameWindowRemoteControlWorkflowDecision decision,
-        NesButton? button = null,
+        string? actionId = null,
         bool pressed = false)
     {
         if (decision.ShouldClearRemoteButtons)
@@ -347,8 +315,8 @@ public sealed partial class GameWindowViewModel
         if (decision.ShouldApplyViewState)
             ApplyRemoteControlViewState(viewState);
 
-        if (decision.ShouldApplyRequestedRemoteButtonState && button.HasValue)
-            SetButtonState(player, button.Value, pressed);
+        if (decision.ShouldApplyRequestedRemoteButtonState && !string.IsNullOrWhiteSpace(actionId))
+            SetActionState(player, actionId, pressed);
 
         if (decision.ShouldRebuildCombinedState)
             ApplyCombinedStateForPlayer(player);
@@ -381,35 +349,4 @@ public sealed partial class GameWindowViewModel
         _coreSession.InputSchema.Actions.Any(action =>
             string.Equals(action.PortId, portId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(action.ActionId, actionId, StringComparison.OrdinalIgnoreCase));
-
-    private static bool TryMapNesRemoteInputAction(string actionId, out NesButton button, out bool isReserved)
-    {
-        isReserved = false;
-        if (NesRemoteInputActionToButtonMap.TryGetValue(actionId, out button))
-            return true;
-
-        if (NesReservedRemoteInputActionIds.Contains(actionId))
-        {
-            button = default;
-            isReserved = true;
-            return true;
-        }
-
-        button = default;
-        return false;
-    }
-
-    private static string GetInputActionId(NesButton button) => button switch
-    {
-        NesButton.A => "a",
-        NesButton.B => "b",
-        NesButton.Select => "select",
-        NesButton.Start => "start",
-        NesButton.Up => "up",
-        NesButton.Down => "down",
-        NesButton.Left => "left",
-        NesButton.Right => "right",
-        _ => throw new ArgumentOutOfRangeException(nameof(button), button, "Unsupported NES button mapping.")
-    };
-
 }

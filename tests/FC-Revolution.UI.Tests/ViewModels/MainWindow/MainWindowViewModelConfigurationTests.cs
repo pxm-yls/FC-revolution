@@ -563,7 +563,8 @@ public sealed class MainWindowViewModelConfigurationTests
             using var host = new MainWindowViewModelTestHost();
             var vm = host.ViewModel;
 
-            var player1A = Assert.Single(vm.GlobalInputBindingsPlayer1, entry => entry.Button == NesButton.A);
+            var actionIdA = NesInputTestAdapter.ActionId(NesButton.A);
+            var player1A = Assert.Single(vm.GlobalInputBindingsPlayer1, entry => entry.ActionId == actionIdA);
             Assert.True(player1A.TrySetSelectedKey(Key.Q));
 
             var extraBinding = ExtraInputBindingEntry.CreateDefaultTurbo(
@@ -576,25 +577,25 @@ public sealed class MainWindowViewModelConfigurationTests
             var quickLoad = Assert.Single(vm.SharedGameShortcutBindings, entry => entry.Id == ShortcutCatalog.GameQuickLoad);
             quickLoad.ApplyGesture(new ShortcutGesture(Key.F7, KeyModifiers.Control));
 
-            vm.MoveInputBindingLayoutSlot(NesButton.A, 8, -6);
+            vm.MoveInputBindingLayoutSlot(actionIdA, 8, -6);
             host.InvokeSaveSystemConfig();
 
             var profile = SystemConfigProfile.Load();
-            Assert.Equal(nameof(Key.Q), profile.PlayerInputOverrides["Player1"][nameof(NesButton.A)]);
+            Assert.Equal(nameof(Key.Q), profile.PlayerInputOverrides["Player1"][actionIdA]);
 
             var extra = Assert.Single(profile.ExtraInputBindings);
             Assert.Equal(0, extra.Player);
             Assert.Equal(nameof(ExtraInputBindingKind.Turbo), extra.Kind);
             Assert.Equal(nameof(Key.A), extra.Key);
             Assert.Equal(12, extra.TurboHz);
-            Assert.Equal(nameof(NesButton.A), Assert.Single(extra.Buttons));
+            Assert.Equal(actionIdA, Assert.Single(extra.Buttons));
 
             Assert.Equal(nameof(Key.F7), profile.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Key);
             Assert.Equal(nameof(KeyModifiers.Control), profile.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Modifiers);
 
             var defaultLayout = InputBindingLayoutProfile.CreateDefault();
-            Assert.Equal(defaultLayout.GetSlot(NesButton.A).CenterX + 8, profile.InputBindingLayout.GetSlot(NesButton.A).CenterX, precision: 6);
-            Assert.Equal(defaultLayout.GetSlot(NesButton.A).CenterY - 6, profile.InputBindingLayout.GetSlot(NesButton.A).CenterY, precision: 6);
+            Assert.Equal(defaultLayout.GetSlot(actionIdA).CenterX + 8, profile.InputBindingLayout.GetSlot(actionIdA).CenterX, precision: 6);
+            Assert.Equal(defaultLayout.GetSlot(actionIdA).CenterY - 6, profile.InputBindingLayout.GetSlot(actionIdA).CenterY, precision: 6);
         }
         finally
         {

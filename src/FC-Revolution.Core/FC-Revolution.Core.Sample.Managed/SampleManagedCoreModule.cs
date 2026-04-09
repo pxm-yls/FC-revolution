@@ -3,6 +3,7 @@ using System.Text;
 using FCRevolution.Core.Mappers;
 using FCRevolution.Core.PPU;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.Rendering.Abstractions;
 
 namespace FCRevolution.Core.Sample.Managed;
 
@@ -81,12 +82,12 @@ internal sealed class SampleManagedCoreSession : IEmulatorCoreSession
             CoreCapabilityIds.TimeTravel,
             CoreCapabilityIds.DebugMemory,
             CoreCapabilityIds.DebugRegisters,
-            CoreCapabilityIds.SystemNesRenderState);
+            CoreCapabilityIds.LayeredFrame);
         InputSchema = SampleInputSchema.Instance;
         _capabilitiesByType[typeof(ICoreDebugSurface)] = new SampleCoreDebugSurface(this);
         _capabilitiesByType[typeof(ICoreInputStateWriter)] = new SampleCoreInputStateWriter(this);
         _capabilitiesByType[typeof(ITimeTravelService)] = new SampleTimeTravelService(this);
-        _capabilitiesByType[typeof(INesRenderStateProvider)] = new SampleRenderStateProvider();
+        _capabilitiesByType[typeof(ILayeredFrameProvider)] = new SampleLayeredFrameProvider();
         ResetRuntimeState();
     }
 
@@ -268,21 +269,49 @@ internal sealed class SampleManagedCoreSession : IEmulatorCoreSession
 
     internal CoreDebugState CaptureDebugState() => new()
     {
-        A = (byte)(_frame & 0xFF),
-        X = _memory[0x10],
-        Y = _memory[0x11],
-        S = 0xFF,
-        PC = (ushort)(_frame & 0xFFFF),
-        P = 0x24,
-        TotalCycles = (ulong)(_frame * 341),
-        PpuScanline = (int)(_frame % FrameHeight),
-        PpuCycle = (int)((_frame * 3) % 341),
-        PpuFrame = _frame,
-        PpuCtrl = 0,
-        PpuMask = 0,
-        PpuStatus = 0,
-        FlagLine = "Nv-bdizc",
-        CycleLine = $"sample frame {_frame}"
+        InstructionPointer = (ushort)(_frame & 0xFFFF),
+        InstructionPointerLabel = "Frame",
+        Sections =
+        [
+            new CoreDebugSection(
+                "sample-registers",
+                "Sample State",
+                "registers",
+                [
+                    new CoreDebugValue("FrameLo", $"{(byte)(_frame & 0xFF):X2}"),
+                    new CoreDebugValue("Mem10", $"{_memory[0x10]:X2}"),
+                    new CoreDebugValue("Mem11", $"{_memory[0x11]:X2}"),
+                    new CoreDebugValue("Flags", "Nv-bdizc")
+                ]),
+            new CoreDebugSection(
+                "sample-status",
+                "Sample Status",
+                "registers",
+                [
+                    new CoreDebugValue("Frame", _frame.ToString()),
+                    new CoreDebugValue("Step", $"{(ushort)(_frame & 0xFFFF):X4}"),
+                    new CoreDebugValue("P", "24"),
+                    new CoreDebugValue("Cycles", $"sample frame {_frame}")
+                ]),
+            new CoreDebugSection(
+                "sample-video-timing",
+                "Sample Video",
+                "video",
+                [
+                    new CoreDebugValue("Scanline", ((int)(_frame % FrameHeight)).ToString()),
+                    new CoreDebugValue("Dot", ((int)((_frame * 3) % 341)).ToString()),
+                    new CoreDebugValue("Frame", _frame.ToString())
+                ]),
+            new CoreDebugSection(
+                "sample-video-status",
+                "Sample Video Status",
+                "video",
+                [
+                    new CoreDebugValue("CTRL", "00"),
+                    new CoreDebugValue("MASK", "00"),
+                    new CoreDebugValue("STAT", "00")
+                ])
+        ]
     };
 
     internal byte ReadMemory(ushort address) => _memory[address];
@@ -559,30 +588,23 @@ internal sealed class SampleManagedCoreSession : IEmulatorCoreSession
         }
     }
 
-    private sealed class SampleRenderStateProvider : INesRenderStateProvider
+    private sealed class SampleLayeredFrameProvider : ILayeredFrameProvider
     {
-        public PpuRenderStateSnapshot CaptureRenderStateSnapshot() => new()
+        public LayeredFrameData CaptureLayeredFrame() => new(
+            FrameWidth,
+            FrameHeight,
+            new byte[128 * 256],
+            new uint[32],
+            [],
+            [],
+            showBackground: true,
+            showSprites: true,
+            showBackgroundLeft8: true,
+            showSpritesLeft8: true);
+
+        public void ResetTemporalHistory()
         {
-            NametableBytes = new byte[2048],
-            PatternTableBytes = new byte[8192],
-            PaletteColors = new uint[32],
-            OamBytes = new byte[256],
-            MirroringMode = MirroringMode.Horizontal,
-            FineScrollX = 0,
-            FineScrollY = 0,
-            CoarseScrollX = 0,
-            CoarseScrollY = 0,
-            NametableSelect = 0,
-            UseBackgroundPatternTableHighBank = false,
-            UseSpritePatternTableHighBank = false,
-            Use8x16Sprites = false,
-            ShowBackground = true,
-            ShowSprites = true,
-            ShowBackgroundLeft8 = true,
-            ShowSpritesLeft8 = true,
-            HasCapturedBackgroundScanlineStates = false,
-            BackgroundScanlineStates = new PpuBackgroundScanlineState[FrameHeight]
-        };
+        }
     }
 }
 

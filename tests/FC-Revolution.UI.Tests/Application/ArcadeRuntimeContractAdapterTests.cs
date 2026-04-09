@@ -168,49 +168,6 @@ public sealed class ArcadeRuntimeContractAdapterTests
     }
 
     [Fact]
-    public async Task SetButtonStateAsync_MapsButtonAndDelegatesToSessionService()
-    {
-        var sessionService = new FakeGameSessionService
-        {
-            SetButtonResult = true
-        };
-        var sessionId = Guid.NewGuid();
-        var adapter = CreateAdapter([], sessionService, _ => { });
-
-        var changed = await AwaitWithUiDrain(adapter.SetButtonStateAsync(
-            sessionId,
-            new ButtonStateRequest(Player: 0, Button: NesButtonDto.Select, Pressed: true)));
-
-        Assert.True(changed);
-        Assert.Equal(sessionId, sessionService.LastSetButtonSessionId);
-        Assert.Equal(0, sessionService.LastSetButtonPlayer);
-        Assert.Equal(NesButton.Select, sessionService.LastSetButtonButton);
-        Assert.True(sessionService.LastSetButtonPressed);
-    }
-
-    [Fact]
-    public async Task SetButtonStateAsync_WithActionId_DelegatesToGenericInputSessionService()
-    {
-        var sessionService = new FakeGameSessionService
-        {
-            SetInputResult = true
-        };
-        var sessionId = Guid.NewGuid();
-        var adapter = CreateAdapter([], sessionService, _ => { });
-
-        var changed = await AwaitWithUiDrain(adapter.SetButtonStateAsync(
-            sessionId,
-            new ButtonStateRequest(Player: 1, Pressed: true, PortId: "p2", ActionId: "x")));
-
-        Assert.True(changed);
-        Assert.Equal(sessionId, sessionService.LastSetInputSessionId);
-        Assert.Equal("p2", sessionService.LastSetInputPortId);
-        Assert.Equal("x", sessionService.LastSetInputActionId);
-        Assert.Equal(1f, sessionService.LastSetInputValue);
-        Assert.Null(sessionService.LastSetButtonSessionId);
-    }
-
-    [Fact]
     public async Task SetInputStateAsync_DelegatesToGenericInputSessionService()
     {
         var sessionService = new FakeGameSessionService
@@ -314,7 +271,7 @@ public sealed class ArcadeRuntimeContractAdapterTests
     {
         return new ArcadeRuntimeContractAdapter(
             romLibrary,
-            new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
             new System.Collections.ObjectModel.ObservableCollection<InputBindingEntry>(),
             sessionService,
             () => GameAspectRatioMode.Native,
@@ -395,11 +352,6 @@ public sealed class ArcadeRuntimeContractAdapterTests
         public string? LastReleaseReason { get; private set; }
         public Guid? LastHeartbeatSessionId { get; private set; }
         public int LastHeartbeatPlayer { get; private set; } = -1;
-        public bool SetButtonResult { get; set; }
-        public Guid? LastSetButtonSessionId { get; private set; }
-        public int LastSetButtonPlayer { get; private set; } = -1;
-        public NesButton LastSetButtonButton { get; private set; } = NesButton.A;
-        public bool LastSetButtonPressed { get; private set; }
         public bool SetInputResult { get; set; }
         public Guid? LastSetInputSessionId { get; private set; }
         public string? LastSetInputPortId { get; private set; }
@@ -410,18 +362,19 @@ public sealed class ArcadeRuntimeContractAdapterTests
         public string? LastStartRomPath { get; private set; }
         public ActiveGameSessionItem? LastClosedSession { get; private set; }
 
-        public ActiveGameSessionItem StartSession(
+        public ActiveGameSessionItem StartSessionWithInputBindings(
             string displayName,
             string romPath,
             GameAspectRatioMode aspectRatioMode,
-            IReadOnlyDictionary<int, Dictionary<NesButton, Key>> inputMaps,
+            IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
             IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
             Action? onSessionsChanged = null,
             MacUpscaleMode upscaleMode = MacUpscaleMode.None,
             MacUpscaleOutputResolution upscaleOutputResolution = MacUpscaleOutputResolution.Hd1080,
             PixelEnhancementMode enhancementMode = PixelEnhancementMode.None,
             double volume = 15.0,
-            IReadOnlyDictionary<string, ShortcutGesture>? shortcutBindings = null)
+            IReadOnlyDictionary<string, ShortcutGesture>? shortcutBindings = null,
+            string? coreId = null)
         {
             StartSessionCalled = true;
             LastStartDisplayName = displayName;
@@ -472,16 +425,6 @@ public sealed class ArcadeRuntimeContractAdapterTests
             return SetInputResult;
         }
 
-        public bool TrySetRemoteButtonState(Guid sessionId, int player, NesButton button, bool pressed, string? clientIp = null, string? clientName = null)
-        {
-            LastSetButtonSessionId = sessionId;
-            LastSetButtonPlayer = player;
-            LastSetButtonButton = button;
-            LastSetButtonPressed = pressed;
-            return SetButtonResult;
-        }
-
-        public void ClearRemoteButtons(Guid sessionId, int player) { }
         public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null) => false;
         public bool AnyForRomPath(string romPath) => Sessions.Any(s => string.Equals(s.RomPath, romPath, StringComparison.OrdinalIgnoreCase));
     }

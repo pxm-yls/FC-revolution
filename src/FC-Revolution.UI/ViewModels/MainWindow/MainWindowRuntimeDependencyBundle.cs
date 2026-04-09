@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Models;
@@ -33,7 +32,7 @@ internal sealed class MainWindowRuntimeDependencyBundle
 
     public static MainWindowRuntimeDependencyBundle Create(
         IReadOnlyList<RomLibraryItem> romLibrary,
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        IReadOnlyDictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
         Func<GameAspectRatioMode> getGameAspectRatioMode,
@@ -47,7 +46,7 @@ internal sealed class MainWindowRuntimeDependencyBundle
     {
         var arcadeRuntimeAdapter = new ArcadeRuntimeContractAdapter(
             romLibrary,
-            romInputOverrides,
+            InputBindingContractAdapter.BuildActionBindingsByRomPath(romInputOverrides),
             globalInputBindings,
             gameSessionService,
             getGameAspectRatioMode,

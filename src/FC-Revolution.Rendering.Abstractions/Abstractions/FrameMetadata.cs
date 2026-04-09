@@ -1,5 +1,4 @@
 using System.Numerics;
-using FCRevolution.Core.Mappers;
 using FCRevolution.Rendering.Common;
 
 namespace FCRevolution.Rendering.Abstractions;
@@ -22,7 +21,7 @@ public sealed class FrameMetadata : IFrameMetadata
         Vector2 backgroundMotionVector = default,
         Vector2[]? motionVectors = null,
         VisibleTile[]? visibleTiles = null,
-        MirroringMode mirrorMode = MirroringMode.Horizontal,
+        FrameMirroringMode mirrorMode = FrameMirroringMode.Horizontal,
         int fineScrollX = 0,
         int fineScrollY = 0,
         int coarseScrollX = 0,
@@ -72,7 +71,7 @@ public sealed class FrameMetadata : IFrameMetadata
 
     public IReadOnlyList<VisibleTile> VisibleTiles => _visibleTiles;
 
-    public MirroringMode MirrorMode { get; }
+    public FrameMirroringMode MirrorMode { get; }
 
     public int FineScrollX { get; }
 

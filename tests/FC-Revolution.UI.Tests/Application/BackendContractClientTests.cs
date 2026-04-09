@@ -11,7 +11,7 @@ namespace FC_Revolution.UI.Tests;
 public sealed class BackendContractClientTests
 {
     [Fact]
-    public async Task SetButtonStateAsync_WithActionId_PostsGenericInputRequest()
+    public async Task SetInputStateAsync_PostsInputRequest()
     {
         var sessionId = Guid.NewGuid();
         var handler = new RecordingHttpMessageHandler(request =>
@@ -23,9 +23,12 @@ public sealed class BackendContractClientTests
         });
         using var client = CreateClient(handler);
 
-        var changed = await client.SetButtonStateAsync(
+        var changed = await client.SetInputStateAsync(
             sessionId,
-            new ButtonStateRequest(Player: 1, Pressed: true, PortId: "p2", ActionId: "x"));
+            new SetInputStateRequest(
+            [
+                new InputActionValueDto("p2", "gamepad", "x", 1f)
+            ]));
 
         Assert.True(changed);
         var captured = Assert.Single(handler.Requests);
@@ -41,37 +44,7 @@ public sealed class BackendContractClientTests
     }
 
     [Fact]
-    public async Task SetButtonStateAsync_WithLegacyButton_PostsLegacyButtonsRequest()
-    {
-        var sessionId = Guid.NewGuid();
-        var handler = new RecordingHttpMessageHandler(request =>
-        {
-            if (request.RequestUri?.AbsolutePath == $"/api/sessions/{sessionId}/buttons")
-                return new HttpResponseMessage(HttpStatusCode.OK);
-
-            return new HttpResponseMessage(HttpStatusCode.NotFound);
-        });
-        using var client = CreateClient(handler);
-
-        var changed = await client.SetButtonStateAsync(
-            sessionId,
-            new ButtonStateRequest(Player: 0, Button: NesButtonDto.Select, Pressed: true));
-
-        Assert.True(changed);
-        var captured = Assert.Single(handler.Requests);
-        Assert.Equal(HttpMethod.Post, captured.Method);
-        Assert.Equal($"/api/sessions/{sessionId}/buttons", captured.Path);
-
-        var payload = JsonSerializer.Deserialize<ButtonStateRequest>(captured.Body, JsonOptions);
-        Assert.NotNull(payload);
-        Assert.Equal(0, payload.Player);
-        Assert.Equal(NesButtonDto.Select, payload.Button);
-        Assert.True(payload.Pressed);
-        Assert.Null(payload.ActionId);
-    }
-
-    [Fact]
-    public async Task SetButtonStateAsync_WithActionId_WhenInputReturnsConflict_ReturnsFalse()
+    public async Task SetInputStateAsync_WhenInputReturnsConflict_ReturnsFalse()
     {
         var sessionId = Guid.NewGuid();
         var handler = new RecordingHttpMessageHandler(request =>
@@ -83,9 +56,12 @@ public sealed class BackendContractClientTests
         });
         using var client = CreateClient(handler);
 
-        var changed = await client.SetButtonStateAsync(
+        var changed = await client.SetInputStateAsync(
             sessionId,
-            new ButtonStateRequest(Player: 1, Pressed: true, PortId: "p2", ActionId: "x"));
+            new SetInputStateRequest(
+            [
+                new InputActionValueDto("p2", "gamepad", "x", 1f)
+            ]));
 
         Assert.False(changed);
         var captured = Assert.Single(handler.Requests);

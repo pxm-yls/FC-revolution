@@ -1,5 +1,4 @@
 using System.Numerics;
-using FCRevolution.Core.Mappers;
 using FCRevolution.Rendering.Common;
 
 namespace FCRevolution.Rendering.Abstractions;
@@ -28,7 +27,7 @@ public interface IFrameMetadata
 
     IReadOnlyList<VisibleTile> VisibleTiles { get; }
 
-    MirroringMode MirrorMode { get; }
+    FrameMirroringMode MirrorMode { get; }
 
     int FineScrollX { get; }
 

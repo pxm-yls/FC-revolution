@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Models;
 
@@ -26,8 +25,8 @@ internal sealed record MainWindowActiveInputTurboPulseDecision(
 
 internal sealed class MainWindowActiveInputWorkflowController
 {
-    private static readonly IReadOnlyDictionary<Key, (int Player, NesButton Button)> EmptyKeyMap =
-        new Dictionary<Key, (int Player, NesButton Button)>();
+    private static readonly IReadOnlyDictionary<Key, (int Player, string ActionId)> EmptyKeyMap =
+        new Dictionary<Key, (int Player, string ActionId)>();
     private static readonly IReadOnlyList<ResolvedExtraInputBinding> EmptyExtraBindings = [];
 
     public string? GetActiveInputRomPath(bool isRomLoaded, string? loadedRomPath, RomLibraryItem? currentRom)
@@ -38,21 +37,19 @@ internal sealed class MainWindowActiveInputWorkflowController
         MainWindowInputStateController inputStateController,
         bool isRomLoaded,
         string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, NesButton Button)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
         byte player1CurrentMask,
         byte player2CurrentMask,
-        IReadOnlyList<NesButton> controllerButtons,
-        Func<int, string> getInputPortId,
-        Func<NesButton, string> getInputActionId)
+        IReadOnlyList<string> controllerActionIds,
+        Func<int, string> getInputPortId)
     {
         ArgumentNullException.ThrowIfNull(runtimeController);
         ArgumentNullException.ThrowIfNull(inputStateController);
         ArgumentNullException.ThrowIfNull(effectiveKeyMap);
         ArgumentNullException.ThrowIfNull(effectiveExtraBindings);
-        ArgumentNullException.ThrowIfNull(controllerButtons);
+        ArgumentNullException.ThrowIfNull(controllerActionIds);
         ArgumentNullException.ThrowIfNull(getInputPortId);
-        ArgumentNullException.ThrowIfNull(getInputActionId);
 
         runtimeController.RefreshContext(isRomLoaded, activeRomPath);
         var applyPlan = runtimeController.BuildApplyPlan(
@@ -61,9 +58,8 @@ internal sealed class MainWindowActiveInputWorkflowController
             isRomLoaded ? effectiveExtraBindings : EmptyExtraBindings,
             player1CurrentMask,
             player2CurrentMask,
-            controllerButtons,
-            getInputPortId,
-            getInputActionId);
+            controllerActionIds,
+            getInputPortId);
 
         return new MainWindowActiveInputRefreshDecision(
             applyPlan,
@@ -75,7 +71,7 @@ internal sealed class MainWindowActiveInputWorkflowController
         MainWindowActiveInputRefreshDecision decision,
         object inputSyncRoot,
         ICoreInputStateWriter inputStateWriter,
-        Action<int, NesButton, bool> updateInputMask)
+        Action<int, string, bool> updateInputMask)
     {
         ArgumentNullException.ThrowIfNull(runtimeController);
         ArgumentNullException.ThrowIfNull(decision);
@@ -96,16 +92,15 @@ internal sealed class MainWindowActiveInputWorkflowController
         MainWindowInputStateController inputStateController,
         bool isRomLoaded,
         string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, NesButton Button)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
         byte player1CurrentMask,
         byte player2CurrentMask,
-        IReadOnlyList<NesButton> controllerButtons,
+        IReadOnlyList<string> controllerActionIds,
         Func<int, string> getInputPortId,
-        Func<NesButton, string> getInputActionId,
         object inputSyncRoot,
         ICoreInputStateWriter inputStateWriter,
-        Action<int, NesButton, bool> updateInputMask)
+        Action<int, string, bool> updateInputMask)
     {
         var refreshDecision = BuildRefreshDecision(
             runtimeController,
@@ -116,9 +111,8 @@ internal sealed class MainWindowActiveInputWorkflowController
             effectiveExtraBindings,
             player1CurrentMask,
             player2CurrentMask,
-            controllerButtons,
-            getInputPortId,
-            getInputActionId);
+            controllerActionIds,
+            getInputPortId);
         var updatedMirror = ApplyRefreshDecision(
             runtimeController,
             refreshDecision,

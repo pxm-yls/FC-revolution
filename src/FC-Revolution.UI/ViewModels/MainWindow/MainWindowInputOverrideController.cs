@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -35,11 +34,11 @@ internal sealed class MainWindowInputOverrideController
 
     public void EnableRomInputOverride(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
@@ -59,9 +58,9 @@ internal sealed class MainWindowInputOverrideController
         bool isRomInputOverrideEnabled,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -84,9 +83,9 @@ internal sealed class MainWindowInputOverrideController
 
     public void ClearRomInputOverride(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -177,11 +176,11 @@ internal sealed class MainWindowInputOverrideController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -226,11 +225,11 @@ internal sealed class MainWindowInputOverrideController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -273,12 +272,12 @@ internal sealed class MainWindowInputOverrideController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -331,13 +330,13 @@ internal sealed class MainWindowInputOverrideController
     public void IncrRomTurboHz(
         ExtraInputBindingEntry? entry,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -370,13 +369,13 @@ internal sealed class MainWindowInputOverrideController
     public void DecrRomTurboHz(
         ExtraInputBindingEntry? entry,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -410,11 +409,11 @@ internal sealed class MainWindowInputOverrideController
         RomLibraryItem? rom,
         Action<RomLibraryItem> setCurrentRom,
         Action<bool> setQuickRomInputEditorOpen,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
@@ -441,9 +440,9 @@ internal sealed class MainWindowInputOverrideController
         RomLibraryItem? currentRom,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus,
@@ -469,9 +468,9 @@ internal sealed class MainWindowInputOverrideController
     public void RemoveRomInputOverrideFromMenu(
         RomLibraryItem? rom,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
@@ -488,11 +487,11 @@ internal sealed class MainWindowInputOverrideController
 
     public void EnsureRomInputOverrideForEditing(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride)
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride)
     {
         _inputBindingsController.EnsureRomInputOverrideForEditing(
             romPath,
@@ -505,7 +504,7 @@ internal sealed class MainWindowInputOverrideController
 
     public void LoadRomProfileInputOverride(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
         _inputBindingsController.LoadRomProfileInputOverride(romPath, romInputOverrides, romExtraInputOverrides);
@@ -513,7 +512,7 @@ internal sealed class MainWindowInputOverrideController
 
     public void SaveRomProfileInputOverride(
         string romPath,
-        Dictionary<int, Dictionary<NesButton, Key>>? inputOverride,
+        Dictionary<int, Dictionary<string, Key>>? inputOverride,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
         _inputBindingsController.SaveRomProfileInputOverride(romPath, inputOverride, romExtraInputOverrides);
@@ -523,9 +522,9 @@ internal sealed class MainWindowInputOverrideController
         RomLibraryItem? currentRom,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<NesButton, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus,
@@ -545,7 +544,7 @@ internal sealed class MainWindowInputOverrideController
 
     public void RefreshRomInputBindings(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
@@ -555,7 +554,7 @@ internal sealed class MainWindowInputOverrideController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         Action<bool> setRomInputOverrideEnabled,

@@ -4,6 +4,9 @@ using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.PPU;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.Core.Nes.Managed.Adapters.Nes;
+using FCRevolution.Rendering.Abstractions;
+using FCRevolution.Rendering.Common;
 
 namespace FCRevolution.Core.Nes.Managed;
 
@@ -60,12 +63,12 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
             CoreCapabilityIds.DebugMemory,
             CoreCapabilityIds.DebugRegisters,
             CoreCapabilityIds.Disassembly,
-            CoreCapabilityIds.SystemNesRenderState);
+            CoreCapabilityIds.LayeredFrame);
         InputSchema = NesInputSchema.Instance;
         _capabilitiesByType[typeof(ICoreDebugSurface)] = new NesCoreDebugSurface(_console);
         _capabilitiesByType[typeof(ICoreInputStateWriter)] = new NesCoreInputStateWriter(_console);
         _capabilitiesByType[typeof(ITimeTravelService)] = new NesTimeTravelService(_console);
-        _capabilitiesByType[typeof(INesRenderStateProvider)] = new NesRenderStateProvider(_console);
+        _capabilitiesByType[typeof(ILayeredFrameProvider)] = new NesLayeredFrameProvider(_console);
         _console.FrameReady += HandleFrameReady;
         _console.AudioChunkReady += HandleAudioReady;
     }
@@ -219,21 +222,49 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
 
             return new CoreDebugState
             {
-                A = state.A,
-                X = state.X,
-                Y = state.Y,
-                S = state.S,
-                PC = state.PC,
-                P = (byte)state.P,
-                TotalCycles = state.TotalCycles,
-                PpuScanline = state.PpuScanline,
-                PpuCycle = state.PpuCycle,
-                PpuFrame = state.PpuFrame,
-                PpuCtrl = (byte)state.PpuCtrl,
-                PpuMask = (byte)state.PpuMask,
-                PpuStatus = (byte)state.PpuStatus,
-                FlagLine = state.FlagLine,
-                CycleLine = state.CycleLine
+                InstructionPointer = state.PC,
+                InstructionPointerLabel = "PC",
+                Sections =
+                [
+                    new CoreDebugSection(
+                        "cpu-registers",
+                        "CPU Registers",
+                        "registers",
+                        [
+                            new CoreDebugValue("A", $"{state.A:X2}"),
+                            new CoreDebugValue("X", $"{state.X:X2}"),
+                            new CoreDebugValue("Y", $"{state.Y:X2}"),
+                            new CoreDebugValue("S", $"{state.S:X2}")
+                        ]),
+                    new CoreDebugSection(
+                        "cpu-status",
+                        "CPU Status",
+                        "registers",
+                        [
+                            new CoreDebugValue("PC", $"{state.PC:X4}"),
+                            new CoreDebugValue("P", $"{(byte)state.P:X2}"),
+                            new CoreDebugValue("Flags", state.FlagLine.Replace("FLAGS ", string.Empty, StringComparison.OrdinalIgnoreCase)),
+                            new CoreDebugValue("Cycles", state.CycleLine.Replace("CPU ", string.Empty, StringComparison.OrdinalIgnoreCase))
+                        ]),
+                    new CoreDebugSection(
+                        "video-timing",
+                        "Video Timing",
+                        "video",
+                        [
+                            new CoreDebugValue("Scanline", state.PpuScanline.ToString()),
+                            new CoreDebugValue("Dot", state.PpuCycle.ToString()),
+                            new CoreDebugValue("Frame", state.PpuFrame.ToString())
+                        ]),
+                    new CoreDebugSection(
+                        "video-status",
+                        "Video Status",
+                        "video",
+                        [
+                            new CoreDebugValue("CTRL", $"{(byte)state.PpuCtrl:X2}"),
+                            new CoreDebugValue("MASK", $"{(byte)state.PpuMask:X2}"),
+                            new CoreDebugValue("STAT", $"{(byte)state.PpuStatus:X2}")
+                        ])
+                ]
             };
         }
     }
@@ -426,17 +457,29 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
         }
     }
 
-    private sealed class NesRenderStateProvider : INesRenderStateProvider
+    private sealed class NesLayeredFrameProvider : ILayeredFrameProvider
     {
         private readonly NesConsole _console;
+        private IFrameMetadata? _previousFrameMetadata;
 
-        public NesRenderStateProvider(NesConsole console)
+        public NesLayeredFrameProvider(NesConsole console)
         {
             _console = console;
         }
 
-        public PpuRenderStateSnapshot CaptureRenderStateSnapshot() =>
-            _console.Ppu.CaptureRenderStateSnapshot();
+        public LayeredFrameData CaptureLayeredFrame()
+        {
+            var metadata = new RenderDataExtractor().Extract(
+                NesRenderStateAdapter.Map(_console.Ppu.CaptureRenderStateSnapshot()),
+                _previousFrameMetadata);
+            _previousFrameMetadata = metadata;
+            return LayeredFrameBuilder.Build(metadata);
+        }
+
+        public void ResetTemporalHistory()
+        {
+            _previousFrameMetadata = null;
+        }
     }
     private sealed class NesInputSchema : IInputSchema
     {

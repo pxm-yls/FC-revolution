@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
+using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -15,7 +15,7 @@ internal static class GameWindowLocalInputProjectionController
 {
     public static GameWindowDesiredLocalInputMasks BuildDesiredLocalInputMasks(
         IReadOnlyCollection<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (int Player, NesButton Button)> keyMap,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> keyMap,
         IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings,
         IReadOnlyDictionary<Key, int> turboTickCounters)
     {
@@ -26,10 +26,13 @@ internal static class GameWindowLocalInputProjectionController
         {
             if (keyMap.TryGetValue(key, out var binding))
             {
+                if (!NesInputAdapter.TryGetBitMask(binding.ActionId, out var bitMask))
+                    continue;
+
                 if (binding.Player == 0)
-                    player1Mask |= (byte)binding.Button;
+                    player1Mask |= bitMask;
                 else
-                    player2Mask |= (byte)binding.Button;
+                    player2Mask |= bitMask;
             }
         }
 
@@ -46,12 +49,15 @@ internal static class GameWindowLocalInputProjectionController
                     continue;
             }
 
-            foreach (var button in binding.Buttons)
+            foreach (var actionId in binding.ActionIds)
             {
+                if (!NesInputAdapter.TryGetBitMask(actionId, out var bitMask))
+                    continue;
+
                 if (binding.Player == 0)
-                    player1Mask |= (byte)button;
+                    player1Mask |= bitMask;
                 else
-                    player2Mask |= (byte)button;
+                    player2Mask |= bitMask;
             }
         }
 

@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record MainWindowActiveInputWriteRequest(
     int Player,
-    NesButton Button,
     bool DesiredPressed,
     string PortId,
     string ActionId,
@@ -65,20 +63,18 @@ internal sealed class MainWindowActiveInputRuntimeController
 
     public MainWindowActiveInputPlan BuildApplyPlan(
         MainWindowInputStateController inputStateController,
-        IReadOnlyDictionary<Key, (int Player, NesButton Button)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
         byte player1CurrentMask,
         byte player2CurrentMask,
-        IReadOnlyList<NesButton> controllerButtons,
-        Func<int, string> getInputPortId,
-        Func<NesButton, string> getInputActionId)
+        IReadOnlyList<string> controllerActionIds,
+        Func<int, string> getInputPortId)
     {
         ArgumentNullException.ThrowIfNull(inputStateController);
         ArgumentNullException.ThrowIfNull(effectiveKeyMap);
         ArgumentNullException.ThrowIfNull(extraBindings);
-        ArgumentNullException.ThrowIfNull(controllerButtons);
+        ArgumentNullException.ThrowIfNull(controllerActionIds);
         ArgumentNullException.ThrowIfNull(getInputPortId);
-        ArgumentNullException.ThrowIfNull(getInputActionId);
 
         var desiredMasks = inputStateController.BuildDesiredMasks(
             _pressedKeys,
@@ -91,18 +87,16 @@ internal sealed class MainWindowActiveInputRuntimeController
             player: 0,
             desiredMasks.Player1Mask,
             player1CurrentMask,
-            controllerButtons,
+            controllerActionIds,
             getInputPortId,
-            getInputActionId,
             inputStateController,
             writeRequests);
         BuildPlayerWriteRequests(
             player: 1,
             desiredMasks.Player2Mask,
             player2CurrentMask,
-            controllerButtons,
+            controllerActionIds,
             getInputPortId,
-            getInputActionId,
             inputStateController,
             writeRequests);
 
@@ -116,7 +110,7 @@ internal sealed class MainWindowActiveInputRuntimeController
         MainWindowActiveInputPlan plan,
         object inputSyncRoot,
         ICoreInputStateWriter inputStateWriter,
-        Action<int, NesButton, bool> updateInputMask)
+        Action<int, string, bool> updateInputMask)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(inputSyncRoot);
@@ -133,7 +127,7 @@ internal sealed class MainWindowActiveInputRuntimeController
                     writeRequest.Value);
             }
 
-            updateInputMask(writeRequest.Player, writeRequest.Button, writeRequest.DesiredPressed);
+            updateInputMask(writeRequest.Player, writeRequest.ActionId, writeRequest.DesiredPressed);
         }
     }
 
@@ -141,24 +135,22 @@ internal sealed class MainWindowActiveInputRuntimeController
         int player,
         byte desiredMask,
         byte currentMask,
-        IReadOnlyList<NesButton> controllerButtons,
+        IReadOnlyList<string> controllerActionIds,
         Func<int, string> getInputPortId,
-        Func<NesButton, string> getInputActionId,
         MainWindowInputStateController inputStateController,
         ICollection<MainWindowActiveInputWriteRequest> writeRequests)
     {
         var transitions = inputStateController.BuildMaskTransitions(
             desiredMask,
             currentMask,
-            controllerButtons);
+            controllerActionIds);
         foreach (var transition in transitions)
         {
             writeRequests.Add(new MainWindowActiveInputWriteRequest(
                 player,
-                transition.Button,
                 transition.DesiredPressed,
                 getInputPortId(player),
-                getInputActionId(transition.Button),
+                transition.ActionId,
                 transition.DesiredPressed ? 1f : 0f));
         }
     }

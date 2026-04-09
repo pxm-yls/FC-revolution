@@ -1,6 +1,5 @@
 using System;
 using FCRevolution.Contracts.RemoteControl;
-using FCRevolution.Core.Input;
 
 namespace FC_Revolution.UI.AppServices;
 
@@ -43,30 +42,6 @@ public sealed class SessionRemoteControlService
         _gameSessionService.RefreshRemoteHeartbeat(sessionId, player);
     }
 
-    public bool SetButtonState(Guid sessionId, ButtonStateRequest request)
-    {
-        if (RemoteControlRequestCompatibility.TryBuildGenericInputRequest(request, "session-compat", out var genericRequest))
-        {
-            var action = genericRequest.Actions[0];
-            if (!TryResolvePortId(action.PortId, fallbackPlayer: null, out var portId))
-                return false;
-
-            return _gameSessionService.TrySetRemoteInputState(
-                sessionId,
-                portId,
-                action.ActionId,
-                action.Value);
-        }
-
-        if (!TryResolvePlayer(request.PortId, request.Player, out var player))
-            return false;
-
-        if (request.Button is not { } legacyButton)
-            return false;
-
-        return _gameSessionService.TrySetRemoteButtonState(sessionId, player, MapButton(legacyButton), request.Pressed);
-    }
-
     public bool SetInputState(Guid sessionId, SetInputStateRequest request)
     {
         var allApplied = true;
@@ -84,18 +59,6 @@ public sealed class SessionRemoteControlService
 
         return allApplied;
     }
-
-    private static NesButton MapButton(NesButtonDto button) => button switch
-    {
-        NesButtonDto.A => NesButton.A,
-        NesButtonDto.B => NesButton.B,
-        NesButtonDto.Select => NesButton.Select,
-        NesButtonDto.Start => NesButton.Start,
-        NesButtonDto.Up => NesButton.Up,
-        NesButtonDto.Down => NesButton.Down,
-        NesButtonDto.Left => NesButton.Left,
-        _ => NesButton.Right
-    };
 
     private static bool TryResolvePortId(string? portId, int? fallbackPlayer, out string resolvedPortId)
     {

@@ -1,5 +1,3 @@
-using FCRevolution.Core;
-using FCRevolution.Core.PPU;
 using FCRevolution.Rendering.Abstractions;
 using System.Numerics;
 
@@ -8,10 +6,10 @@ namespace FCRevolution.Rendering.Common;
 public sealed class RenderDataExtractor : IRenderDataExtractor
 {
     public FrameMetadata Extract(
-        PpuRenderStateSnapshot snapshot,
+        RenderStateSnapshot snapshot,
         IFrameMetadata? previousFrame = null,
-        int screenWidth = FCRevolution.Core.NesConstants.ScreenWidth,
-        int screenHeight = FCRevolution.Core.NesConstants.ScreenHeight)
+        int screenWidth = 256,
+        int screenHeight = 240)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
@@ -19,8 +17,8 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
         VisibleTile[] visibleTiles = ResolveVisibleTiles(snapshot, screenWidth, screenHeight);
         // Motion vectors are expressed in the current internal render pixel space,
         // so changes in internal render resolution scale the previous->current delta.
-        float motionScaleX = screenWidth / (float)NesConstants.ScreenWidth;
-        float motionScaleY = screenHeight / (float)NesConstants.ScreenHeight;
+        float motionScaleX = screenWidth / 256f;
+        float motionScaleY = screenHeight / 240f;
         Vector2 backgroundMotionVector = previousFrame is null
             ? Vector2.Zero
             : MotionVectorGenerator.GenerateBackgroundMotionVector(
@@ -63,7 +61,7 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
     }
 
     private static VisibleTile[] ResolveVisibleTiles(
-        PpuRenderStateSnapshot snapshot,
+        RenderStateSnapshot snapshot,
         int screenWidth,
         int screenHeight)
     {
@@ -89,7 +87,7 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
 
         int totalVisibleTiles = 0;
         int stripStart = 0;
-        PpuBackgroundScanlineState currentState = snapshot.BackgroundScanlineStates[0];
+        BackgroundScanlineRenderState currentState = snapshot.BackgroundScanlineStates[0];
 
         for (int scanline = 1; scanline <= scanlineCount; scanline++)
         {

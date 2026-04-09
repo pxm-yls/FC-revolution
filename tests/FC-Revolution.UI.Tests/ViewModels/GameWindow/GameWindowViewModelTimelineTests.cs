@@ -4,6 +4,7 @@ using FCRevolution.Core.PPU;
 using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.ViewModels;
 using System.Globalization;
@@ -139,7 +140,7 @@ public sealed class GameWindowViewModelTimelineTests
             CoreCapabilityIds.TimeTravel,
             CoreCapabilityIds.DebugMemory,
             CoreCapabilityIds.InputState,
-            CoreCapabilityIds.SystemNesRenderState);
+            CoreCapabilityIds.LayeredFrame);
 
         public IInputSchema InputSchema { get; } = new FakeInputSchema();
 
@@ -180,7 +181,7 @@ public sealed class GameWindowViewModelTimelineTests
                 var type when type == typeof(ITimeTravelService) => _timeTravelService,
                 var type when type == typeof(ICoreDebugSurface) => _debugSurface,
                 var type when type == typeof(ICoreInputStateWriter) => _inputStateWriter,
-                var type when type == typeof(INesRenderStateProvider) => _renderStateProvider,
+                var type when type == typeof(ILayeredFrameProvider) => _renderStateProvider,
                 _ => null
             };
 
@@ -320,31 +321,24 @@ public sealed class GameWindowViewModelTimelineTests
         }
     }
 
-    private sealed class FakeRenderStateProvider : INesRenderStateProvider
+    private sealed class FakeRenderStateProvider : ILayeredFrameProvider
     {
-        public PpuRenderStateSnapshot CaptureRenderStateSnapshot() =>
-            new()
-            {
-                NametableBytes = new byte[0x1000],
-                PatternTableBytes = new byte[0x2000],
-                PaletteColors = new uint[32],
-                OamBytes = new byte[256],
-                MirroringMode = MirroringMode.Horizontal,
-                FineScrollX = 0,
-                FineScrollY = 0,
-                CoarseScrollX = 0,
-                CoarseScrollY = 0,
-                NametableSelect = 0,
-                UseBackgroundPatternTableHighBank = false,
-                UseSpritePatternTableHighBank = false,
-                Use8x16Sprites = false,
-                ShowBackground = true,
-                ShowSprites = true,
-                ShowBackgroundLeft8 = true,
-                ShowSpritesLeft8 = true,
-                HasCapturedBackgroundScanlineStates = false,
-                BackgroundScanlineStates = []
-            };
+        public LayeredFrameData CaptureLayeredFrame() =>
+            new(
+                256,
+                240,
+                [],
+                new uint[32],
+                [],
+                [],
+                showBackground: true,
+                showSprites: true,
+                showBackgroundLeft8: true,
+                showSpritesLeft8: true);
+
+        public void ResetTemporalHistory()
+        {
+        }
     }
 
     private sealed class FakeInputSchema : IInputSchema

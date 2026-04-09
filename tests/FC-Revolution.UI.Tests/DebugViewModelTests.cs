@@ -43,7 +43,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: _ =>
             {
                 directReadCount++;
@@ -55,17 +55,7 @@ public class DebugViewModelTests : IDisposable
                 snapshotCount++;
                 return new DebugRefreshSnapshot
                 {
-                    State = new CoreDebugState
-                    {
-                        A = 0x01,
-                        X = 0x02,
-                        Y = 0x03,
-                        S = 0xFD,
-                        PC = 0x8000,
-                        PpuScanline = 10,
-                        PpuCycle = 20,
-                        PpuFrame = 30
-                    },
+                    State = CreateDebugState(0x8000, scanline: 10, dot: 20, frame: 30),
                     MemoryPageStart = 0x0000,
                     MemoryPage = BuildRange(DebugViewModel.MemoryPageSize, 0x10),
                     StackPageStart = 0x0100,
@@ -116,7 +106,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             enableLiveRefresh: false);
@@ -151,7 +141,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             enableLiveRefresh: false);
@@ -193,7 +183,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             enableLiveRefresh: false);
@@ -243,7 +233,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             enableLiveRefresh: false);
@@ -284,7 +274,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             upsertModifiedMemoryRuntimeEntry: entry => runtimeUpdates.Add(entry),
@@ -330,7 +320,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: _ => 0x10,
             writeMemory: (_, _) => throw new InvalidOperationException("boom"),
             notifySessionFailure: message => failureMessage = message,
@@ -389,7 +379,7 @@ public class DebugViewModelTests : IDisposable
                 "Test Game",
                 romPath,
                 new FakeDebugSurface(),
-                captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+                captureDebugState: CreateDebugState,
                 readMemory: address => (byte)(address & 0xFF),
                 writeMemory: (_, _) => { },
                 enableLiveRefresh: false);
@@ -434,7 +424,7 @@ public class DebugViewModelTests : IDisposable
                 "Test Game",
                 romPath,
                 new FakeDebugSurface(),
-                captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+                captureDebugState: CreateDebugState,
                 readMemory: address => (byte)(address & 0xFF),
                 writeMemory: (_, _) => { },
                 enableLiveRefresh: false);
@@ -485,7 +475,7 @@ public class DebugViewModelTests : IDisposable
                 "Test Game",
                 romPath,
                 new FakeDebugSurface(),
-                captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+                captureDebugState: CreateDebugState,
                 readMemory: address => (byte)(address & 0xFF),
                 writeMemory: (_, _) => { },
                 enableLiveRefresh: false);
@@ -523,7 +513,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             activeDisplaySettings: new DebugWindowDisplaySettingsProfile
@@ -572,7 +562,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             captureRefreshSnapshot: request =>
@@ -580,7 +570,7 @@ public class DebugViewModelTests : IDisposable
                 capturedRequest = request;
                 return new DebugRefreshSnapshot
                 {
-                    State = new CoreDebugState { PC = 0x8000 },
+                    State = CreateDebugState(),
                     MemoryPageStart = 0x0000,
                     MemoryPage = BuildRange(DebugViewModel.MemoryPageSize, 0x10)
                 };
@@ -627,7 +617,7 @@ public class DebugViewModelTests : IDisposable
             "Test Game",
             romPath,
             new FakeDebugSurface(),
-            captureDebugState: () => new CoreDebugState { PC = 0x8000 },
+            captureDebugState: CreateDebugState,
             readMemory: address => (byte)(address & 0xFF),
             writeMemory: (_, _) => { },
             upsertModifiedMemoryRuntimeEntry: entry => updates.Add(entry),
@@ -657,11 +647,57 @@ public class DebugViewModelTests : IDisposable
         }
     }
 
+    private static CoreDebugState CreateDebugState() =>
+        CreateDebugState(0x8000);
+
+    private static CoreDebugState CreateDebugState(
+        ushort instructionPointer,
+        int scanline = 0,
+        int dot = 0,
+        long frame = 0) =>
+        new()
+        {
+            InstructionPointer = instructionPointer,
+            InstructionPointerLabel = "PC",
+            Sections =
+            [
+                new CoreDebugSection(
+                    "cpu-registers",
+                    "CPU Registers",
+                    "registers",
+                    [
+                        new CoreDebugValue("A", "01"),
+                        new CoreDebugValue("X", "02"),
+                        new CoreDebugValue("Y", "03"),
+                        new CoreDebugValue("S", "FD")
+                    ]),
+                new CoreDebugSection(
+                    "cpu-status",
+                    "CPU Status",
+                    "registers",
+                    [
+                        new CoreDebugValue("PC", $"{instructionPointer:X4}"),
+                        new CoreDebugValue("P", "24"),
+                        new CoreDebugValue("Flags", "NV-BDIZC"),
+                        new CoreDebugValue("Cycles", "0")
+                    ]),
+                new CoreDebugSection(
+                    "video-timing",
+                    "Video Timing",
+                    "video",
+                    [
+                        new CoreDebugValue("Scanline", scanline.ToString()),
+                        new CoreDebugValue("Dot", dot.ToString()),
+                        new CoreDebugValue("Frame", frame.ToString())
+                    ])
+            ]
+        };
+
     private sealed class FakeDebugSurface : ICoreDebugSurface
     {
         private readonly Dictionary<ushort, byte> _memory = [];
 
-        public CoreDebugState CaptureDebugState() => new() { PC = 0x8000 };
+        public CoreDebugState CaptureDebugState() => CreateDebugState();
 
         public byte ReadMemory(ushort address) =>
             _memory.TryGetValue(address, out var value) ? value : (byte)0;

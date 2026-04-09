@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Models;
@@ -16,7 +15,7 @@ public sealed class MainWindowRuntimeDependencyBundleTests
     public void Create_BuildsLanRuntimeDependencies()
     {
         var romLibrary = new ObservableCollection<RomLibraryItem>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var globalInputBindings = new ObservableCollection<InputBindingEntry>();
         var gameSessionService = new GameSessionService();
 

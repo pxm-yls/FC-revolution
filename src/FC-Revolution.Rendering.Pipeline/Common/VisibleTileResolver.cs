@@ -1,4 +1,4 @@
-using FCRevolution.Core.Mappers;
+using FCRevolution.Rendering.Abstractions;
 
 namespace FCRevolution.Rendering.Common;
 
@@ -17,7 +17,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight,
         int screenOffsetY = 0,
@@ -69,7 +69,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight,
         int screenOffsetY = 0,
@@ -150,7 +150,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight,
         int screenOffsetY = 0,
@@ -202,7 +202,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight,
         int screenOffsetY = 0,
@@ -288,7 +288,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight)
     {
@@ -315,7 +315,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight,
         int screenOffsetY,
@@ -387,7 +387,7 @@ public static class VisibleTileResolver
         int coarseScrollX,
         int coarseScrollY,
         int nametableSelect,
-        MirroringMode mirrorMode,
+        FrameMirroringMode mirrorMode,
         int screenWidth,
         int screenHeight)
     {
@@ -412,19 +412,19 @@ public static class VisibleTileResolver
         if (screenHeight < 0)
             throw new ArgumentOutOfRangeException(nameof(screenHeight), "screenHeight must be zero or greater.");
 
-        int requiredBytes = mirrorMode == MirroringMode.FourScreen ? NametableByteLength * 4 : NametableByteLength * 2;
+        int requiredBytes = mirrorMode == FrameMirroringMode.FourScreen ? NametableByteLength * 4 : NametableByteLength * 2;
         if (nametable.Length < requiredBytes)
             throw new ArgumentException($"Nametable span must contain at least {requiredBytes} bytes for {mirrorMode} mirroring.", nameof(nametable));
     }
 
-    private static int MapPhysicalNametableIndex(int logicalNametableIndex, MirroringMode mirrorMode) =>
+    private static int MapPhysicalNametableIndex(int logicalNametableIndex, FrameMirroringMode mirrorMode) =>
         mirrorMode switch
         {
-            MirroringMode.Horizontal => logicalNametableIndex < 2 ? 0 : 1,
-            MirroringMode.Vertical => logicalNametableIndex & 0x01,
-            MirroringMode.SingleLower => 0,
-            MirroringMode.SingleUpper => 1,
-            MirroringMode.FourScreen => logicalNametableIndex,
+            FrameMirroringMode.Horizontal => logicalNametableIndex < 2 ? 0 : 1,
+            FrameMirroringMode.Vertical => logicalNametableIndex & 0x01,
+            FrameMirroringMode.SingleLower => 0,
+            FrameMirroringMode.SingleUpper => 1,
+            FrameMirroringMode.FourScreen => logicalNametableIndex,
             _ => throw new ArgumentOutOfRangeException(nameof(mirrorMode), mirrorMode, "Unsupported mirroring mode.")
         };
 

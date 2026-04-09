@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
-using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Storage;
@@ -95,18 +94,6 @@ internal sealed class MainWindowManagedCoreCatalogController
                 CanUninstall: !package.IsBundled,
                 package.InstallDirectory,
                 package.ManifestPath);
-        }
-
-        if (!entries.ContainsKey(NesManagedCoreModule.CoreId))
-        {
-            entries[NesManagedCoreModule.CoreId] = new MainWindowManagedCoreCatalogEntry(
-                new NesManagedCoreModule().Manifest,
-                AssemblyPath: typeof(NesManagedCoreModule).Assembly.Location,
-                ModuleTypeName: typeof(NesManagedCoreModule).FullName,
-                SourceLabel: "内置",
-                CanUninstall: false,
-                InstallDirectory: null,
-                ManifestPath: null);
         }
 
         return entries.Values.ToList();

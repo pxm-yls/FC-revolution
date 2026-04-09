@@ -64,51 +64,6 @@ public sealed class SessionRemoteControlServiceTests
     }
 
     [Fact]
-    public void SetButtonState_PrefersGenericActionFields_WhenProvided()
-    {
-        var gameSession = new FakeGameSessionService();
-        var service = new SessionRemoteControlService(gameSession, _ => { });
-        var sessionId = Guid.NewGuid();
-
-        var applied = service.SetButtonState(
-            sessionId,
-            new ButtonStateRequest(
-                Player: 0,
-                Button: null,
-                Pressed: true,
-                PortId: "p2",
-                ActionId: "left"));
-
-        Assert.True(applied);
-        var call = Assert.Single(gameSession.SetInputCalls);
-        Assert.Equal(sessionId, call.SessionId);
-        Assert.Equal("p2", call.PortId);
-        Assert.Equal("left", call.ActionId);
-        Assert.Equal(1f, call.Value);
-        Assert.Empty(gameSession.SetButtonCalls);
-    }
-
-    [Fact]
-    public void SetButtonState_ReturnsFalse_ForInvalidGenericAction()
-    {
-        var gameSession = new FakeGameSessionService();
-        var service = new SessionRemoteControlService(gameSession, _ => { });
-
-        var applied = service.SetButtonState(
-            Guid.NewGuid(),
-            new ButtonStateRequest(
-                Player: 0,
-                Button: null,
-                Pressed: true,
-                PortId: "p9",
-                ActionId: "left"));
-
-        Assert.False(applied);
-        Assert.Empty(gameSession.SetInputCalls);
-        Assert.Empty(gameSession.SetButtonCalls);
-    }
-
-    [Fact]
     public void SetInputState_ForwardsGenericActions_AndPreservesValues()
     {
         var gameSession = new FakeGameSessionService();
@@ -136,7 +91,6 @@ public sealed class SessionRemoteControlServiceTests
         Assert.Equal("p2", second.PortId);
         Assert.Equal("right", second.ActionId);
         Assert.Equal(0.5f, second.Value);
-        Assert.Empty(gameSession.SetButtonCalls);
     }
 
     [Fact]
@@ -153,7 +107,6 @@ public sealed class SessionRemoteControlServiceTests
 
         Assert.False(applied);
         Assert.Empty(gameSession.SetInputCalls);
-        Assert.Empty(gameSession.SetButtonCalls);
     }
 
     [Fact]
@@ -175,7 +128,6 @@ public sealed class SessionRemoteControlServiceTests
         Assert.Equal("p1", call.PortId);
         Assert.Equal("fire", call.ActionId);
         Assert.Equal(1f, call.Value);
-        Assert.Empty(gameSession.SetButtonCalls);
     }
 
     [Fact]
@@ -195,31 +147,6 @@ public sealed class SessionRemoteControlServiceTests
         Assert.Equal(2, gameSession.SetInputCalls.Count);
         Assert.Equal("x", gameSession.SetInputCalls[0].ActionId);
         Assert.Equal("l1", gameSession.SetInputCalls[1].ActionId);
-        Assert.Empty(gameSession.SetButtonCalls);
-    }
-
-    [Fact]
-    public void SetButtonState_ForwardsReservedAction_ToSessionLayer()
-    {
-        var gameSession = new FakeGameSessionService();
-        var service = new SessionRemoteControlService(gameSession, _ => { });
-        var sessionId = Guid.NewGuid();
-        var applied = service.SetButtonState(
-            sessionId,
-            new ButtonStateRequest(
-                Player: 0,
-                Button: null,
-                Pressed: true,
-                PortId: "p1",
-                ActionId: "l1"));
-
-        Assert.True(applied);
-        var call = Assert.Single(gameSession.SetInputCalls);
-        Assert.Equal(sessionId, call.SessionId);
-        Assert.Equal("p1", call.PortId);
-        Assert.Equal("l1", call.ActionId);
-        Assert.Equal(1f, call.Value);
-        Assert.Empty(gameSession.SetButtonCalls);
     }
 
     [Fact]
@@ -239,7 +166,6 @@ public sealed class SessionRemoteControlServiceTests
 
         Assert.False(applied);
         Assert.Equal(2, gameSession.SetInputCalls.Count);
-        Assert.Empty(gameSession.SetButtonCalls);
     }
 
     private sealed class FakeGameSessionService : IGameSessionService
@@ -247,7 +173,6 @@ public sealed class SessionRemoteControlServiceTests
         public ObservableCollection<ActiveGameSessionItem> Sessions { get; } = [];
         public int Count => Sessions.Count;
         public bool HasAny => Sessions.Count > 0;
-        public List<SetButtonCall> SetButtonCalls { get; } = [];
         public List<SetInputCall> SetInputCalls { get; } = [];
         public Queue<bool> TrySetResults { get; } = [];
         public bool ClaimResult { get; set; }
@@ -261,18 +186,19 @@ public sealed class SessionRemoteControlServiceTests
         public Guid? LastHeartbeatSessionId { get; private set; }
         public int LastHeartbeatPlayer { get; private set; } = -1;
 
-        public ActiveGameSessionItem StartSession(
+        public ActiveGameSessionItem StartSessionWithInputBindings(
             string displayName,
             string romPath,
             GameAspectRatioMode aspectRatioMode,
-            IReadOnlyDictionary<int, Dictionary<NesButton, Key>> inputMaps,
+            IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
             IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
             Action? onSessionsChanged = null,
             MacUpscaleMode upscaleMode = MacUpscaleMode.None,
             MacUpscaleOutputResolution upscaleOutputResolution = MacUpscaleOutputResolution.Hd1080,
             PixelEnhancementMode enhancementMode = PixelEnhancementMode.None,
             double volume = 15.0,
-            IReadOnlyDictionary<string, ShortcutGesture>? shortcutBindings = null) => throw new NotSupportedException();
+            IReadOnlyDictionary<string, ShortcutGesture>? shortcutBindings = null,
+            string? coreId = null) => throw new NotSupportedException();
 
         public void CloseSession(ActiveGameSessionItem session) => throw new NotSupportedException();
         public void CloseAllSessions() => throw new NotSupportedException();
@@ -307,19 +233,9 @@ public sealed class SessionRemoteControlServiceTests
             return true;
         }
 
-        public bool TrySetRemoteButtonState(Guid sessionId, int player, NesButton button, bool pressed, string? clientIp = null, string? clientName = null)
-        {
-            SetButtonCalls.Add(new SetButtonCall(sessionId, player, button, pressed));
-            if (TrySetResults.Count > 0)
-                return TrySetResults.Dequeue();
-            return true;
-        }
-
-        public void ClearRemoteButtons(Guid sessionId, int player) => throw new NotSupportedException();
         public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null) => throw new NotSupportedException();
         public bool AnyForRomPath(string romPath) => throw new NotSupportedException();
     }
 
-    private readonly record struct SetButtonCall(Guid SessionId, int Player, NesButton Button, bool Pressed);
     private readonly record struct SetInputCall(Guid SessionId, string PortId, string ActionId, float Value);
 }

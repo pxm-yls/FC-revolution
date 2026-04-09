@@ -19,13 +19,6 @@ public sealed record RefreshHeartbeatRequest(
     int? Player = null,
     string? PortId = null);
 
-public sealed record ButtonStateRequest(
-    int Player = 0,
-    NesButtonDto? Button = null,
-    bool Pressed = false,
-    string? PortId = null,
-    string? ActionId = null);
-
 public sealed record InputActionValueDto(string PortId, string DeviceType, string ActionId, float Value);
 
 public sealed record SetInputStateRequest(IReadOnlyList<InputActionValueDto> Actions);

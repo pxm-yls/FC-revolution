@@ -170,7 +170,7 @@ public sealed class BackendControlWebSocketTests
         await using var host = await BackendHostServiceTestHost.StartAsync(new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         });
         using var socket = await BackendWebSocketTestHelper.ConnectAsync(host.CreateWebSocketUri("/ws"));
         using var ready = await BackendWebSocketTestHelper.ReceiveJsonAsync(socket);
@@ -189,7 +189,6 @@ public sealed class BackendControlWebSocketTests
         Assert.Equal("请先 claim 玩家槽位", error.RootElement.GetProperty("message").GetString());
 
         Assert.Empty(host.Bridge.ClaimCalls);
-        Assert.Empty(host.Bridge.ButtonCalls);
     }
 
     [Fact]
@@ -198,7 +197,7 @@ public sealed class BackendControlWebSocketTests
         var bridge = new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         };
 
         await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
@@ -248,7 +247,7 @@ public sealed class BackendControlWebSocketTests
         var bridge = new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         };
 
         await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
@@ -283,7 +282,7 @@ public sealed class BackendControlWebSocketTests
         var bridge = new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         };
 
         await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
@@ -318,7 +317,7 @@ public sealed class BackendControlWebSocketTests
         var bridge = new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         };
 
         await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
@@ -368,7 +367,7 @@ public sealed class BackendControlWebSocketTests
         var bridge = new RecordingRuntimeBridge
         {
             ClaimControlResult = true,
-            SetButtonStateResult = true
+            SetInputStateResult = true
         };
 
         await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
