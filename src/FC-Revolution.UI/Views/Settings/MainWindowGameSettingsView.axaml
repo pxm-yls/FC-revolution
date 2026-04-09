@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             x:Class="FC_Revolution.UI.Views.Settings.MainWindowGameSettingsView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+    <StackPanel Classes="settings-tab-content">
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="画面与声音"/>
+                <TextBlock Classes="label" FontSize="12" Text="这里集中放运行中会立即生效的显示与音频设置。"/>
+                <TextBlock Classes="label" FontSize="12" Text="游戏画面比例"/>
+                <WrapPanel ItemWidth="110" ItemHeight="40">
+                    <Button Classes="subtle" Width="98" Content="原始" Command="{Binding UseNativeAspectRatioCommand}"/>
+                    <Button Classes="subtle" Width="98" Content="8:7" Command="{Binding UseAspectRatio8By7Command}"/>
+                    <Button Classes="subtle" Width="98" Content="4:3" Command="{Binding UseAspectRatio4By3Command}"/>
+                    <Button Classes="subtle" Width="98" Content="16:9" Command="{Binding UseAspectRatio16By9Command}"/>
+                </WrapPanel>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding GameAspectRatioLabel}"/>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="label" FontSize="12" Text="macOS 超分路径"/>
+                    <WrapPanel ItemWidth="110" ItemHeight="40">
+                        <Button Classes="subtle" Width="98" Content="无超分" Command="{Binding UseMacUpscaleNoneCommand}"/>
+                        <Button Classes="subtle" Width="98" Content="Spatial" Command="{Binding UseMacUpscaleSpatialCommand}"/>
+                    </WrapPanel>
+                    <TextBlock Classes="label" FontSize="11" Foreground="#A08060" Text="{Binding MacUpscaleModeLabel}"/>
+                    <TextBlock Classes="label" FontSize="12" Text="超分输出档位"/>
+                    <ComboBox ItemsSource="{Binding MacUpscaleOutputResolutionOptions}"
+                              SelectedItem="{Binding SelectedMacUpscaleOutputResolutionOption}"
+                              Width="160"
+                              HorizontalAlignment="Left"/>
+                    <TextBlock Classes="label" FontSize="11" Foreground="#A08060" Text="{Binding MacUpscaleOutputResolutionLabel}"/>
+                    <TextBlock Classes="label"
+                               FontSize="11"
+                               Foreground="#A08060"
+                               Text="Spatial 会先按所选高分辨率档位输出，再缩放适配到游戏窗口；若平台或设备不满足条件，会自动回退到无超分。"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="label" FontSize="12" Text="本地画面增强"/>
+                    <ComboBox ItemsSource="{Binding LocalDisplayEnhancementOptions}"
+                              SelectedItem="{Binding SelectedLocalDisplayEnhancementOption}"
+                              Width="200"
+                              HorizontalAlignment="Left"/>
+                    <TextBlock Classes="label"
+                               FontSize="11"
+                               Foreground="#A08060"
+                               Text="对本机游戏窗口即时生效；当前仅保留稳定效果较好的 CRT 扫描线和鲜艳色彩。"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="label" FontSize="12" Text="音量"/>
+                    <Slider Minimum="0" Maximum="30" Value="{Binding Volume}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="窗口与时间线"/>
+                <TextBlock Classes="label" FontSize="12" Text="把会话容量和时间线行为放在一起，避免在不同页来回切。"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="subtle" Width="48" Content="-" Command="{Binding DecreaseMaxConcurrentGameWindowsCommand}"/>
+                    <Border Width="72"
+                            CornerRadius="12"
+                            Background="#1C1310"
+                            BorderBrush="#5A3F2E"
+                            BorderThickness="1"
+                            Padding="8,6">
+                        <TextBlock Classes="hero" FontSize="20" Text="{Binding MaxConcurrentGameWindows}" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Button Classes="subtle" Width="48" Content="+" Command="{Binding IncreaseMaxConcurrentGameWindowsCommand}"/>
+                </StackPanel>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding ActiveSessionSummary}" TextWrapping="Wrap"/>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding TimelineModeSummary}" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="subtle" Content="关闭" Command="{Binding SetTimelineModeDisabledCommand}"/>
+                    <Button Classes="subtle" Content="短回溯" Command="{Binding SetTimelineModeShortRewindCommand}"/>
+                    <Button Classes="chrome" Content="完整时间线" Command="{Binding SetTimelineModeFullCommand}"/>
+                </StackPanel>
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="label" FontSize="12" Text="短回溯时长"/>
+                    <WrapPanel ItemWidth="96" ItemHeight="40">
+                        <Button Classes="subtle" Width="84" Content="3s" Command="{Binding SetShortRewindSeconds3Command}"/>
+                        <Button Classes="subtle" Width="84" Content="5s" Command="{Binding SetShortRewindSeconds5Command}"/>
+                        <Button Classes="subtle" Width="84" Content="10s" Command="{Binding SetShortRewindSeconds10Command}"/>
+                    </WrapPanel>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="label" FontSize="11" Text="秒数"/>
+                            <TextBox Text="{Binding ShortRewindSecondsInput}"
+                                     CaretBrush="#F7ECDD"
+                                     Background="#201612"
+                                     Foreground="#F7ECDD"
+                                     BorderBrush="#5A3F2E"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Classes="label" FontSize="11" Text="帧数"/>
+                            <TextBox Text="{Binding ShortRewindFramesInput}"
+                                     CaretBrush="#F7ECDD"
+                                     Background="#201612"
+                                     Foreground="#F7ECDD"
+                                     BorderBrush="#5A3F2E"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Classes="label" FontSize="12" Text="{Binding ShortRewindSummary}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

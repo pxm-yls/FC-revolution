@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FCRevolution.Backend.Hosting</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="WebPad\*.html" />
+    <EmbeddedResource Include="WebPad\*.css" />
+    <EmbeddedResource Include="WebPad\*.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FC-Revolution.Backend.Abstractions\FC-Revolution.Backend.Abstractions.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Contracts\FC-Revolution.Contracts.csproj" />
+  </ItemGroup>
+</Project>

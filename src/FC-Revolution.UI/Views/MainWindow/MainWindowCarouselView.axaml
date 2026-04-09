@@ -1,0 +1,397 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:model="using:FC_Revolution.UI.Models"
+             x:Class="FC_Revolution.UI.Views.MainWindowParts.MainWindowCarouselView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+                    <Grid IsVisible="{Binding IsDynamicListMode}" ColumnDefinitions="340,*" ColumnSpacing="22">
+                        <Border Background="#21150F" BorderBrush="#6C5037" BorderThickness="1" CornerRadius="28" Padding="18" ClipToBounds="True">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                                <TextBlock Classes="hero" FontSize="20" Text="动态列表"/>
+                                <Grid Grid.Row="1" ClipToBounds="True">
+                                    <Border Width="2"
+                                            Margin="12,20,0,20"
+                                            HorizontalAlignment="Left"
+                                            Background="#4D392B"/>
+                                    <ScrollViewer Margin="20,0,0,0"
+                                                  HorizontalContentAlignment="Stretch"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl HorizontalAlignment="Stretch" ItemsSource="{Binding RomLibrary}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="model:RomLibraryItem">
+                                                    <Button Margin="0,0,0,12"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Stretch"
+                                                            Command="{Binding DataContext.SelectCarouselRomCommand, ElementName=RootWindow}"
+                                                            CommandParameter="{Binding}">
+                                                        <Button.ContextMenu>
+                                                            <ContextMenu>
+                                                                <MenuItem Header="开始游戏"
+                                                                          Command="{Binding DataContext.PlayRomFromMenuCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="重新生成预览图"
+                                                                          Command="{Binding DataContext.RegeneratePreviewForRomCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="导入预览视频"
+                                                                          Command="{Binding DataContext.ImportPreviewVideoForRomCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="导入封面图"
+                                                                          Command="{Binding DataContext.ImportCoverImageForRomCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="导入附加图片"
+                                                                          Command="{Binding DataContext.ImportArtworkImageForRomCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="编辑独立按键"
+                                                                          Command="{Binding DataContext.OpenRomInputOverrideEditorCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="删除独立按键"
+                                                                          Command="{Binding DataContext.RemoveRomInputOverrideFromMenuCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                                <MenuItem Header="删除游戏"
+                                                                          Command="{Binding DataContext.DeleteRomCommand, ElementName=RootWindow}"
+                                                                          CommandParameter="{Binding}"/>
+                                                            </ContextMenu>
+                                                        </Button.ContextMenu>
+                                                        <Grid HorizontalAlignment="Stretch">
+                                                            <Border Margin="18,0,0,0"
+                                                                    Padding="12"
+                                                                    Background="#261A14"
+                                                                    BorderBrush="#7C5C42"
+                                                                    BorderThickness="1"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    CornerRadius="22">
+                                                                <Grid ColumnDefinitions="92,*" ColumnSpacing="14">
+                                                                    <Grid Width="92"
+                                                                          Height="92"
+                                                                          HorizontalAlignment="Left"
+                                                                          VerticalAlignment="Center">
+                                                                        <Border Width="86"
+                                                                                Height="86"
+                                                                                Margin="4,4,0,0"
+                                                                                HorizontalAlignment="Left"
+                                                                                VerticalAlignment="Center"
+                                                                                CornerRadius="16"
+                                                                                Background="#17110F"
+                                                                                BorderBrush="#5B4331"
+                                                                                BorderThickness="1"
+                                                                                Opacity="0.48"/>
+                                                                        <Border Width="86"
+                                                                                Height="86"
+                                                                                HorizontalAlignment="Left"
+                                                                                VerticalAlignment="Center"
+                                                                                CornerRadius="16"
+                                                                                Background="#120D0B"
+                                                                                BorderBrush="#D3AE84"
+                                                                                BorderThickness="1"
+                                                                                ClipToBounds="True">
+                                                                            <Grid>
+                                                                                <Image IsVisible="{Binding HasPreviewBitmap}"
+                                                                                       Source="{Binding CurrentPreviewBitmap}"
+                                                                                       Stretch="UniformToFill"
+                                                                                       RenderOptions.BitmapInterpolationMode="None"/>
+                                                                                <Border IsVisible="{Binding NoPreviewBitmap}"
+                                                                                        CornerRadius="16"
+                                                                                        Background="#211814"
+                                                                                        ClipToBounds="True">
+                                                                                    <Viewbox Width="44" Height="26" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                                        <Canvas Width="156" Height="92">
+                                                                                            <Border Width="156" Height="92" CornerRadius="18" Background="#E6DED0" BorderBrush="#8E7C68" BorderThickness="4"/>
+                                                                                            <Border Width="44" Height="10" CornerRadius="5" Background="#B1A08D" Margin="56,8,0,0"/>
+                                                                                            <Ellipse Width="26" Height="26" Fill="#A39382" Margin="20,32,0,0"/>
+                                                                                            <Ellipse Width="26" Height="26" Fill="#A39382" Margin="110,32,0,0"/>
+                                                                                            <Border Width="36" Height="12" Background="#5B5148" CornerRadius="4" Margin="16,39,0,0"/>
+                                                                                            <Border Width="12" Height="36" Background="#5B5148" CornerRadius="4" Margin="28,27,0,0"/>
+                                                                                            <Ellipse Width="14" Height="14" Fill="#C15D51" Margin="102,36,0,0"/>
+                                                                                            <Ellipse Width="14" Height="14" Fill="#C15D51" Margin="120,44,0,0"/>
+                                                                                            <Ellipse Width="10" Height="10" Fill="#8E8174" Margin="68,50,0,0"/>
+                                                                                            <Ellipse Width="10" Height="10" Fill="#8E8174" Margin="84,50,0,0"/>
+                                                                                        </Canvas>
+                                                                                    </Viewbox>
+                                                                                </Border>
+                                                                                <Border IsHitTestVisible="False">
+                                                                                    <Border.Background>
+                                                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                                            <GradientStop Color="#33FFF2D8" Offset="0"/>
+                                                                                            <GradientStop Color="#00FFF2D8" Offset="0.42"/>
+                                                                                            <GradientStop Color="#18110C0A" Offset="1"/>
+                                                                                        </LinearGradientBrush>
+                                                                                    </Border.Background>
+                                                                                </Border>
+                                                                            </Grid>
+                                                                        </Border>
+                                                                    </Grid>
+                                                                    <Border Grid.Column="1"
+                                                                            MinHeight="92"
+                                                                            HorizontalAlignment="Stretch"
+                                                                            VerticalAlignment="Stretch"
+                                                                            Background="#1E1511"
+                                                                            BorderBrush="#654A36"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="16"
+                                                                            Padding="12,10">
+                                                                        <StackPanel Spacing="5">
+                                                                            <TextBlock Classes="hero"
+                                                                                       FontSize="16"
+                                                                                       MaxLines="2"
+                                                                                       Text="{Binding DisplayName}"
+                                                                                       TextTrimming="CharacterEllipsis"
+                                                                                       TextWrapping="Wrap"/>
+                                                                            <TextBlock Classes="label" FontSize="11"
+                                                                                       IsVisible="{Binding PreviewBadge, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                                                       Text="{Binding PreviewBadge}"/>
+                                                                            <TextBlock Classes="label" FontSize="11" Text="{Binding SizeLabel}"/>
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Border>
+                                                            <Border Width="10"
+                                                                    Margin="0,18,0,18"
+                                                                    HorizontalAlignment="Left"
+                                                                    CornerRadius="999"
+                                                                    Background="#73563E"/>
+                                                            <Border IsVisible="{Binding IsCurrent}"
+                                                                    Margin="8,-4,-8,-4"
+                                                                    BorderBrush="#D8B188"
+                                                                    BorderThickness="2"
+                                                                    CornerRadius="24"/>
+                                                            <Border IsVisible="{Binding IsCurrent}"
+                                                                    Width="10"
+                                                                    Margin="0,10,0,10"
+                                                                    HorizontalAlignment="Left"
+                                                                    CornerRadius="999"
+                                                                    Background="#EACDA3"/>
+                                                            <Border IsVisible="{Binding IsCurrent}"
+                                                                    Margin="18,0,0,0"
+                                                                    CornerRadius="22"
+                                                                    Background="#12F5DFC2"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <Border Height="38" VerticalAlignment="Top" IsHitTestVisible="False">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#21150F" Offset="0"/>
+                                                <GradientStop Color="#0021150F" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                    <Border Height="44" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#0021150F" Offset="0"/>
+                                                <GradientStop Color="#21150F" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Grid x:Name="CarouselDiscAnchor" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                                <Grid.RenderTransform>
+                                    <TransformGroup>
+                                        <ScaleTransform ScaleX="{Binding CarouselScaleX}" ScaleY="{Binding CarouselScaleY}">
+                                            <ScaleTransform.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="ScaleX" Duration="0:0:0.18"/>
+                                                    <DoubleTransition Property="ScaleY" Duration="0:0:0.18"/>
+                                                </Transitions>
+                                            </ScaleTransform.Transitions>
+                                        </ScaleTransform>
+                                        <TranslateTransform X="{Binding CarouselTranslateX}">
+                                            <TranslateTransform.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="X" Duration="0:0:0.18"/>
+                                                </Transitions>
+                                            </TranslateTransform.Transitions>
+                                        </TranslateTransform>
+                                        <RotateTransform Angle="{Binding CarouselRotation}">
+                                            <RotateTransform.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="Angle" Duration="0:0:0.22"/>
+                                                </Transitions>
+                                            </RotateTransform.Transitions>
+                                        </RotateTransform>
+                                    </TransformGroup>
+                                </Grid.RenderTransform>
+
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="18">
+                                    <Grid Width="860" Height="660">
+                                        <Border Width="290"
+                                                Height="290"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
+                                                Margin="78,0,0,0"
+                                                CornerRadius="26"
+                                                Background="#1C1411"
+                                                BorderBrush="#654B38"
+                                                BorderThickness="1"
+                                                Opacity="0.55"
+                                                IsVisible="{Binding CanSelectPrevious}"
+                                                RenderTransformOrigin="0.5,0.5">
+                                            <Border.RenderTransform>
+                                                <TransformGroup>
+                                                    <ScaleTransform ScaleX="{Binding LeftCarouselScale}" ScaleY="{Binding LeftCarouselScale}">
+                                                        <ScaleTransform.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="ScaleX" Duration="0:0:0.2"/>
+                                                                <DoubleTransition Property="ScaleY" Duration="0:0:0.2"/>
+                                                            </Transitions>
+                                                        </ScaleTransform.Transitions>
+                                                    </ScaleTransform>
+                                                    <TranslateTransform X="{Binding LeftCarouselTranslateX}" Y="24">
+                                                        <TranslateTransform.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="X" Duration="0:0:0.2"/>
+                                                            </Transitions>
+                                                        </TranslateTransform.Transitions>
+                                                    </TranslateTransform>
+                                                    <RotateTransform Angle="-10"/>
+                                                </TransformGroup>
+                                            </Border.RenderTransform>
+                                            <Border CornerRadius="22" Margin="16" Background="#110D0B" ClipToBounds="True">
+                                                <Image Source="{Binding PreviousRom.CurrentPreviewBitmap}"
+                                                       Stretch="UniformToFill"
+                                                       RenderOptions.BitmapInterpolationMode="None"/>
+                                            </Border>
+                                        </Border>
+
+                                        <Border Width="290"
+                                                Height="290"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,78,0"
+                                                CornerRadius="26"
+                                                Background="#1C1411"
+                                                BorderBrush="#654B38"
+                                                BorderThickness="1"
+                                                Opacity="0.55"
+                                                IsVisible="{Binding CanSelectNext}"
+                                                RenderTransformOrigin="0.5,0.5">
+                                            <Border.RenderTransform>
+                                                <TransformGroup>
+                                                    <ScaleTransform ScaleX="{Binding RightCarouselScale}" ScaleY="{Binding RightCarouselScale}">
+                                                        <ScaleTransform.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="ScaleX" Duration="0:0:0.2"/>
+                                                                <DoubleTransition Property="ScaleY" Duration="0:0:0.2"/>
+                                                            </Transitions>
+                                                        </ScaleTransform.Transitions>
+                                                    </ScaleTransform>
+                                                    <TranslateTransform X="{Binding RightCarouselTranslateX}" Y="24">
+                                                        <TranslateTransform.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="X" Duration="0:0:0.2"/>
+                                                            </Transitions>
+                                                        </TranslateTransform.Transitions>
+                                                    </TranslateTransform>
+                                                    <RotateTransform Angle="10"/>
+                                                </TransformGroup>
+                                            </Border.RenderTransform>
+                                            <Border CornerRadius="22" Margin="16" Background="#110D0B" ClipToBounds="True">
+                                                <Image Source="{Binding NextRom.CurrentPreviewBitmap}"
+                                                       Stretch="UniformToFill"
+                                                       RenderOptions.BitmapInterpolationMode="None"/>
+                                            </Border>
+                                        </Border>
+
+                                        <Border Width="580"
+                                                Height="580"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                CornerRadius="34"
+                                                Background="#2A1B14"
+                                                BorderBrush="#8D674A"
+                                                BorderThickness="1"
+                                                Padding="24">
+                                            <Grid RowDefinitions="*,Auto" RowSpacing="16">
+                                                <Border CornerRadius="24"
+                                                        Background="#17110F"
+                                                        BorderBrush="#A78564"
+                                                        BorderThickness="2"
+                                                        HorizontalAlignment="Stretch"
+                                                        VerticalAlignment="Stretch"
+                                                        ClipToBounds="True">
+                                                    <Grid>
+                                                        <Image IsVisible="{Binding HasDiscDisplayBitmap}"
+                                                               Source="{Binding DiscDisplayBitmap}"
+                                                               Stretch="UniformToFill"
+                                                               RenderOptions.BitmapInterpolationMode="None"/>
+                                                        <Grid IsVisible="{Binding NoDiscDisplayBitmap}" Background="#231813">
+                                                            <Viewbox Width="180" Height="104" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                <Canvas Width="156" Height="92">
+                                                                    <Border Width="156" Height="92" CornerRadius="18" Background="#E6DED0" BorderBrush="#8E7C68" BorderThickness="4"/>
+                                                                    <Border Width="44" Height="10" CornerRadius="5" Background="#B1A08D" Margin="56,8,0,0"/>
+                                                                    <Ellipse Width="26" Height="26" Fill="#A39382" Margin="20,32,0,0"/>
+                                                                    <Ellipse Width="26" Height="26" Fill="#A39382" Margin="110,32,0,0"/>
+                                                                    <Border Width="36" Height="12" Background="#5B5148" CornerRadius="4" Margin="16,39,0,0"/>
+                                                                    <Border Width="12" Height="36" Background="#5B5148" CornerRadius="4" Margin="28,27,0,0"/>
+                                                                    <Ellipse Width="14" Height="14" Fill="#C15D51" Margin="102,36,0,0"/>
+                                                                    <Ellipse Width="14" Height="14" Fill="#C15D51" Margin="120,44,0,0"/>
+                                                                    <Ellipse Width="10" Height="10" Fill="#8E8174" Margin="68,50,0,0"/>
+                                                                    <Ellipse Width="10" Height="10" Fill="#8E8174" Margin="84,50,0,0"/>
+                                                                </Canvas>
+                                                            </Viewbox>
+                                                        </Grid>
+                                                        <Border IsHitTestVisible="False">
+                                                            <Border.Background>
+                                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                                    <GradientStop Color="#44FFF2D8" Offset="0"/>
+                                                                    <GradientStop Color="#10F2D2A8" Offset="0.28"/>
+                                                                    <GradientStop Color="#00000000" Offset="0.52"/>
+                                                                    <GradientStop Color="#33120C0A" Offset="1"/>
+                                                                </LinearGradientBrush>
+                                                            </Border.Background>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+
+                                                <TextBlock Grid.Row="1" Classes="hero" FontSize="30" Text="{Binding CurrentRomName}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                                        <Button Classes="subtle" Content="上一项" Command="{Binding SelectPreviousCommand}" IsEnabled="{Binding CanSelectPrevious}"/>
+                                        <Button Classes="chrome" Content="开始游戏" Command="{Binding PlaySelectedRomCommand}" IsEnabled="{Binding CanPlaySelectedRom}"/>
+                                        <Button Classes="subtle" Content="下一项" Command="{Binding SelectNextCommand}" IsEnabled="{Binding CanSelectNext}"/>
+                                    </StackPanel>
+                                    <StackPanel.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="开始游戏"
+                                                      Command="{Binding PlayRomFromMenuCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="重新生成预览图"
+                                                      Command="{Binding RegeneratePreviewForRomCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="导入预览视频"
+                                                      Command="{Binding ImportPreviewVideoForRomCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="导入封面图"
+                                                      Command="{Binding ImportCoverImageForRomCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="导入附加图片"
+                                                      Command="{Binding ImportArtworkImageForRomCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="编辑独立按键"
+                                                      Command="{Binding OpenRomInputOverrideEditorCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="删除独立按键"
+                                                      Command="{Binding RemoveRomInputOverrideFromMenuCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                            <MenuItem Header="删除游戏"
+                                                      Command="{Binding DeleteRomCommand}"
+                                                      CommandParameter="{Binding CurrentRom}"/>
+                                        </ContextMenu>
+                                    </StackPanel.ContextMenu>
+                                </StackPanel>
+                        </Grid>
+                    </Grid>
+</UserControl>

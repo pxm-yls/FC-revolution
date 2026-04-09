@@ -1,0 +1,225 @@
+<Styles xmlns="https://github.com/avaloniaui">
+    <Style Selector="TextBlock.hero">
+        <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+        <Setter Property="Foreground" Value="#F5EBDD"/>
+    </Style>
+    <Style Selector="TextBlock.label">
+        <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        <Setter Property="Foreground" Value="#D8C2A9"/>
+    </Style>
+    <Style Selector="TextBlock.caption">
+        <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        <Setter Property="Foreground" Value="#B89B80"/>
+        <Setter Property="FontSize" Value="10"/>
+    </Style>
+    <Style Selector="Button.chrome">
+        <Setter Property="Background" Value="#4B3423"/>
+        <Setter Property="Foreground" Value="#F8EEE0"/>
+        <Setter Property="BorderBrush" Value="#8F6A4C"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="Padding" Value="14,8"/>
+    </Style>
+    <Style Selector="Button.chrome:pointerover">
+        <Setter Property="Background" Value="#65452E"/>
+    </Style>
+    <Style Selector="Button.subtle">
+        <Setter Property="Background" Value="#231813"/>
+        <Setter Property="Foreground" Value="#EADCC8"/>
+        <Setter Property="BorderBrush" Value="#5F4531"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="18"/>
+        <Setter Property="Padding" Value="12,8"/>
+    </Style>
+    <Style Selector="Button.subtle:pointerover">
+        <Setter Property="Background" Value="#30211A"/>
+    </Style>
+    <Style Selector="Button.panel-action">
+        <Setter Property="Background" Value="#2A1C15"/>
+        <Setter Property="Foreground" Value="#F0E0CB"/>
+        <Setter Property="BorderBrush" Value="#7A593F"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="12,7"/>
+    </Style>
+    <Style Selector="Button.panel-action:pointerover">
+        <Setter Property="Background" Value="#3A281F"/>
+    </Style>
+    <Style Selector="Button.header-compact">
+        <Setter Property="Padding" Value="8,1"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="MinHeight" Value="20"/>
+    </Style>
+    <Style Selector="Button.action-compact">
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="MinHeight" Value="30"/>
+    </Style>
+    <Style Selector="Button.kaleido-page">
+        <Setter Property="Background" Value="#261A14"/>
+        <Setter Property="Foreground" Value="#F2E2CF"/>
+        <Setter Property="BorderBrush" Value="#7E5D42"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.kaleido-page:pointerover">
+        <Setter Property="Background" Value="#3A281F"/>
+    </Style>
+    <Style Selector="ToggleButton.panel-action">
+        <Setter Property="Background" Value="#2A1C15"/>
+        <Setter Property="Foreground" Value="#F0E0CB"/>
+        <Setter Property="BorderBrush" Value="#7A593F"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="12,7"/>
+    </Style>
+    <Style Selector="ToggleButton.panel-action:pointerover">
+        <Setter Property="Background" Value="#3A281F"/>
+    </Style>
+    <Style Selector="ToggleButton.header-compact">
+        <Setter Property="Padding" Value="8,1"/>
+        <Setter Property="FontSize" Value="10"/>
+        <Setter Property="MinHeight" Value="20"/>
+    </Style>
+    <Style Selector="ToggleButton.mode-toggle:checked">
+        <Setter Property="Background" Value="#B88A61"/>
+        <Setter Property="Foreground" Value="#23160F"/>
+        <Setter Property="BorderBrush" Value="#E6C196"/>
+    </Style>
+    <Style Selector="ToggleButton.mode-toggle:checked:pointerover">
+        <Setter Property="Background" Value="#CAA178"/>
+    </Style>
+    <Style Selector="Button.shelf-card">
+        <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Button.shelf-card:pointerover">
+        <Setter Property="Opacity" Value="0.94"/>
+    </Style>
+    <Style Selector="Button.shelf-card:pressed">
+        <Setter Property="Opacity" Value="0.88"/>
+    </Style>
+    <Style Selector="TextBox.toolbar-search">
+        <Setter Property="Background" Value="#201612"/>
+        <Setter Property="Foreground" Value="#F7ECDD"/>
+        <Setter Property="BorderBrush" Value="#5A3F2E"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="MinHeight" Value="34"/>
+    </Style>
+    <Style Selector="TextBox.message-readonly">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#D8C2A9"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="MinHeight" Value="0"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="SelectionBrush" Value="#667A593F"/>
+        <Setter Property="CaretBrush" Value="#F5EBDD"/>
+        <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+    </Style>
+    <Style Selector="TextBox.message-readonly.panel">
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBox.message-readonly.title">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="#F4EBDD"/>
+    </Style>
+    <Style Selector="TextBox.message-readonly.detail">
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+    <Style Selector="Button.binding-mini">
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+    <Style Selector="ToggleButton.binding-picker">
+        <Setter Property="Background" Value="#231813"/>
+        <Setter Property="Foreground" Value="#F2E8D8"/>
+        <Setter Property="BorderBrush" Value="#7A5C44"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="10,6"/>
+    </Style>
+    <Style Selector="ToggleButton.binding-picker:pointerover">
+        <Setter Property="Background" Value="#34231A"/>
+    </Style>
+    <Style Selector="ToggleButton.binding-picker:checked">
+        <Setter Property="Background" Value="#B88A61"/>
+        <Setter Property="Foreground" Value="#23160F"/>
+        <Setter Property="BorderBrush" Value="#E6C196"/>
+    </Style>
+    <Style Selector="ToggleButton.binding-picker.launcher">
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="MinWidth" Value="32"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ToggleButton.binding-picker.option">
+        <Setter Property="Width" Value="58"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Border.binding-picker-popup">
+        <Setter Property="Background" Value="#1F1511"/>
+        <Setter Property="BorderBrush" Value="#71533E"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="10"/>
+        <Setter Property="MinWidth" Value="286"/>
+        <Setter Property="MaxWidth" Value="320"/>
+    </Style>
+    <Style Selector="Border.binding-extra-panel">
+        <Setter Property="CornerRadius" Value="14"/>
+        <Setter Property="Padding" Value="10"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="#EDE4D8"/>
+        <Setter Property="BorderBrush" Value="#B7A999"/>
+    </Style>
+    <Style Selector="Border.binding-extra-panel.dark">
+        <Setter Property="Background" Value="#2A211C"/>
+        <Setter Property="BorderBrush" Value="#77624E"/>
+    </Style>
+    <Style Selector="Border.binding-extra-panel.rom-dark">
+        <Setter Property="Background" Value="#1E1917"/>
+        <Setter Property="BorderBrush" Value="#6B5D52"/>
+    </Style>
+    <Style Selector="Border.binding-extra-panel.rom-light">
+        <Setter Property="Background" Value="#FFF8EE"/>
+        <Setter Property="BorderBrush" Value="#C6B8A8"/>
+    </Style>
+    <Style Selector="Border.binding-extra-row">
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="8"/>
+        <Setter Property="Background" Value="#F7F1E7"/>
+        <Setter Property="BorderBrush" Value="#C5B6A5"/>
+        <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style Selector="Border.binding-extra-row.dark">
+        <Setter Property="Background" Value="#221B17"/>
+        <Setter Property="BorderBrush" Value="#6F5A48"/>
+    </Style>
+    <Style Selector="Border.binding-extra-row.rom-dark">
+        <Setter Property="Background" Value="#161210"/>
+        <Setter Property="BorderBrush" Value="#5C5048"/>
+    </Style>
+    <Style Selector="Border.binding-extra-row.rom-light">
+        <Setter Property="Background" Value="#FFFDF8"/>
+        <Setter Property="BorderBrush" Value="#D0C3B3"/>
+    </Style>
+</Styles>

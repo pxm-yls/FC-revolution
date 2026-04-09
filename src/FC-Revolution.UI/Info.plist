@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>FC-Revolution</string>
+  <key>CFBundleDisplayName</key>
+  <string>FC-Revolution</string>
+  <key>CFBundleIconFile</key>
+  <string>logo.png</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>FC-Revolution 需要访问本地网络，以便让局域网内的浏览器连接网页手柄和点播服务。</string>
+</dict>
+</plist>

@@ -1,0 +1,517 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        xmlns:model="using:FC_Revolution.UI.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="FC_Revolution.UI.Views.DebugWindow"
+        x:Name="RootDebugWindow"
+        x:DataType="vm:DebugViewModel"
+        Title="实时调试台"
+        Icon="/Assets/logo.ico"
+        Width="{Binding PreferredWindowWidth}"
+        Height="{Binding PreferredWindowHeight}"
+        MinWidth="{Binding PreferredMinWidth}"
+        MinHeight="{Binding PreferredMinHeight}"
+        MaxWidth="1420"
+        MaxHeight="980"
+        Background="#130D0A"
+        CanResize="True">
+    <Window.Styles>
+        <Style Selector="TextBlock.hero">
+            <Setter Property="Foreground" Value="#F5EBDD"/>
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#D8C2A9"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+        <Style Selector="CheckBox.debug-toggle">
+            <Setter Property="Foreground" Value="#E6D2BD"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+        <Style Selector="TextBox.memory-cell">
+            <Setter Property="MinWidth" Value="34"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="3,2"/>
+            <Setter Property="Background" Value="#150F0C"/>
+            <Setter Property="Foreground" Value="#F7ECDD"/>
+            <Setter Property="BorderBrush" Value="#3B2A20"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="FontFamily" Value="Consolas, Menlo, Courier New"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBox.memory-cell.query-hit">
+            <Setter Property="Background" Value="#6B3F3D"/>
+            <Setter Property="BorderBrush" Value="#C9948D"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="#17100D" BorderBrush="#6C5037" BorderThickness="1" Padding="14">
+        <Grid RowDefinitions="Auto,*" RowSpacing="14">
+            <Border Background="#241712" CornerRadius="18" Padding="14,12" BorderBrush="#6C5037" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="hero" Text="实时调试台" FontSize="22"/>
+                        <TextBlock Classes="label" Text="{Binding WindowSummary}" FontSize="12"/>
+                        <TextBlock Classes="label" Text="支持按需显示 CPU、PPU、反汇编、栈、零页、内存分页与已修改列表；查询地址后会在分页视图中高亮定位。" FontSize="11" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox IsChecked="{Binding AutoApplyModifiedMemoryOnLaunch}" VerticalAlignment="Center">
+                                <CheckBox.Styles>
+                                    <Style Selector="CheckBox">
+                                        <Setter Property="Foreground" Value="#D8C2A9"/>
+                                    </Style>
+                                </CheckBox.Styles>
+                            </CheckBox>
+                            <TextBlock Classes="label" VerticalAlignment="Center" Text="启动游戏时自动应用 .fcr 内存修改" FontSize="11"/>
+                            <Button Content="导入 .fcr" Click="OnImportProfileClick" Background="#34231A" Foreground="#F8EEE0"/>
+                            <Button Content="导出 .fcr" Command="{Binding ExportProfileCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1"
+                                Spacing="8"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                MaxWidth="360">
+                        <Border Background="#3C2A20"
+                                BorderBrush="#8B6447"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Padding="10,6">
+                            <TextBlock Classes="label" Text="{Binding EditStatus}" Foreground="#F4D9AF" TextWrapping="Wrap"/>
+                        </Border>
+                        <Grid HorizontalAlignment="Right">
+                            <Button x:Name="DisplaySettingsButton"
+                                    Content="显示设置"
+                                    Click="OnDisplaySettingsClick"
+                                    Background="#34231A"
+                                    Foreground="#F8EEE0"
+                                    Padding="12,6"/>
+                            <Popup x:Name="DisplaySettingsPopup"
+                                   PlacementTarget="{Binding #DisplaySettingsButton}"
+                                   Placement="BottomEdgeAlignedRight"
+                                   HorizontalOffset="0"
+                                   VerticalOffset="8"
+                                   IsLightDismissEnabled="True">
+                                <Border Background="#201612"
+                                        BorderBrush="#6C5037"
+                                        BorderThickness="1"
+                                        CornerRadius="14"
+                                        Padding="12"
+                                        MinWidth="320"
+                                        MaxWidth="360">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Classes="hero" Text="显示设置" FontSize="14"/>
+                                        <TextBlock Classes="label"
+                                                   Text="{Binding DisplaySettingsRestartHint}"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"/>
+                                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Classes="label" Text="左侧模块" FontSize="11"/>
+                                                <StackPanel Spacing="6">
+                                                    <CheckBox Classes="debug-toggle" Content="CPU 寄存器" IsChecked="{Binding PendingShowRegisters}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="PPU 状态" IsChecked="{Binding PendingShowPpu}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="反汇编分页" IsChecked="{Binding PendingShowDisasm}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="栈分页" IsChecked="{Binding PendingShowStack}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="零页分页" IsChecked="{Binding PendingShowZeroPage}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" Spacing="8">
+                                                <TextBlock Classes="label" Text="右侧模块" FontSize="11"/>
+                                                <StackPanel Spacing="6">
+                                                    <CheckBox Classes="debug-toggle" Content="内存编辑" IsChecked="{Binding PendingShowMemoryEditor}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="内存分页视图" IsChecked="{Binding PendingShowMemoryPage}"/>
+                                                    <CheckBox Classes="debug-toggle" Content="已修改内存列表" IsChecked="{Binding PendingShowModifiedMemory}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="1.05*,1.35*" ColumnSpacing="14">
+                <ScrollViewer Grid.Column="0"
+                              Grid.ColumnSpan="{Binding LeftPaneColumnSpan}"
+                              IsVisible="{Binding ShowLeftPane}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="12">
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowRegisters}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="hero" Text="CPU 寄存器" FontSize="15"/>
+                                <ItemsControl ItemsSource="{Binding RegisterRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="model:MemoryPageRow">
+                                            <Grid ColumnDefinitions="72,*" Margin="0,0,0,4">
+                                                <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                    <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                </Border>
+                                                <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <UniformGrid Columns="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="model:MemoryCellItem">
+                                                            <Border Background="#150F0C" Padding="6" BorderBrush="#3B2A20" BorderThickness="0,0,1,1">
+                                                                <TextBlock Classes="label" Text="{Binding Value}" HorizontalAlignment="Center" FontFamily="Courier New" FontSize="11"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowPpu}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="hero" Text="PPU 状态" FontSize="15"/>
+                                <ItemsControl ItemsSource="{Binding PpuRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="model:MemoryPageRow">
+                                            <Grid ColumnDefinitions="72,*" Margin="0,0,0,4">
+                                                <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                    <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                </Border>
+                                                <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <UniformGrid Columns="3"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="model:MemoryCellItem">
+                                                            <Border Background="#150F0C" Padding="6" BorderBrush="#3B2A20" BorderThickness="0,0,1,1">
+                                                                <TextBlock Classes="label" Text="{Binding Value}" HorizontalAlignment="Center" FontFamily="Courier New" FontSize="11"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowDisasm}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="hero" Text="反汇编分页" FontSize="15"/>
+                                    <Button Grid.Column="1" Content="上一页" Command="{Binding PreviousDisasmPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                    <Button Grid.Column="2" Content="下一页" Command="{Binding NextDisasmPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                </Grid>
+                                <StackPanel Grid.Row="1" Spacing="6">
+                                    <TextBlock Classes="label" Text="{Binding DisasmSummary}" FontSize="11"/>
+                                    <ItemsControl ItemsSource="{Binding DisasmRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="model:MemoryPageRow">
+                                                <Grid ColumnDefinitions="52,*" Margin="0,0,0,4">
+                                                    <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                        <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                    </Border>
+                                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Columns="3"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="model:MemoryCellItem">
+                                                                <Border Background="#150F0C" Padding="6" BorderBrush="#3B2A20" BorderThickness="0,0,1,1">
+                                                                    <TextBlock Classes="label" Text="{Binding Value}" FontFamily="Courier New" FontSize="10" TextWrapping="Wrap"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowStack}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="hero" Text="栈分页" FontSize="15"/>
+                                    <Button Grid.Column="1" Content="上一页" Command="{Binding PreviousStackPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                    <Button Grid.Column="2" Content="下一页" Command="{Binding NextStackPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                </Grid>
+                                <StackPanel Grid.Row="1" Spacing="6">
+                                    <TextBlock Classes="label" Text="{Binding StackPageSummary}" FontSize="11"/>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding StackRows}" HorizontalAlignment="Left">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="model:MemoryPageRow">
+                                                    <Grid ColumnDefinitions="64,Auto" Margin="0,0,0,4" HorizontalAlignment="Left">
+                                                        <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                            <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                        </Border>
+                                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Columns="8"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="model:MemoryCellItem">
+                                                                    <Border Background="#150F0C" Padding="4,3" BorderBrush="#3B2A20" BorderThickness="0,0,1,1" MinWidth="34">
+                                                                        <TextBlock Classes="label"
+                                                                                   Text="{Binding Value}"
+                                                                                   HorizontalAlignment="Center"
+                                                                                   FontFamily="Courier New"
+                                                                                   FontSize="{Binding DataContext.CompactMemoryCellFontSize, ElementName=RootDebugWindow}"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowZeroPage}">
+                            <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                    <TextBlock Classes="hero" Text="零页分页" FontSize="15"/>
+                                    <Button Grid.Column="1" Content="上一页" Command="{Binding PreviousZeroPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                    <Button Grid.Column="2" Content="下一页" Command="{Binding NextZeroPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                </Grid>
+                                <StackPanel Grid.Row="1" Spacing="6">
+                                    <TextBlock Classes="label" Text="{Binding ZeroPageSummary}" FontSize="11"/>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                        <ItemsControl ItemsSource="{Binding ZeroPageRows}" HorizontalAlignment="Left">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="model:MemoryPageRow">
+                                                    <Grid ColumnDefinitions="64,Auto" Margin="0,0,0,4" HorizontalAlignment="Left">
+                                                        <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                            <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                        </Border>
+                                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <UniformGrid Columns="8"/>
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate x:DataType="model:MemoryCellItem">
+                                                                    <Border Background="#150F0C" Padding="4,3" BorderBrush="#3B2A20" BorderThickness="0,0,1,1" MinWidth="34">
+                                                                        <TextBlock Classes="label"
+                                                                                   Text="{Binding Value}"
+                                                                                   HorizontalAlignment="Center"
+                                                                                   FontFamily="Courier New"
+                                                                                   FontSize="{Binding DataContext.CompactMemoryCellFontSize, ElementName=RootDebugWindow}"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer Grid.Column="{Binding RightPaneColumn}"
+                              Grid.ColumnSpan="{Binding RightPaneColumnSpan}"
+                              IsVisible="{Binding ShowRightPane}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="12">
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowMemoryEditor}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Classes="hero" Text="内存编辑" FontSize="15"/>
+                                <Grid ColumnDefinitions="*,*,Auto,Auto" ColumnSpacing="10">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="label" Text="地址" FontSize="11"/>
+                                        <TextBox Text="{Binding AddressInput}" Background="#150F0C" Foreground="#F7ECDD" BorderBrush="#6C5037" FontFamily="Courier New"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Classes="label" Text="数值" FontSize="11"/>
+                                        <TextBox Text="{Binding ValueInput}" Background="#150F0C" Foreground="#F7ECDD" BorderBrush="#6C5037" FontFamily="Courier New"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" VerticalAlignment="Bottom" Content="查询" Command="{Binding ReadMemoryCommand}" Background="#4B3423" Foreground="#F8EEE0"/>
+                                    <Button Grid.Column="3" VerticalAlignment="Bottom" Content="修改" Command="{Binding WriteMemoryCommand}" Background="#6A4C36" Foreground="#F8EEE0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowMemoryPage}">
+                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+                                <Grid ColumnDefinitions="*,Auto,Auto,88,Auto,Auto" ColumnSpacing="8">
+                                    <StackPanel Spacing="3">
+                                        <TextBlock Classes="hero" Text="内存分页视图" FontSize="15"/>
+                                        <TextBlock Classes="label" Text="{Binding MemoryPageSummary}" FontSize="11"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center" Text="{Binding MemoryPageNumber}" FontSize="11"/>
+                                    <Button Grid.Column="2" Content="上一页" Command="{Binding PreviousMemoryPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                    <TextBox Grid.Column="3"
+                                             Text="{Binding MemoryPageInput}"
+                                             Watermark="页码"
+                                             Background="#150F0C"
+                                             Foreground="#F7ECDD"
+                                             BorderBrush="#6C5037"
+                                             HorizontalContentAlignment="Center"/>
+                                    <Button Grid.Column="4" Content="跳页" Command="{Binding JumpMemoryPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                    <Button Grid.Column="5" Content="下一页" Command="{Binding NextMemoryPageCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                                </Grid>
+
+                                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                    <Grid ColumnDefinitions="72,Auto" HorizontalAlignment="Left">
+                                        <Border Background="#2D2019" Padding="8,6" CornerRadius="8,0,0,8">
+                                            <TextBlock Classes="label" Text="地址" FontFamily="Courier New" FontSize="11"/>
+                                        </Border>
+                                        <ItemsControl Grid.Column="1" ItemsSource="{Binding MemoryColumnHeaders}" HorizontalAlignment="Left">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="16"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="#2D2019" Padding="6" BorderBrush="#3F2D22" BorderThickness="0,0,1,0" MinWidth="34">
+                                                        <TextBlock Classes="label" Text="{Binding}" HorizontalAlignment="Center" FontFamily="Courier New" FontSize="11"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </ScrollViewer>
+
+                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding MemoryRows}" HorizontalAlignment="Left">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="model:MemoryPageRow">
+                                                <Grid ColumnDefinitions="72,Auto" Margin="0,0,0,4" HorizontalAlignment="Left">
+                                                    <Border Background="#2A1D17" Padding="8,6" CornerRadius="8,0,0,8">
+                                                        <TextBlock Classes="label" Text="{Binding RowHeader}" FontFamily="Courier New" FontSize="11"/>
+                                                    </Border>
+                                                    <ItemsControl Grid.Column="1" ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <UniformGrid Columns="16"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="model:MemoryCellItem">
+                                                                <Grid MinWidth="34">
+                                                                    <TextBox Classes="memory-cell"
+                                                                             Classes.query-hit="{Binding IsHighlighted}"
+                                                                             Text="{Binding Value}"
+                                                                             FontSize="{Binding DataContext.MemoryCellFontSize, ElementName=RootDebugWindow}"
+                                                                             GotFocus="OnMemoryCellGotFocus"
+                                                                             LostFocus="OnMemoryCellLostFocus"
+                                                                             KeyDown="OnMemoryCellKeyDown"/>
+                                                                    <Border IsHitTestVisible="False"
+                                                                            IsVisible="{Binding IsRowLocatorHighlighted}"
+                                                                            Height="8"
+                                                                            Margin="2,0"
+                                                                            Background="#28F3D6AA"
+                                                                            CornerRadius="4"
+                                                                            HorizontalAlignment="Stretch"
+                                                                            VerticalAlignment="Center"/>
+                                                                    <Border IsHitTestVisible="False"
+                                                                            IsVisible="{Binding IsColumnLocatorHighlighted}"
+                                                                            Width="8"
+                                                                            Margin="0,2"
+                                                                            Background="#28F3D6AA"
+                                                                            CornerRadius="4"
+                                                                            HorizontalAlignment="Center"
+                                                                            VerticalAlignment="Stretch"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1" IsVisible="{Binding ShowModifiedMemory}">
+                            <StackPanel Spacing="8">
+                                <TextBlock Classes="hero" Text="已修改内存 / .fcr" FontSize="15"/>
+                                <TextBlock Classes="label" Text="这里保存已经通过“修改”写入过的地址和值；超过 10 条时自动启用分页。" FontSize="11" TextWrapping="Wrap"/>
+
+                                <TextBlock Classes="label"
+                                           Text="当前还没有已修改的内存项。"
+                                           FontSize="11"
+                                           IsVisible="{Binding ShowModifiedMemoryEmptyState}"/>
+
+                                <ScrollViewer MaxHeight="260"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              IsVisible="{Binding HasModifiedMemoryEntries}">
+                                    <ItemsControl ItemsSource="{Binding VisibleModifiedMemoryEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="model:ModifiedMemoryEntry">
+                                                <Grid ColumnDefinitions="92,84,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,6">
+                                                    <Border Background="#2A1D17" Padding="8,6" CornerRadius="8">
+                                                        <TextBlock Classes="label" Text="{Binding DisplayAddress}" FontFamily="Courier New" FontSize="11"/>
+                                                    </Border>
+                                                    <Border Grid.Column="1" Background="#150F0C" Padding="8,6" CornerRadius="8">
+                                                        <TextBlock Classes="label" Text="{Binding Value}" FontFamily="Courier New" FontSize="11" HorizontalAlignment="Center"/>
+                                                    </Border>
+                                                    <Button Grid.Column="2" Content="{Binding LockButtonText}" Command="{Binding DataContext.ToggleSavedMemoryLockCommand, ElementName=RootDebugWindow}" CommandParameter="{Binding}" Background="#5A4430" Foreground="#F8EEE0"/>
+                                                    <Button Grid.Column="3" Content="应用" Command="{Binding DataContext.ApplySavedMemoryEntryCommand, ElementName=RootDebugWindow}" CommandParameter="{Binding}" Background="#4B3423" Foreground="#F8EEE0"/>
+                                                    <Button Grid.Column="4" Content="移除" Command="{Binding DataContext.RemoveSavedMemoryEntryCommand, ElementName=RootDebugWindow}" CommandParameter="{Binding}" Background="#34231A" Foreground="#F8EEE0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+
+                                <Grid ColumnDefinitions="Auto,*,Auto"
+                                      ColumnSpacing="8"
+                                      IsVisible="{Binding ShowModifiedMemoryPagination}">
+                                    <Button Content="上一页"
+                                            Command="{Binding PreviousModifiedMemoryPageCommand}"
+                                            IsEnabled="{Binding CanMoveToPreviousModifiedMemoryPage}"
+                                            Background="#34231A"
+                                            Foreground="#F8EEE0"/>
+                                    <TextBlock Grid.Column="1"
+                                               Classes="label"
+                                               Text="{Binding ModifiedMemoryPageSummary}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               FontSize="11"/>
+                                    <Button Grid.Column="2"
+                                            Content="下一页"
+                                            Command="{Binding NextModifiedMemoryPageCommand}"
+                                            IsEnabled="{Binding CanMoveToNextModifiedMemoryPage}"
+                                            Background="#34231A"
+                                            Foreground="#F8EEE0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

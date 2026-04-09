@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FCRevolution.Rendering</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Rendering.Abstractions\FC-Revolution.Rendering.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

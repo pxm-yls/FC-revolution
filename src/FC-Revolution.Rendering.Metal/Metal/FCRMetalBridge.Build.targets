@@ -1,0 +1,47 @@
+<Project>
+  <PropertyGroup>
+    <FcrMetalBridgeSource>$(MSBuildThisFileDirectory)Native/FCRMetalBridge.m</FcrMetalBridgeSource>
+    <FcrMetalBridgeName>libFCRMetalBridge.dylib</FcrMetalBridgeName>
+    <FcrMetalBridgeIntermediateDir>$(IntermediateOutputPath)native\</FcrMetalBridgeIntermediateDir>
+    <FcrMetalBridgeIntermediatePath>$(FcrMetalBridgeIntermediateDir)$(FcrMetalBridgeName)</FcrMetalBridgeIntermediatePath>
+  </PropertyGroup>
+
+  <Target Name="BuildFcrMetalBridge"
+          BeforeTargets="BeforeBuild"
+          Condition="$([MSBuild]::IsOSPlatform('OSX')) and Exists('$(FcrMetalBridgeSource)')"
+          Inputs="$(FcrMetalBridgeSource)"
+          Outputs="$(FcrMetalBridgeIntermediatePath)">
+    <MakeDir Directories="$(FcrMetalBridgeIntermediateDir)" />
+    <Exec Command="xcrun clang -fobjc-arc -fmodules -framework AppKit -framework Metal -framework MetalFX -framework QuartzCore -dynamiclib -arch arm64 -arch x86_64 &quot;$(FcrMetalBridgeSource)&quot; -o &quot;$(FcrMetalBridgeIntermediatePath)&quot;" />
+  </Target>
+
+  <Target Name="CopyFcrMetalBridgeToBuildOutput"
+          AfterTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('OSX')) and Exists('$(FcrMetalBridgeIntermediatePath)')">
+    <MakeDir Directories="$(OutDir)runtimes/osx-arm64/native;$(OutDir)runtimes/osx-x64/native" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(OutDir)$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(OutDir)runtimes/osx-arm64/native/$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(OutDir)runtimes/osx-x64/native/$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyFcrMetalBridgeToPublishOutput"
+          AfterTargets="Publish"
+          Condition="$([MSBuild]::IsOSPlatform('OSX')) and Exists('$(FcrMetalBridgeIntermediatePath)') and '$(PublishDir)' != ''">
+    <MakeDir Directories="$(PublishDir)runtimes/osx-arm64/native;$(PublishDir)runtimes/osx-x64/native" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(PublishDir)$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(PublishDir)runtimes/osx-arm64/native/$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(FcrMetalBridgeIntermediatePath)"
+          DestinationFiles="$(PublishDir)runtimes/osx-x64/native/$(FcrMetalBridgeName)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

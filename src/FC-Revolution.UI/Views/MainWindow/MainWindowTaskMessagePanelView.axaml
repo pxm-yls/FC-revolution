@@ -1,0 +1,177 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:model="using:FC_Revolution.UI.Models"
+             x:Class="FC_Revolution.UI.Views.MainWindowParts.MainWindowTaskMessagePanelView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+        <Border IsVisible="{Binding IsTaskMessagePanelVisible}"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="24,24,0,0"
+                Width="{Binding TaskMessagePanelWidth}"
+                MaxHeight="520"
+                Background="#DD130E0C"
+                BorderBrush="#6A4C36"
+                BorderThickness="1"
+                CornerRadius="16"
+                Padding="16"
+                PointerEntered="OnTaskMessagePanelPointerEntered"
+                PointerExited="OnTaskMessagePanelPointerExited">
+            <Grid RowDefinitions="Auto,Auto,*,Auto"
+                  ColumnDefinitions="*,Auto,Auto,Auto"
+                  ColumnSpacing="8"
+                  RowSpacing="10">
+                <TextBlock Classes="hero" FontSize="20" Text="{Binding TaskMessagePanelTitle}"/>
+                <Button Grid.Column="1"
+                        Classes="subtle header-compact"
+                        Content="清空"
+                        Command="{Binding ClearTaskMessagesCommand}"/>
+                <Button Grid.Column="2"
+                        Classes="subtle header-compact"
+                        Content="导出"
+                        Command="{Binding ExportTaskMessagesCommand}"/>
+                <Button Grid.Column="3"
+                        Classes="subtle header-compact"
+                        Content="×"
+                        Command="{Binding CloseTaskMessagePanelCommand}"/>
+
+                <Grid Grid.Row="1"
+                      Grid.ColumnSpan="4"
+                      RowDefinitions="Auto,Auto"
+                      RowSpacing="8">
+                    <WrapPanel Orientation="Horizontal" ItemHeight="28" ItemWidth="56">
+                        <ToggleButton Classes="panel-action header-compact mode-toggle"
+                                      Content="全部"
+                                      IsChecked="{Binding IsTaskMessageFilterAll}"
+                                      Command="{Binding SetTaskMessageCategoryFilterCommand}"
+                                      CommandParameter="All"/>
+                        <ToggleButton Classes="panel-action header-compact mode-toggle"
+                                      Content="状态"
+                                      IsChecked="{Binding IsTaskMessageFilterStatus}"
+                                      Command="{Binding SetTaskMessageCategoryFilterCommand}"
+                                      CommandParameter="Status"/>
+                        <ToggleButton Classes="panel-action header-compact mode-toggle"
+                                      Content="任务"
+                                      IsChecked="{Binding IsTaskMessageFilterTask}"
+                                      Command="{Binding SetTaskMessageCategoryFilterCommand}"
+                                      CommandParameter="Task"/>
+                        <ToggleButton Classes="panel-action header-compact mode-toggle"
+                                      Content="错误"
+                                      IsChecked="{Binding IsTaskMessageFilterError}"
+                                      Command="{Binding SetTaskMessageCategoryFilterCommand}"
+                                      CommandParameter="Error"/>
+                        <ToggleButton Classes="panel-action header-compact mode-toggle"
+                                      Content="调试"
+                                      IsChecked="{Binding IsTaskMessageFilterDebug}"
+                                      Command="{Binding SetTaskMessageCategoryFilterCommand}"
+                                      CommandParameter="Debug"/>
+                    </WrapPanel>
+                    <TextBox Grid.Row="1"
+                             Watermark="搜索..."
+                             Text="{Binding TaskMessageSearchText}"
+                             Background="#211711"
+                             Foreground="#F5EBDD"
+                             BorderBrush="#5F4531"
+                             BorderThickness="1"
+                             CornerRadius="12"
+                             Padding="10,6"/>
+                </Grid>
+
+                <Grid Grid.Row="2"
+                      Grid.ColumnSpan="4"
+                      ColumnDefinitions="*,Auto">
+                    <ScrollViewer x:Name="TaskMessageScrollViewer"
+                                  VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Grid RowDefinitions="Auto,*">
+                            <TextBlock Classes="label"
+                                       FontSize="12"
+                                       Opacity="0.72"
+                                       Text="暂无消息。"
+                                       IsVisible="{Binding NoFilteredTaskMessages}"/>
+                            <ItemsControl Grid.Row="1"
+                                          ItemsSource="{Binding FilteredTaskMessages}"
+                                          IsVisible="{Binding HasFilteredTaskMessages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="model:TaskMessage">
+                                        <Border Margin="0,0,0,10"
+                                                Padding="12"
+                                                Background="#241914"
+                                                BorderBrush="#3A2A20"
+                                                BorderThickness="1"
+                                                CornerRadius="14">
+                                            <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                                  ColumnDefinitions="Auto,Auto,*,Auto"
+                                                  RowSpacing="4"
+                                                  ColumnSpacing="8">
+                                                <Ellipse Width="8"
+                                                         Height="8"
+                                                         Fill="#F29E53"
+                                                         VerticalAlignment="Center"
+                                                         IsVisible="{Binding HasUnreadMarker}"/>
+                                                <TextBlock Grid.Column="1"
+                                                           Classes="caption"
+                                                           Text="{Binding TimeText}"/>
+                                                <TextBlock Grid.Column="2"
+                                                           Classes="caption"
+                                                           Text="{Binding CategoryLabel}"
+                                                           Foreground="{Binding SeverityBrush}"/>
+                                                <TextBlock Grid.Column="3"
+                                                           Classes="caption"
+                                                           Text="{Binding ProgressPercentText}"
+                                                           Foreground="{Binding SeverityBrush}"
+                                                           IsVisible="{Binding HasProgress}"/>
+                                                <TextBlock Grid.Row="1"
+                                                           Grid.ColumnSpan="4"
+                                                           Classes="hero"
+                                                           FontSize="13"
+                                                           Text="{Binding Title}"
+                                                           IsVisible="{Binding HasDistinctTitle}"/>
+                                                <TextBlock Grid.Row="2"
+                                                           Grid.ColumnSpan="4"
+                                                           Classes="label"
+                                                           FontSize="12"
+                                                           Text="{Binding Content}"
+                                                           TextWrapping="Wrap"/>
+                                                <ProgressBar Grid.Row="3"
+                                                             Grid.ColumnSpan="4"
+                                                             Minimum="0"
+                                                             Maximum="1"
+                                                             Height="6"
+                                                             Value="{Binding Progress}"
+                                                             IsVisible="{Binding HasProgress}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </ScrollViewer>
+                    <ScrollBar x:Name="TaskMessageScrollBar"
+                               Grid.Column="1"
+                               Width="16"
+                               Orientation="Vertical"
+                               Minimum="0"
+                               Maximum="0"
+                               ViewportSize="0"
+                               Background="#1D1410"
+                               Foreground="#C8A67E"/>
+                </Grid>
+
+                <Grid Grid.Row="3"
+                      Grid.ColumnSpan="4"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="8">
+                    <TextBlock Classes="label"
+                               FontSize="11"
+                               VerticalAlignment="Center"
+                               Text="{Binding TaskMessagePanelSummary}"/>
+                    <Button Grid.Column="1"
+                            Classes="subtle header-compact"
+                            Content="标记全部已读"
+                            Command="{Binding MarkAllTaskMessagesReadCommand}"/>
+                </Grid>
+            </Grid>
+        </Border>
+</UserControl>

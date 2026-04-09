@@ -1,0 +1,207 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        xmlns:model="using:FC_Revolution.UI.Models"
+        xmlns:mainWindow="using:FC_Revolution.UI.Views.MainWindowParts"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="1500"
+        d:DesignHeight="940"
+        x:Class="FC_Revolution.UI.Views.MainWindow"
+        x:Name="RootWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="FC-Revolution"
+        Icon="/Assets/logo.ico"
+        Width="1500"
+        Height="940"
+        MinWidth="1180"
+        MinHeight="780"
+        Background="#120A08">
+    <Window.Styles>
+        <StyleInclude Source="avares://FC-Revolution.UI/Styles/MainWindowChromeStyles.axaml"/>
+        <StyleInclude Source="avares://FC-Revolution.UI/Styles/MainWindowSettingsStyles.axaml"/>
+    </Window.Styles>
+
+    <Grid>
+        <Grid RowDefinitions="*,Auto">
+            <Grid Grid.Row="0" Margin="24,20,24,20" RowDefinitions="Auto,Auto,*" RowSpacing="12">
+                <mainWindow:MainWindowLibraryHeaderView Grid.RowSpan="2"/>
+                <Grid Grid.Row="2">
+                    <mainWindow:MainWindowShelfView/>
+                    <mainWindow:MainWindowKaleidoscopeView/>
+                    <mainWindow:MainWindowCarouselView x:Name="CarouselView"/>
+                </Grid>
+            </Grid>
+
+            <Border Grid.Row="1" Padding="14,10" BorderBrush="#3C281C" BorderThickness="0,1,0,0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#160F0C" Offset="0"/>
+                        <GradientStop Color="#100B08" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <TextBlock Classes="label"
+                           FontSize="12"
+                           HorizontalAlignment="Center"
+                           Text="{Binding FooterLibraryHint}"/>
+            </Border>
+        </Grid>
+
+        <StackPanel HorizontalAlignment="Left"
+                    VerticalAlignment="Bottom"
+                    Margin="24,0,0,34"
+                    Spacing="12">
+            <Border IsVisible="{Binding IsStartupProgressVisible}"
+                    Width="{Binding NotificationPanelWidth}"
+                    CornerRadius="18"
+                    Padding="16"
+                    Background="#D97A2A12"
+                    BorderBrush="#A66D41"
+                    BorderThickness="1">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="10">
+                    <TextBlock Classes="hero" FontSize="18" Text="启动步骤"/>
+                    <TextBox Grid.Row="1"
+                             Classes="message-readonly panel"
+                             Text="{Binding StartupProgressText}"
+                             IsReadOnly="True"
+                             MaxHeight="116"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                </Grid>
+            </Border>
+
+        </StackPanel>
+
+        <mainWindow:MainWindowTaskMessagePanelView x:Name="TaskMessagePanelView"/>
+
+        <mainWindow:MainWindowSettingsPanelView/>
+
+        <mainWindow:MainWindowQuickRomInputEditorView/>
+
+        <Border IsVisible="{Binding IsReplacingGameSession}"
+                Background="#99000000">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="1080" MaxHeight="760">
+                <Border CornerRadius="28"
+                        Padding="24"
+                        Background="#1A1210"
+                        BorderBrush="#7B5A3F"
+                        BorderThickness="1">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="18">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="hero" FontSize="26" Text="选择要顶替的游戏窗口"/>
+                                <TextBlock Classes="label"
+                                           FontSize="12"
+                                           Text="当前游戏窗口数量已达上限。点击任意一个正在运行的窗口，新的 ROM 会替换进去。"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Classes="subtle" Content="取消" Command="{Binding CancelReplaceGameSessionCommand}"/>
+                        </Grid>
+
+                        <TextBlock Grid.Row="1" Classes="label" FontSize="12" Text="{Binding ActiveSessionSummary}"/>
+
+                        <ItemsControl Grid.Row="2" ItemsSource="{Binding ActiveGameSessions}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" ItemWidth="300" ItemHeight="236"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:ActiveGameSessionItem">
+                                    <Button Margin="8"
+                                            Padding="0"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Command="{Binding DataContext.ReplaceGameSessionCommand, ElementName=RootWindow}"
+                                            CommandParameter="{Binding}">
+                                        <Border CornerRadius="22"
+                                                Background="#221713"
+                                                BorderBrush="#72523C"
+                                                BorderThickness="1"
+                                                Padding="14">
+                                            <StackPanel Spacing="10">
+                                                <Border Height="160"
+                                                        CornerRadius="14"
+                                                        ClipToBounds="True"
+                                                        Background="#0A0808">
+                                                    <Image Source="{Binding SnapshotBitmap}"
+                                                           Stretch="UniformToFill"
+                                                           RenderOptions.BitmapInterpolationMode="None"/>
+                                                </Border>
+                                                <TextBlock Classes="hero" FontSize="16" Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border IsVisible="{Binding IsBranchGalleryPreviewLoading}"
+                Width="300"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="{Binding BranchGalleryPreviewMargin}"
+                Background="#EE181210"
+                BorderBrush="#7A5A42"
+                BorderThickness="1"
+                CornerRadius="22"
+                Padding="16">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="hero" FontSize="18" Text="分支画廊"/>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding BranchGalleryPreviewLoadingText}" TextWrapping="Wrap"/>
+                <ProgressBar IsIndeterminate="True" Height="6"/>
+            </StackPanel>
+        </Border>
+
+        <Border IsVisible="{Binding IsBranchGalleryPreviewOpen}"
+                Width="340"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="{Binding BranchGalleryPreviewMargin}"
+                Background="#F0181210"
+                BorderBrush="#8A6347"
+                BorderThickness="1"
+                CornerRadius="24"
+                Padding="16"
+                PointerPressed="OnBranchGalleryPreviewCardPressed">
+            <StackPanel Spacing="12">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="hero" FontSize="20" Text="{Binding BranchGalleryPreviewTitle}" TextWrapping="Wrap"/>
+                    <TextBlock Classes="label" FontSize="12" Text="{Binding BranchGalleryPreviewHint}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Command="{Binding OpenBranchGalleryFromPreviewCommand}">
+                    <Border Height="188"
+                            CornerRadius="16"
+                            ClipToBounds="True"
+                            Background="#0F0A08"
+                            BorderBrush="#6E4D38"
+                            BorderThickness="1">
+                        <Grid>
+                            <Image Source="{Binding BranchGalleryPreviewBitmap}"
+                                   Stretch="UniformToFill"
+                                   RenderOptions.BitmapInterpolationMode="None"/>
+                            <Border Background="#55150F0C"/>
+                            <StackPanel VerticalAlignment="Bottom" Margin="14" Spacing="4">
+                                <TextBlock Classes="hero" FontSize="18" Text="进入分支画廊"/>
+                                <TextBlock Classes="label"
+                                           FontSize="11"
+                                           Text="{Binding BranchGalleryPreviewHint}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Button>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

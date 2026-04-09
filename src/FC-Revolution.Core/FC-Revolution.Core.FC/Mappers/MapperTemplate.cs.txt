@@ -1,0 +1,81 @@
+namespace FCRevolution.Core.Mappers;
+
+// 1. 在 MapperProfileRegistry 中注册：
+//    new(XX, "Mapper XXX", MapperFamilyKind.YourFamily)
+// 2. 在 MapperCoreFactory 中接线：
+//    MapperFamilyKind.YourFamily => new MapperXXXCore(cartridge, header, profile)
+
+internal sealed class MapperXXXCore : MapperCore
+{
+    private int _prgBank;
+    private int _chrBank;
+
+    public MapperXXXCore(MapperCartridge cartridge, InesHeader header, MapperProfile profile)
+        : base(cartridge, header, profile)
+    {
+        CurrentMirroring = header.Mirroring;
+    }
+
+    public override byte CpuRead(ushort address)
+    {
+        if (IsPrgRamAddress(address))
+            return ReadPrgRam(address);
+
+        if (address >= 0x8000)
+        {
+            var index = _prgBank * 0x4000 + (address & 0x3FFF);
+            return PrgRom[index % PrgRom.Length];
+        }
+
+        return 0;
+    }
+
+    public override void CpuWrite(ushort address, byte data)
+    {
+        if (IsPrgRamAddress(address))
+        {
+            WritePrgRam(address, data);
+            return;
+        }
+
+        if (address >= 0x8000)
+            _prgBank = data & 0x0F;
+    }
+
+    public override byte PpuRead(ushort address)
+    {
+        if (address < 0x2000)
+            return ReadChrAt(_chrBank * 0x2000 + address);
+
+        return 0;
+    }
+
+    public override void PpuWrite(ushort address, byte data)
+    {
+        if (address < 0x2000)
+            WriteChrAt(_chrBank * 0x2000 + address, data);
+    }
+
+    public override void Reset()
+    {
+        _prgBank = 0;
+        _chrBank = 0;
+    }
+
+    public override void SignalScanline()
+    {
+        // 需要扫描线 IRQ 时在这里实现
+    }
+
+    public override byte[] SerializeState() => new[]
+    {
+        (byte)_prgBank,
+        (byte)_chrBank,
+    };
+
+    public override void DeserializeState(byte[] state)
+    {
+        if (state.Length > 0) _prgBank = state[0];
+        if (state.Length > 1) _chrBank = state[1];
+    }
+}

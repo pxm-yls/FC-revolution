@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             x:Class="FC_Revolution.UI.Views.Settings.MainWindowPreviewSettingsView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+    <StackPanel Classes="settings-tab-content">
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="预览生成"/>
+                <TextBlock Classes="label" FontSize="12" Text="常用预览动作和离线生成参数统一放在这里，避免打扰日常运行设置。" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="chrome"
+                            Content="{Binding PreviewActionText}"
+                            Command="{Binding GeneratePreviewCommand}"
+                            IsEnabled="{Binding CanGeneratePreview}"/>
+                    <Button Classes="subtle"
+                            Content="一键生成全部预览"
+                            Command="{Binding GenerateAllPreviewsCommand}"
+                            IsEnabled="{Binding CanGenerateAllPreviews}"/>
+                </StackPanel>
+                <ProgressBar Minimum="0" Maximum="1" Value="{Binding PreviewProgress}" Height="8"/>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewStatusText}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="生成参数"/>
+                <TextBlock Classes="label" FontSize="12" Text="离线预览生成速度、并发和预加载都集中在这里，避免打扰日常运行设置。" TextWrapping="Wrap"/>
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="10">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="label" FontSize="12" Text="FC 帧生成速度"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Classes="subtle" Width="48" Content="-" Command="{Binding DecreasePreviewGenerationSpeedCommand}"/>
+                            <Border Width="72"
+                                    CornerRadius="12"
+                                    Background="#1C1310"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1"
+                                    Padding="8,6">
+                                <TextBlock Classes="hero" FontSize="20" Text="{Binding PreviewGenerationSpeedMultiplier}" HorizontalAlignment="Center"/>
+                            </Border>
+                            <Button Classes="subtle" Width="48" Content="+" Command="{Binding IncreasePreviewGenerationSpeedCommand}"/>
+                        </StackPanel>
+                        <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewGenerationSpeedSummary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="8">
+                        <TextBlock Classes="label" FontSize="12" Text="并发生成数"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Classes="subtle" Width="48" Content="-" Command="{Binding DecreasePreviewGenerationParallelismCommand}"/>
+                            <Border Width="72"
+                                    CornerRadius="12"
+                                    Background="#1C1310"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1"
+                                    Padding="8,6">
+                                <TextBlock Classes="hero" FontSize="20" Text="{Binding PreviewGenerationParallelism}" HorizontalAlignment="Center"/>
+                            </Border>
+                            <Button Classes="subtle" Width="48" Content="+" Command="{Binding IncreasePreviewGenerationParallelismCommand}"/>
+                        </StackPanel>
+                        <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewGenerationParallelismSummary}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="label" FontSize="12" Text="预览编码模式"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="chrome" Content="自动" Command="{Binding UsePreviewEncodingModeAutoCommand}"/>
+                        <Button Classes="subtle" Content="软件" Command="{Binding UsePreviewEncodingModeSoftwareCommand}"/>
+                        <Border Width="136"
+                                CornerRadius="12"
+                                Background="#1C1310"
+                                BorderBrush="#5A3F2E"
+                                BorderThickness="1"
+                                Padding="8,6">
+                            <TextBlock Classes="hero" FontSize="18" Text="{Binding PreviewEncodingModeLabel}" HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewEncodingModeSummary}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="label" FontSize="12" Text="输出分辨率"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="subtle" Width="48" Content="-" Command="{Binding DecreasePreviewResolutionScaleCommand}"/>
+                        <Border Width="88"
+                                CornerRadius="12"
+                                Background="#1C1310"
+                                BorderBrush="#5A3F2E"
+                                BorderThickness="1"
+                                Padding="8,6">
+                            <TextBlock Classes="hero"
+                                       FontSize="20"
+                                       Text="{Binding PreviewResolutionScale, StringFormat={}{0:P0}}"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                        <Button Classes="subtle" Width="48" Content="+" Command="{Binding IncreasePreviewResolutionScaleCommand}"/>
+                        <Button Classes="subtle" Content="50%" Command="{Binding SetPreviewResolutionScale50Command}"/>
+                        <Button Classes="subtle" Content="75%" Command="{Binding SetPreviewResolutionScale75Command}"/>
+                        <Button Classes="chrome" Content="100%" Command="{Binding SetPreviewResolutionScale100Command}"/>
+                    </StackPanel>
+                    <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewResolutionScaleSummary}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="label" FontSize="12" Text="视频预加载窗口"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="subtle" Width="56" Content="1 秒" Command="{Binding SetPreviewPreloadWindow1sCommand}"/>
+                        <Button Classes="subtle" Width="56" Content="2 秒" Command="{Binding SetPreviewPreloadWindow2sCommand}"/>
+                        <Button Classes="subtle" Width="56" Content="3 秒" Command="{Binding SetPreviewPreloadWindow3sCommand}"/>
+                        <Border Width="72"
+                                CornerRadius="12"
+                                Background="#1C1310"
+                                BorderBrush="#5A3F2E"
+                                BorderThickness="1"
+                                Padding="8,6">
+                            <TextBlock Classes="hero" FontSize="20" Text="{Binding PreviewPreloadWindowSeconds}" HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Classes="label" FontSize="12" Text="{Binding PreviewPreloadWindowSummary}" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,271 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="FC_Revolution.UI.Views.BranchGalleryWindow"
+        x:Name="RootWindow"
+        x:DataType="vm:BranchGalleryViewModel"
+        Title="分支画廊"
+        Icon="/Assets/logo.ico"
+        Width="1380"
+        Height="860"
+        Background="#120D0B">
+    <Window.Styles>
+        <Style Selector="TextBlock.hero">
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+            <Setter Property="Foreground" Value="#F6ECDD"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+            <Setter Property="Foreground" Value="#D7C4AE"/>
+        </Style>
+        <Style Selector="Button.chrome">
+            <Setter Property="Background" Value="#4B3423"/>
+            <Setter Property="Foreground" Value="#F8EEE0"/>
+            <Setter Property="BorderBrush" Value="#8F6A4C"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+        <Style Selector="Button.subtle">
+            <Setter Property="Background" Value="#231813"/>
+            <Setter Property="Foreground" Value="#EADCC8"/>
+            <Setter Property="BorderBrush" Value="#5F4531"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <Border CornerRadius="26" Padding="18" Background="#1A1210" BorderBrush="#6F5038" BorderThickness="1">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="hero" FontSize="28" Text="时间线分支树"/>
+                    <TextBlock Classes="label"
+                               FontSize="12"
+                               Text="把传统存档升级成可视化时间线分支树。主线和分支都带截图节点，可缩放、拖动、切换横向或纵向。"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="subtle" Content="新建分支" Command="{Binding CreateBranchCommand}"/>
+                    <Button Classes="subtle" Content="快退 30s" Command="{Binding RewindCommand}" CommandParameter="1800"/>
+                    <Button Classes="subtle" Content="快退 10s" Command="{Binding RewindCommand}" CommandParameter="600"/>
+                    <Button Classes="subtle" Content="切换方向" Command="{Binding ToggleOrientationCommand}"/>
+                    <Button Classes="subtle" Content="-" Command="{Binding ZoomOutCommand}"/>
+                    <Border CornerRadius="12" Background="#231813" BorderBrush="#5F4531" BorderThickness="1" Padding="10,8">
+                        <TextBlock Classes="label" FontSize="12" Text="{Binding ZoomPercent}"/>
+                    </Border>
+                    <Button Classes="subtle" Content="+" Command="{Binding ZoomInCommand}"/>
+                    <Button Classes="subtle" Content="重置" Command="{Binding ResetZoomCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="0,18,0,18" ColumnDefinitions="*,340" ColumnSpacing="18">
+            <Border Grid.Column="0" CornerRadius="28" Background="#1A1310" BorderBrush="#6D4E39" BorderThickness="1" ClipToBounds="True">
+                <Grid RowDefinitions="Auto,*">
+                    <Border Background="#201713" BorderBrush="#5D4330" BorderThickness="0,0,0,1" Padding="16,12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="2">
+                                <TextBlock Classes="hero" FontSize="20" Text="{Binding OrientationLabel}"/>
+                                <TextBlock Classes="label" FontSize="11" Text="滚轮缩放，按住鼠标中键拖动画布，双击分支节点可直接载入。"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Classes="label" FontSize="12" Text="{Binding CacheInfo}" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <ScrollViewer x:Name="CanvasScrollViewer"
+                                  Grid.Row="1"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  PointerWheelChanged="OnCanvasWheelChanged"
+                                  PointerPressed="OnCanvasPointerPressed"
+                                  PointerMoved="OnCanvasPointerMoved"
+                                  PointerReleased="OnCanvasPointerReleased">
+                        <Canvas x:Name="TimelineCanvas" Width="{Binding CanvasWidth}" Height="{Binding CanvasHeight}">
+                            <ItemsControl ItemsSource="{Binding CanvasEdges}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BranchCanvasEdge">
+                                        <Line StartPoint="{Binding StartPoint}"
+                                              EndPoint="{Binding EndPoint}"
+                                              Stroke="#A88866"
+                                              StrokeThickness="2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding CanvasNodes}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BranchCanvasNode">
+                                        <Button Width="{Binding Width}"
+                                                Height="{Binding Height}"
+                                                Padding="0"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Command="{Binding DataContext.SelectNodeCommand, ElementName=RootWindow}"
+                                                CommandParameter="{Binding}"
+                                                DoubleTapped="OnNodeDoubleTapped">
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="设为导出起点"
+                                                              Command="{Binding DataContext.SetExportStartFromNodeCommand, ElementName=RootWindow}"
+                                                              CommandParameter="{Binding}"/>
+                                                    <MenuItem Header="设为导出终点"
+                                                              Command="{Binding DataContext.SetExportEndFromNodeCommand, ElementName=RootWindow}"
+                                                              CommandParameter="{Binding}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Canvas.Left>
+                                                <Binding Path="X"/>
+                                            </Canvas.Left>
+                                            <Canvas.Top>
+                                                <Binding Path="Y"/>
+                                            </Canvas.Top>
+                                            <Border CornerRadius="18"
+                                                    Padding="10"
+                                                    Background="{Binding BackgroundHex}"
+                                                    BorderBrush="{Binding BorderBrushHex}"
+                                                    BorderThickness="{Binding BorderThicknessValue}">
+                                                <Grid RowDefinitions="78,*" RowSpacing="8">
+                                                    <Border CornerRadius="12" ClipToBounds="True" Background="#100B09">
+                                                        <Image Source="{Binding Bitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="None"/>
+                                                    </Border>
+
+                                                    <StackPanel Grid.Row="1" Spacing="2">
+                                                        <TextBlock Classes="hero" FontSize="14" Text="{Binding Title}" TextWrapping="Wrap"/>
+                                                        <TextBlock Classes="label" FontSize="10" Text="{Binding Subtitle}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding PreviewMarkers}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BranchPreviewMarker">
+                                        <Button Width="{Binding Diameter}"
+                                                Height="{Binding Diameter}"
+                                                Padding="0"
+                                                Background="#E2C48F"
+                                                BorderBrush="#FFF5D8"
+                                                BorderThickness="2"
+                                                CornerRadius="999"
+                                                Command="{Binding DataContext.SelectPreviewNodeCommand, ElementName=RootWindow}"
+                                                CommandParameter="{Binding Id}">
+                                            <ToolTip.Tip>
+                                                <Border Width="220"
+                                                        Padding="8"
+                                                        CornerRadius="12"
+                                                        Background="#1B1411"
+                                                        BorderBrush="#8F6A4C"
+                                                        BorderThickness="1">
+                                                    <StackPanel Spacing="6">
+                                                        <Border Height="128"
+                                                                CornerRadius="10"
+                                                                ClipToBounds="True"
+                                                                Background="#100B09">
+                                                            <Image Source="{Binding Bitmap}"
+                                                                   Stretch="UniformToFill"
+                                                                   RenderOptions.BitmapInterpolationMode="None"/>
+                                                        </Border>
+                                                        <TextBlock Classes="hero" FontSize="12" Text="{Binding Title}" TextWrapping="Wrap"/>
+                                                        <TextBlock Classes="label" FontSize="10" Text="{Binding Subtitle}" TextWrapping="Wrap"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </ToolTip.Tip>
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="删除画面节点"
+                                                              Command="{Binding DataContext.DeletePreviewNodeCommand, ElementName=RootWindow}"
+                                                              CommandParameter="{Binding Id}"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Canvas.Left>
+                                                <Binding Path="X"/>
+                                            </Canvas.Left>
+                                            <Canvas.Top>
+                                                <Binding Path="Y"/>
+                                            </Canvas.Top>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Canvas>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" CornerRadius="28" Background="#1A1210" BorderBrush="#6F5038" BorderThickness="1" Padding="16">
+                <StackPanel Spacing="14">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="hero" FontSize="22" Text="节点详情"/>
+                        <TextBlock Classes="label" FontSize="12" Text="{Binding StatusText}" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <Border Width="272" Height="204" HorizontalAlignment="Center" CornerRadius="18" ClipToBounds="True" Background="#120D0B" BorderBrush="#6A4B37" BorderThickness="1">
+                        <Image Source="{Binding SelectedBitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="None"/>
+                    </Border>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="hero" FontSize="18" Text="{Binding SelectedTitle}" TextWrapping="Wrap"/>
+                        <TextBlock Classes="label" FontSize="12" Text="{Binding SelectedSubtitle}" TextWrapping="Wrap"/>
+                        <TextBlock Classes="label" FontSize="11" Text="{Binding SelectedMeta}" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding HasBranchSelection}">
+                        <TextBlock Classes="label" FontSize="11" Text="分支名称"/>
+                        <TextBox Text="{Binding EditableBranchName}" Background="#241914" Foreground="#F7ECDD" BorderBrush="#70533D"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4" IsVisible="{Binding HasPreviewSelection}">
+                        <TextBlock Classes="label" FontSize="11" Text="画面节点名称"/>
+                        <TextBox Text="{Binding EditablePreviewTitle}" Background="#241914" Foreground="#F7ECDD" BorderBrush="#70533D"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6" IsVisible="{Binding CanMarkExportRange}">
+                        <TextBlock Classes="label" FontSize="11" Text="{Binding ExportRangeLabel}" TextWrapping="Wrap"/>
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Button Classes="subtle" Content="设为导出起点" Command="{Binding SetExportStartCommand}"/>
+                            <Button Grid.Column="1" Classes="subtle" Content="设为导出终点" Command="{Binding SetExportEndCommand}"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <Button Classes="chrome" Content="载入选中分支" Command="{Binding LoadBranchCommand}" IsEnabled="{Binding HasBranchSelection}"/>
+                        <Button Classes="subtle" Content="导出当前区间 MP4" Command="{Binding ExportRangeCommand}" IsEnabled="{Binding CanMarkExportRange}"/>
+                        <Button Classes="subtle" Content="重命名分支" Command="{Binding RenameBranchCommand}" IsEnabled="{Binding HasBranchSelection}"/>
+                        <Button Classes="subtle" Content="重命名画面节点" Command="{Binding RenamePreviewNodeCommand}" IsEnabled="{Binding HasPreviewSelection}"/>
+                        <Button Classes="subtle" Content="删除分支" Command="{Binding DeleteBranchCommand}" IsEnabled="{Binding HasBranchSelection}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" CornerRadius="18" Background="#1B1310" BorderBrush="#5E4330" BorderThickness="1" Padding="14,10">
+            <TextBlock Classes="label"
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Text="当前原型已支持主线截图节点、分支树节点、横向/纵向切换、缩放和中键拖动画布。"/>
+        </Border>
+    </Grid>
+</Window>

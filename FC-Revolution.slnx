@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FC-Revolution.Backend.Abstractions/FC-Revolution.Backend.Abstractions.csproj" />
+    <Project Path="src/FC-Revolution.Backend.Hosting/FC-Revolution.Backend.Hosting.csproj" />
+    <Project Path="src/FC-Revolution.Backend/FC-Revolution.Backend.csproj" />
+    <Project Path="src/FC-Revolution.Core.Nes.Managed/FC-Revolution.Core.Nes.Managed.csproj" />
+    <Project Path="src/FC-Revolution.Core.Sample.Managed/FC-Revolution.Core.Sample.Managed.csproj" />
+    <Project Path="src/FC-Revolution.Contracts/FC-Revolution.Contracts.csproj" />
+    <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.csproj" />
+    <Project Path="src/FC-Revolution.Emulation.Abstractions/FC-Revolution.Emulation.Abstractions.csproj" />
+    <Project Path="src/FC-Revolution.Emulation.Host/FC-Revolution.Emulation.Host.csproj" />
+    <Project Path="src/FC-Revolution.Rendering/FC-Revolution.Rendering.csproj" />
+    <Project Path="src/FC-Revolution.Storage/FC-Revolution.Storage.csproj" />
+    <Project Path="src/FC-Revolution.UI/FC-Revolution.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FC-Revolution.Backend.Hosting.Tests/FC-Revolution.Backend.Hosting.Tests.csproj" />
+    <Project Path="tests/FC-Revolution.Core.Tests/FC-Revolution.Core.Tests.csproj" />
+    <Project Path="tests/FC-Revolution.Rendering.Tests/FC-Revolution.Rendering.Tests.csproj" />
+    <Project Path="tests/FC-Revolution.UI.Tests/FC-Revolution.UI.Tests.csproj" />
+  </Folder>
+</Solution>

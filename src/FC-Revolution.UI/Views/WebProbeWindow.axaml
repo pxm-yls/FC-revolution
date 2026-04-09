@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="FC_Revolution.UI.Views.WebProbeWindow"
+        x:DataType="vm:WebProbeViewModel"
+        Title="局域网页探针"
+        Icon="/Assets/logo.ico"
+        Width="960"
+        Height="720"
+        MinWidth="760"
+        MinHeight="560"
+        Background="#130D0A">
+    <Window.Styles>
+        <Style Selector="TextBlock.hero">
+            <Setter Property="Foreground" Value="#F5EBDD"/>
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#D8C2A9"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="#17100D" BorderBrush="#6C5037" BorderThickness="1" Padding="14">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+            <Border Background="#241712" CornerRadius="18" Padding="14,12" BorderBrush="#6C5037" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="hero" Text="局域网页探针" FontSize="22"/>
+                        <TextBlock Classes="label" Text="{Binding WindowSummary}" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock Classes="label" Text="直接在程序内部抓取首页、极简页和脚本资源，排除系统浏览器链路干扰。" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Classes="subtle"
+                            Content="刷新探针"
+                            Command="{Binding RefreshCommand}"/>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                <TextBox Classes="label"
+                         FontSize="12"
+                         Text="{Binding ProbeOutput}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         CaretBrush="#EADCC8"
+                         Foreground="#EADCC8"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

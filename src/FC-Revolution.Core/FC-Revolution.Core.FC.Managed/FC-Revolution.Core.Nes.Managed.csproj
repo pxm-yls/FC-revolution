@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FCRevolution.Core.Nes.Managed</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
+    <ProjectReference Include="..\..\FC-Revolution.Emulation.Abstractions\FC-Revolution.Emulation.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,124 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        xmlns:model="using:FC_Revolution.UI.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="FC_Revolution.UI.Views.MemoryDiagnosticsWindow"
+        x:DataType="vm:MemoryDiagnosticsViewModel"
+        Title="内存诊断台"
+        Icon="/Assets/logo.ico"
+        Width="1240"
+        Height="860"
+        MinWidth="980"
+        MinHeight="700"
+        Background="#130D0A"
+        CanResize="True">
+    <Window.Styles>
+        <Style Selector="TextBlock.hero">
+            <Setter Property="Foreground" Value="#F5EBDD"/>
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#D8C2A9"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="#17100D" BorderBrush="#6C5037" BorderThickness="1" Padding="14">
+        <Grid RowDefinitions="Auto,Auto,1.1*,0.9*" RowSpacing="14">
+            <Border Background="#241712" CornerRadius="18" Padding="14,12" BorderBrush="#6C5037" BorderThickness="1">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes="hero" Text="内存诊断台" FontSize="22"/>
+                        <TextBlock Classes="label" Text="{Binding WindowSummary}" FontSize="12"/>
+                        <TextBlock Classes="label" Text="{Binding CurrentRomSummary}" FontSize="11"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="立即采样" Command="{Binding CaptureNowCommand}" Background="#4B3423" Foreground="#F8EEE0"/>
+                        <Button Content="清空历史" Command="{Binding ClearHistoryCommand}" Background="#34231A" Foreground="#F8EEE0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <Border Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="hero" Text="进程" FontSize="15"/>
+                        <TextBlock Classes="label" Text="{Binding ProcessSummary}" TextWrapping="Wrap" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="hero" Text="GC" FontSize="15"/>
+                        <TextBlock Classes="label" Text="{Binding GcSummary}" TextWrapping="Wrap" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                    <StackPanel Spacing="6">
+                        <TextBlock Classes="hero" Text="预览缓存" FontSize="15"/>
+                        <TextBlock Classes="label" Text="{Binding PreviewSummary}" TextWrapping="Wrap" FontSize="11"/>
+                        <TextBlock Classes="label" Text="{Binding CacheSummary}" TextWrapping="Wrap" FontSize="11"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <TextBlock Classes="hero" Text="ROM 预览占用明细" FontSize="15"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding PreviewItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:PreviewMemoryUsageItem">
+                                    <Border Margin="0,0,0,8" Padding="10" Background="#17100D" BorderBrush="#3B2A20" BorderThickness="1" CornerRadius="12">
+                                        <Grid ColumnDefinitions="2.2*,1.1*,0.9*,0.9*,1.1*,1.2*" ColumnSpacing="10">
+                                            <StackPanel Spacing="3">
+                                                <TextBlock Classes="label" Text="{Binding RomName}" FontSize="12"/>
+                                                <TextBlock Classes="label" Text="{Binding RomPath}" FontSize="10" Opacity="0.72" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center" Text="{Binding StatusLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="2" Classes="label" VerticalAlignment="Center" Text="{Binding PreviewFrameCount, StringFormat='帧数 {0}'}" FontSize="11"/>
+                                            <TextBlock Grid.Column="3" Classes="label" VerticalAlignment="Center" Text="{Binding CachedBitmapCount, StringFormat='位图 {0}'}" FontSize="11"/>
+                                            <TextBlock Grid.Column="4" Classes="label" VerticalAlignment="Center" Text="{Binding CachedFrameCount, StringFormat='原始帧 {0}'}" FontSize="11"/>
+                                            <StackPanel Grid.Column="5" Spacing="2">
+                                                <TextBlock Classes="label" Text="{Binding EstimatedBitmapCacheBytes, StringFormat='位图占用 {0:N0} B'}" FontSize="10"/>
+                                                <TextBlock Classes="label" Text="{Binding EstimatedFrameCacheBytes, StringFormat='原始占用 {0:N0} B'}" FontSize="10"/>
+                                                <TextBlock Classes="label" Text="{Binding EstimatedTotalBytes, StringFormat='总计 {0:N0} B'}" FontSize="10" Foreground="#F4D9AF"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="3" Background="#221713" CornerRadius="16" Padding="12" BorderBrush="#6C5037" BorderThickness="1">
+                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                    <TextBlock Classes="hero" Text="采样历史" FontSize="15"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding HistoryItems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="model:MemoryDiagnosticsSampleItem">
+                                    <Border Margin="0,0,0,8" Padding="10" Background="#17100D" BorderBrush="#3B2A20" BorderThickness="1" CornerRadius="12">
+                                        <Grid ColumnDefinitions="72,120,120,120,200,220,*" ColumnSpacing="10">
+                                            <TextBlock Classes="label" Text="{Binding TimeLabel}" FontFamily="Courier New" FontSize="11"/>
+                                            <TextBlock Grid.Column="1" Classes="label" Text="{Binding WorkingSetLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="2" Classes="label" Text="{Binding PrivateLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="3" Classes="label" Text="{Binding ManagedLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="4" Classes="label" Text="{Binding PreviewLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="5" Classes="label" Text="{Binding CacheLabel}" FontSize="11"/>
+                                            <TextBlock Grid.Column="6" Classes="label" Text="{Binding LayoutLabel}" FontSize="11"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

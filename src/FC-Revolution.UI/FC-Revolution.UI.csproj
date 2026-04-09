@@ -1,0 +1,123 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\logo.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <EnableAvaloniaDevTools>false</EnableAvaloniaDevTools>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
+    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="..\..\logo.ico" Link="Assets\logo.ico" />
+    <None Include="Info.plist" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>FC-Revolution.UI.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.10" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.10" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.10" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.10" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="FFmpeg.AutoGen" Version="4.4.2" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.3.8" />
+    <PackageReference Include="MessagePack" Version="3.1.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableAvaloniaDevTools)' == 'true'">
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <BundledFFmpegRuntime Include="..\FC-Revolution.ffmpeg\runtimes\**\*.*" Exclude="..\FC-Revolution.ffmpeg\runtimes\**\.gitkeep" />
+    <BundledFFmpegTool Include="..\FC-Revolution.ffmpeg\tools\**\*.*" Exclude="..\FC-Revolution.ffmpeg\tools\**\.gitkeep" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource
+      Include="..\FC-Revolution.ffmpeg\runtimes\**\*.*"
+      Exclude="..\FC-Revolution.ffmpeg\runtimes\**\.gitkeep;..\FC-Revolution.ffmpeg\runtimes\**\.DS_Store;..\FC-Revolution.ffmpeg\runtimes\**\.backup\**\*.*">
+      <LogicalName>FCRevolutionBundledAsset/runtimes/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource
+      Include="..\FC-Revolution.ffmpeg\tools\**\*.*"
+      Exclude="..\FC-Revolution.ffmpeg\tools\**\.gitkeep;..\FC-Revolution.ffmpeg\tools\**\.DS_Store">
+      <LogicalName>FCRevolutionBundledAsset/tools/%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="CopyBundledFFmpegRuntimesToBuildOutput" AfterTargets="Build">
+    <Copy
+      SourceFiles="@(BundledFFmpegRuntime)"
+      DestinationFiles="@(BundledFFmpegRuntime->'$(OutDir)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBundledFFmpegRuntimesToPublishOutput" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and '$(PublishSingleFile)' != 'true'">
+    <Copy
+      SourceFiles="@(BundledFFmpegRuntime)"
+      DestinationFiles="@(BundledFFmpegRuntime->'$(PublishDir)runtimes\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBundledFFmpegToolsToBuildOutput" AfterTargets="Build">
+    <Copy
+      SourceFiles="@(BundledFFmpegTool)"
+      DestinationFiles="@(BundledFFmpegTool->'$(OutDir)ffmpeg-tools\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBundledFFmpegToolsToPublishOutput" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and '$(PublishSingleFile)' != 'true'">
+    <Copy
+      SourceFiles="@(BundledFFmpegTool)"
+      DestinationFiles="@(BundledFFmpegTool->'$(PublishDir)ffmpeg-tools\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyManagedCoreModulesToBuildOutput" AfterTargets="Build" Condition="'@(ManagedCoreModuleBuildOutput)' != ''">
+    <MakeDir Directories="$(OutDir)cores\managed" />
+    <Copy
+      SourceFiles="@(ManagedCoreModuleBuildOutput)"
+      DestinationFiles="@(ManagedCoreModuleBuildOutput->'$(OutDir)cores\managed\%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="DeleteExternalUiPdbArtifacts" AfterTargets="Build;Publish">
+    <Delete Files="$(OutDir)$(AssemblyName).pdb;$(IntermediateOutputPath)$(AssemblyName).pdb;$(PublishDir)$(AssemblyName).pdb" />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FC-Revolution.Backend.Abstractions\FC-Revolution.Backend.Abstractions.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Backend.Hosting\FC-Revolution.Backend.Hosting.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Contracts\FC-Revolution.Contracts.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.Sample.Managed\FC-Revolution.Core.Sample.Managed.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all"
+                      OutputItemType="ManagedCoreModuleBuildOutput" />
+    <ProjectReference Include="..\FC-Revolution.Emulation.Abstractions\FC-Revolution.Emulation.Abstractions.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Emulation.Host\FC-Revolution.Emulation.Host.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Rendering\FC-Revolution.Rendering.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Storage\FC-Revolution.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <Import Project="..\FC-Revolution.Rendering.Metal\Metal\FCRMetalBridge.Build.targets" />
+
+</Project>

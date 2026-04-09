@@ -1,0 +1,177 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:model="using:FC_Revolution.UI.Models"
+             x:Class="FC_Revolution.UI.Views.Settings.MainWindowShortcutSettingsView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+    <StackPanel Classes="settings-tab-content">
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="主程序专用"/>
+                <TextBlock Classes="label" FontSize="12" Text="这些快捷键只作用于主程序窗口。" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding MainWindowShortcutBindings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="model:ShortcutBindingEntry">
+                            <Border Margin="0,0,0,8"
+                                    CornerRadius="14"
+                                    Padding="12"
+                                    Background="#1A1210"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="hero" FontSize="15" Text="{Binding ActionName}"/>
+                                        <TextBlock Classes="label" FontSize="11" Text="{Binding Description}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                                        <ToggleButton x:Name="MainShortcutCaptureButton"
+                                                      MinWidth="116"
+                                                      Padding="12,8"
+                                                      Background="#2A1C15"
+                                                      Foreground="#F0E0CB"
+                                                      BorderBrush="#7A593F"
+                                                      BorderThickness="1"
+                                                      CornerRadius="12"
+                                                      HorizontalContentAlignment="Center"
+                                                      IsChecked="{Binding IsCapturing, Mode=TwoWay}"
+                                                      Content="{Binding SelectedGestureDisplay}"
+                                                      PointerPressed="OnInputBindingBoxPointerPressed"
+                                                      GotFocus="OnShortcutBindingBoxGotFocus"
+                                                      LostFocus="OnShortcutBindingBoxLostFocus"
+                                                      KeyDown="OnShortcutBindingBoxKeyDown"/>
+                                        <Popup PlacementTarget="{Binding #MainShortcutCaptureButton}"
+                                               Placement="BottomEdgeAlignedLeft"
+                                               HorizontalOffset="0"
+                                               VerticalOffset="8"
+                                               IsLightDismissEnabled="True"
+                                               IsOpen="{Binding IsCapturing, Mode=TwoWay}">
+                                            <Border Classes="binding-picker-popup">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Classes="hero" FontSize="13" Text="录入快捷键"/>
+                                                    <TextBlock Classes="label" FontSize="10" Text="{Binding CaptureHintText}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="游戏操作共用"/>
+                <TextBlock Classes="label" FontSize="12" Text="这些快捷键在主程序和独立游戏窗口里共用。" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding SharedGameShortcutBindings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="model:ShortcutBindingEntry">
+                            <Border Margin="0,0,0,8"
+                                    CornerRadius="14"
+                                    Padding="12"
+                                    Background="#1A1210"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="hero" FontSize="15" Text="{Binding ActionName}"/>
+                                        <TextBlock Classes="label" FontSize="11" Text="{Binding Description}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                                        <ToggleButton x:Name="SharedShortcutCaptureButton"
+                                                      MinWidth="116"
+                                                      Padding="12,8"
+                                                      Background="#2A1C15"
+                                                      Foreground="#F0E0CB"
+                                                      BorderBrush="#7A593F"
+                                                      BorderThickness="1"
+                                                      CornerRadius="12"
+                                                      HorizontalContentAlignment="Center"
+                                                      IsChecked="{Binding IsCapturing, Mode=TwoWay}"
+                                                      Content="{Binding SelectedGestureDisplay}"
+                                                      PointerPressed="OnInputBindingBoxPointerPressed"
+                                                      GotFocus="OnShortcutBindingBoxGotFocus"
+                                                      LostFocus="OnShortcutBindingBoxLostFocus"
+                                                      KeyDown="OnShortcutBindingBoxKeyDown"/>
+                                        <Popup PlacementTarget="{Binding #SharedShortcutCaptureButton}"
+                                               Placement="BottomEdgeAlignedLeft"
+                                               HorizontalOffset="0"
+                                               VerticalOffset="8"
+                                               IsLightDismissEnabled="True"
+                                               IsOpen="{Binding IsCapturing, Mode=TwoWay}">
+                                            <Border Classes="binding-picker-popup">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Classes="hero" FontSize="13" Text="录入快捷键"/>
+                                                    <TextBlock Classes="label" FontSize="10" Text="{Binding CaptureHintText}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="仅游戏窗口"/>
+                <TextBlock Classes="label" FontSize="12" Text="这些快捷键只在独立游戏窗口中响应，例如信息栏和调试窗口。" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding GameWindowShortcutBindings}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="model:ShortcutBindingEntry">
+                            <Border Margin="0,0,0,8"
+                                    CornerRadius="14"
+                                    Padding="12"
+                                    Background="#1A1210"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Classes="hero" FontSize="15" Text="{Binding ActionName}"/>
+                                        <TextBlock Classes="label" FontSize="11" Text="{Binding Description}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Grid Grid.Column="1" VerticalAlignment="Center">
+                                        <ToggleButton x:Name="GameWindowShortcutCaptureButton"
+                                                      MinWidth="116"
+                                                      Padding="12,8"
+                                                      Background="#2A1C15"
+                                                      Foreground="#F0E0CB"
+                                                      BorderBrush="#7A593F"
+                                                      BorderThickness="1"
+                                                      CornerRadius="12"
+                                                      HorizontalContentAlignment="Center"
+                                                      IsChecked="{Binding IsCapturing, Mode=TwoWay}"
+                                                      Content="{Binding SelectedGestureDisplay}"
+                                                      PointerPressed="OnInputBindingBoxPointerPressed"
+                                                      GotFocus="OnShortcutBindingBoxGotFocus"
+                                                      LostFocus="OnShortcutBindingBoxLostFocus"
+                                                      KeyDown="OnShortcutBindingBoxKeyDown"/>
+                                        <Popup PlacementTarget="{Binding #GameWindowShortcutCaptureButton}"
+                                               Placement="BottomEdgeAlignedLeft"
+                                               HorizontalOffset="0"
+                                               VerticalOffset="8"
+                                               IsLightDismissEnabled="True"
+                                               IsOpen="{Binding IsCapturing, Mode=TwoWay}">
+                                            <Border Classes="binding-picker-popup">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Classes="hero" FontSize="13" Text="录入快捷键"/>
+                                                    <TextBlock Classes="label" FontSize="10" Text="{Binding CaptureHintText}" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <RepositoryArtifactsDir Condition="'$(RepositoryArtifactsDir)' == ''">$(MSBuildThisFileDirectory)artifacts\</RepositoryArtifactsDir>
+    <ArtifactsPublishDir Condition="'$(ArtifactsPublishDir)' == ''">$(RepositoryArtifactsDir)publish\</ArtifactsPublishDir>
+    <ArtifactsPackagesDir Condition="'$(ArtifactsPackagesDir)' == ''">$(RepositoryArtifactsDir)packages\</ArtifactsPackagesDir>
+    <BaseOutputPath Condition="'$(BaseOutputPath)' == ''">$(RepositoryArtifactsDir)bin\$(MSBuildProjectName)\</BaseOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RepositoryArtifactsDir)obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath Condition="'$(MSBuildProjectExtensionsPath)' == ''">$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <DefaultItemExcludesInProjectFolder>$(DefaultItemExcludesInProjectFolder);bin\**;obj\**</DefaultItemExcludesInProjectFolder>
+  </PropertyGroup>
+</Project>

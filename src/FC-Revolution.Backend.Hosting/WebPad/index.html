@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>FC Revolution LAN Pad</title>
+  <link rel="stylesheet" href="/assets/webpad/app.css">
+</head>
+<body>
+  <div class="scene" aria-hidden="true">
+    <div class="scene-glow scene-glow-a"></div>
+    <div class="scene-glow scene-glow-b"></div>
+    <div class="scene-grid"></div>
+    <svg class="scene-stars" viewBox="0 0 1600 900" preserveAspectRatio="none">
+      <circle cx="120" cy="180" r="2"></circle>
+      <circle cx="360" cy="90" r="1.5"></circle>
+      <circle cx="540" cy="240" r="2"></circle>
+      <circle cx="840" cy="150" r="1.5"></circle>
+      <circle cx="1040" cy="220" r="2"></circle>
+      <circle cx="1320" cy="120" r="1.5"></circle>
+      <circle cx="1480" cy="260" r="2"></circle>
+    </svg>
+    <span class="meteor meteor-a"></span>
+    <span class="meteor meteor-b"></span>
+    <span class="meteor meteor-c"></span>
+  </div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="topbar-copy">
+        <h1>FC Revolution LAN Pad</h1>
+        <div class="topbar-meta">
+          <span id="entryUrl"></span>
+          <span class="dot-sep">•</span>
+          <span id="statusBar">等待选择游戏或已打开窗口</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 选台视图 -->
+    <main class="selection-shell" id="selectionView">
+      <!-- 桌面端：三栏布局 -->
+      <section class="content-grid desktop-layout" id="contentGrid">
+        <section class="panel side-panel" id="romPanel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-label">ROM 列表</p>
+              <h3>选择并启动</h3>
+              <p class="panel-text">每页 10 个。左侧直接播放游戏预览动画，右侧一键启动并切换到该窗口。</p>
+            </div>
+            <button id="toggleRomPanelButton" class="toggle-button" type="button" aria-label="隐藏左侧 ROM 列表" title="隐藏左侧 ROM 列表">◀</button>
+          </div>
+          <div class="panel-body panel-body-scroll">
+            <div class="rom-list" id="roms"></div>
+          </div>
+          <div class="pager pager-fixed">
+            <button id="romPrevPageButton" type="button">上一页</button>
+            <div class="pager-info" id="romPaginationInfo">第 1 / 1 页</div>
+            <button id="romNextPageButton" type="button">下一页</button>
+          </div>
+        </section>
+
+        <section class="focus-panel" id="focusPanel">
+          <div class="focus-head">
+            <div>
+              <p class="panel-label">当前选中</p>
+              <h2 id="selectionTitle">未选择游戏窗口</h2>
+              <p class="panel-text" id="selectionMeta">请先从左侧启动游戏，或从右侧接入已经打开的窗口。</p>
+            </div>
+          </div>
+          <div class="focus-stage">
+            <div class="selection-toolbar-mount" id="selectionToolbarDesktopMount">
+              <div id="selectionToolbar" class="selection-toolbar" role="group" aria-label="选台操作">
+                <div class="selection-toolbar-main">
+                  <select id="playerSelect" aria-label="选择玩家">
+                    <option value="0">1P</option>
+                    <option value="1">2P</option>
+                  </select>
+                  <button id="startControlButton" class="primary" type="button">开始控制</button>
+                  <button id="fullscreenButton" type="button">全屏</button>
+                  <button id="selectionToolbarMoreButton" type="button" aria-expanded="false" aria-controls="selectionToolbarMore">更多</button>
+                </div>
+                <div id="selectionToolbarMore" class="selection-toolbar-more hidden">
+                  <label class="selection-toolbar-field" for="clientName">
+                    <span>设备名</span>
+                    <input id="clientName" placeholder="设备名，可选">
+                  </label>
+                  <button id="refreshButton" type="button">刷新列表</button>
+                </div>
+              </div>
+            </div>
+            <canvas id="selectionStreamCanvas" class="focus-image hidden"></canvas>
+            <div id="selectionPreviewEmpty" class="focus-empty">启动或选择一个游戏窗口后，这里会实时显示游戏画面。</div>
+          </div>
+        </section>
+
+        <section class="panel side-panel" id="sessionPanel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-label">已打开窗口</p>
+              <h3>实时预览</h3>
+              <p class="panel-text">这里显示当前程序正在运行的游戏窗口，并持续刷新实际游戏画面。</p>
+            </div>
+            <button id="toggleSessionPanelButton" class="toggle-button" type="button" aria-label="隐藏右侧游戏窗口列表" title="隐藏右侧游戏窗口列表">▶</button>
+          </div>
+          <div class="panel-body panel-body-scroll">
+            <div class="session-list" id="sessions"></div>
+          </div>
+          <div class="pager pager-fixed">
+            <button id="sessionPrevPageButton" type="button">上一页</button>
+            <div class="pager-info" id="sessionPaginationInfo">第 1 / 1 页</div>
+            <button id="sessionNextPageButton" type="button">下一页</button>
+          </div>
+        </section>
+      </section>
+
+      <!-- 移动端：竖屏三段式布局 -->
+      <section class="mobile-selection" id="mobileSelection">
+        <div class="mobile-selection-scaler" id="mobileSelectionScaler">
+          <section class="mobile-strip-panel">
+            <div class="mobile-section-head">
+              <div>
+                <p class="panel-label">ROM 列表</p>
+                <h3>横向点播</h3>
+              </div>
+              <div class="mobile-section-meta" id="mobileRomPaginationInfo">第 1 / 1 页</div>
+            </div>
+            <div class="mobile-strip-shell">
+              <button id="mobileRomPrevPageButton" class="mobile-strip-nav" type="button" aria-label="ROM 上一页">‹</button>
+              <div class="mobile-rom-grid" id="mobileRoms"></div>
+              <button id="mobileRomNextPageButton" class="mobile-strip-nav" type="button" aria-label="ROM 下一页">›</button>
+            </div>
+          </section>
+
+          <section class="mobile-strip-panel">
+            <div class="mobile-section-head">
+              <div>
+                <p class="panel-label">已打开窗口</p>
+                <h3>运行中会话</h3>
+              </div>
+              <div class="mobile-section-meta" id="mobileSessionPaginationInfo">第 1 / 1 页</div>
+            </div>
+            <div class="mobile-strip-shell">
+              <button id="mobileSessionPrevPageButton" class="mobile-strip-nav" type="button" aria-label="会话上一页">‹</button>
+              <div class="mobile-session-grid" id="mobileSessions"></div>
+              <button id="mobileSessionNextPageButton" class="mobile-strip-nav" type="button" aria-label="会话下一页">›</button>
+            </div>
+          </section>
+
+          <section class="mobile-preview-panel">
+            <div class="mobile-section-head mobile-preview-head">
+              <div>
+                <p class="panel-label">当前预览</p>
+                <h3 id="mobileSelectionTitle">未选择游戏窗口</h3>
+              </div>
+              <p class="mobile-preview-meta" id="mobileSelectionMeta">请先从游戏列表启动游戏</p>
+            </div>
+            <div class="mobile-preview-stage">
+              <div class="selection-toolbar-mount" id="selectionToolbarMobileMount"></div>
+              <canvas id="mobileStreamCanvas" class="mobile-preview-image hidden"></canvas>
+              <div id="mobilePreviewEmpty" class="focus-empty">请先选择一个游戏窗口</div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <!-- 控制器视图 -->
+    <main class="controller-shell hidden" id="controllerView">
+      <section class="controller-layout" id="controllerLayout">
+
+        <!-- 顶栏：标题 + 操作按钮 -->
+        <div class="ctrl-header" id="controllerHeader">
+          <div class="ctrl-header-info">
+            <p class="panel-label">网页手柄</p>
+            <h2 id="controllerTitle">等待接入</h2>
+            <p class="panel-text" id="controllerMeta">当前未接入任何会话</p>
+          </div>
+          <div class="hero-actions">
+            <button id="backToSelectionButton" type="button">返回选台</button>
+            <button id="closeSessionButton" class="danger" type="button">关闭游戏</button>
+            <button id="releaseButton" type="button">释放控制</button>
+          </div>
+        </div>
+
+        <!-- 左侧：方向键 -->
+        <div class="ctrl-side ctrl-left">
+          <div class="dpad-container">
+            <div class="dpad">
+              <span class="dpad-spacer"></span>
+              <button data-button="Up" class="dpad-btn dpad-up" type="button">
+                <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h16z"/></svg>
+              </button>
+              <span class="dpad-spacer"></span>
+              <button data-button="Left" class="dpad-btn dpad-left" type="button">
+                <svg viewBox="0 0 24 24"><path d="M4 12l8-8v16z"/></svg>
+              </button>
+              <div class="dpad-center">
+                <span class="dpad-dot"></span>
+              </div>
+              <button data-button="Right" class="dpad-btn dpad-right" type="button">
+                <svg viewBox="0 0 24 24"><path d="M20 12l-8-8v16z"/></svg>
+              </button>
+              <span class="dpad-spacer"></span>
+              <button data-button="Down" class="dpad-btn dpad-down" type="button">
+                <svg viewBox="0 0 24 24"><path d="M12 20l8-8H4z"/></svg>
+              </button>
+              <span class="dpad-spacer"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 中间：游戏画面 -->
+        <div class="controller-stream" id="controllerStream">
+          <canvas id="streamCanvas" class="stream-video hidden"></canvas>
+          <div id="streamPlaceholder" class="stream-placeholder">
+            <div class="stream-loading">
+              <div class="loading-spinner"></div>
+              <span>正在建立串流连接...</span>
+            </div>
+          </div>
+          <button id="keybindPanelButton" class="stream-tool-button" type="button">键位设置</button>
+          <div class="stream-overlay">
+            <span id="streamFps" class="stream-stat">-- FPS</span>
+            <span id="streamLatency" class="stream-stat">-- ms</span>
+          </div>
+        </div>
+
+        <!-- 右侧：A/B/X/Y + 预留键位 -->
+        <div class="ctrl-side ctrl-right">
+          <div class="reserved-cluster">
+            <div class="reserved-row">
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">L1</button>
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">R1</button>
+            </div>
+          </div>
+          <div class="action-container">
+            <div class="action-pad">
+              <button data-button="Y" class="action-btn action-y" type="button">Y</button>
+              <button data-button="X" class="action-btn action-x" type="button">X</button>
+              <button data-button="B" class="action-btn action-b" type="button">B</button>
+              <button data-button="A" class="action-btn action-a" type="button">A</button>
+            </div>
+            <p class="action-hint">X 默认 A 连发，Y 默认 B 连发</p>
+          </div>
+          <div class="reserved-cluster">
+            <div class="reserved-row">
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">L2</button>
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">R2</button>
+            </div>
+            <div class="reserved-row">
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">L3</button>
+              <button class="reserved-btn" type="button" disabled aria-disabled="true">R3</button>
+            </div>
+          </div>
+          <div class="system-row">
+            <button data-button="Select" class="system-btn" type="button">SELECT</button>
+            <button data-button="Start" class="system-btn system-btn-wide" type="button">START</button>
+          </div>
+        </div>
+
+      </section>
+      <section id="keybindPanel" class="keybind-panel hidden" aria-hidden="true">
+        <div class="keybind-panel-header">
+          <div>
+            <p class="panel-label">键盘映射</p>
+            <h3>手动配置网页手柄按键</h3>
+            <p class="panel-text" id="keybindHint">点击某个键位后，按下键盘上的目标键；按 `Escape` 可清除当前绑定。</p>
+          </div>
+          <div class="keybind-panel-actions">
+            <button id="resetKeybindsButton" type="button">恢复默认</button>
+            <button id="closeKeybindPanelButton" type="button">关闭</button>
+          </div>
+        </div>
+        <div id="keybindSummary" class="keybind-summary"></div>
+        <div id="keybindGrid" class="keybind-grid"></div>
+      </section>
+      <button id="controllerChromeButton" class="controller-chrome-button hidden" type="button" aria-controls="controllerHeader" aria-expanded="false">显示操作</button>
+    </main>
+  </main>
+
+  <noscript>
+    <div class="noscript">当前浏览器禁用了 JavaScript，页面只能显示静态内容。</div>
+  </noscript>
+  <script defer src="/assets/webpad/app.js"></script>
+</body>
+</html>

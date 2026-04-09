@@ -1,0 +1,251 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Avalonia.Input;
+using FCRevolution.Core.Input;
+using FC_Revolution.UI.Models;
+using FC_Revolution.UI.ViewModels;
+
+namespace FC_Revolution.UI.Tests;
+
+[Collection("Avalonia")]
+public sealed class MainWindowInputBindingsControllerTests
+{
+    private static readonly IReadOnlyList<Key> TestConfigurableKeys =
+    [
+        Key.Z,
+        Key.X,
+        Key.A,
+        Key.S,
+        Key.F2,
+        Key.F3,
+        Key.F9,
+        Key.Up,
+        Key.Down,
+        Key.Left,
+        Key.Right,
+        Key.Enter
+    ];
+
+    [Fact]
+    public void TryCommitShortcutBinding_ReturnsConflict_WhenGestureAlreadyUsed()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var shortcuts = new Dictionary<string, ShortcutBindingEntry>(StringComparer.Ordinal);
+        var main = new ObservableCollection<ShortcutBindingEntry>();
+        var shared = new ObservableCollection<ShortcutBindingEntry>();
+        var gameOnly = new ObservableCollection<ShortcutBindingEntry>();
+        controller.InitializeShortcutBindings(shortcuts, main, shared, gameOnly);
+
+        var entry = shortcuts[ShortcutCatalog.GameQuickLoad];
+        var result = controller.TryCommitShortcutBinding(
+            entry,
+            shortcuts.Values,
+            Key.F2,
+            KeyModifiers.None);
+
+        Assert.True(result.Handled);
+        Assert.False(result.Accepted);
+        Assert.False(result.RequiresSave);
+        Assert.Contains("冲突", result.StatusText);
+    }
+
+    [Fact]
+    public void TryCommitShortcutBinding_ReturnsApplyFlags_WhenGestureAccepted()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var shortcuts = new Dictionary<string, ShortcutBindingEntry>(StringComparer.Ordinal);
+        var main = new ObservableCollection<ShortcutBindingEntry>();
+        var shared = new ObservableCollection<ShortcutBindingEntry>();
+        var gameOnly = new ObservableCollection<ShortcutBindingEntry>();
+        controller.InitializeShortcutBindings(shortcuts, main, shared, gameOnly);
+
+        var entry = shortcuts[ShortcutCatalog.GameQuickLoad];
+        var result = controller.TryCommitShortcutBinding(
+            entry,
+            shortcuts.Values,
+            Key.F9,
+            KeyModifiers.None);
+
+        Assert.True(result.Handled);
+        Assert.True(result.Accepted);
+        Assert.True(result.RequiresSave);
+        Assert.True(result.RequiresSessionApply);
+        Assert.True(result.RequiresNotify);
+        Assert.Equal(Key.F9, entry.SelectedGesture.Key);
+    }
+
+    [Fact]
+    public void BuildRomInputBindingViewState_UsesGlobalClone_WhenNoRomOverride()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var global = new List<InputBindingEntry>
+        {
+            new(0, "A", NesButton.A, Key.Z, TestConfigurableKeys),
+            new(0, "B", NesButton.B, Key.X, TestConfigurableKeys),
+            new(1, "A", NesButton.A, Key.Enter, TestConfigurableKeys),
+            new(1, "B", NesButton.B, Key.S, TestConfigurableKeys)
+        };
+        var globalExtra = new List<ExtraInputBindingEntry>
+        {
+            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.A, TestConfigurableKeys)
+        };
+        var defaultMaps = new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
+        {
+            [0] = new Dictionary<NesButton, Key>
+            {
+                [NesButton.A] = Key.Z,
+                [NesButton.B] = Key.X
+            },
+            [1] = new Dictionary<NesButton, Key>
+            {
+                [NesButton.A] = Key.Enter,
+                [NesButton.B] = Key.S
+            }
+        };
+
+        var state = controller.BuildRomInputBindingViewState(
+            "/tmp/demo.nes",
+            new Dictionary<string, Dictionary<int, Dictionary<NesButton, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
+            global,
+            globalExtra,
+            defaultMaps,
+            TestConfigurableKeys,
+            InputBindingLayoutProfile.CreateDefault());
+
+        Assert.False(state.IsOverrideEnabled);
+        Assert.Equal(global.Count, state.InputBindings.Count);
+        Assert.Equal(globalExtra.Count, state.ExtraBindings.Count);
+        Assert.NotSame(global[0], state.InputBindings[0]);
+    }
+
+    [Fact]
+    public void BuildGlobalInputBindingViewState_UsesDefaults_WhenProfileIsNull()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var layout = InputBindingLayoutProfile.CreateDefault();
+        var state = controller.BuildGlobalInputBindingViewState(
+            profile: null,
+            BuildDefaultKeyMaps(),
+            TestConfigurableKeys,
+            layout);
+
+        Assert.Equal(4, state.InputBindings.Count);
+        Assert.Empty(state.ExtraBindings);
+
+        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.A);
+        Assert.Equal(Key.Z, player1A.SelectedKey);
+        Assert.Equal(layout.GetSlot(NesButton.A).CenterX, player1A.CenterX, precision: 6);
+        Assert.Equal(layout.GetSlot(NesButton.A).CenterY, player1A.CenterY, precision: 6);
+    }
+
+    [Fact]
+    public void BuildGlobalInputBindingViewState_UsesOverridesWithDefaultFallback_AndProjectsExtraBindings()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var layout = InputBindingLayoutProfile.CreateDefault();
+        var profile = new SystemConfigProfile
+        {
+            PlayerInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["Player1"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    [nameof(NesButton.A)] = nameof(Key.F9)
+                }
+            },
+            ExtraInputBindings =
+            [
+                new ExtraInputBindingProfile
+                {
+                    Player = 1,
+                    Kind = nameof(ExtraInputBindingKind.Combo),
+                    Key = nameof(Key.A),
+                    Buttons = [nameof(NesButton.A), nameof(NesButton.B)]
+                }
+            ]
+        };
+
+        var state = controller.BuildGlobalInputBindingViewState(
+            profile,
+            BuildDefaultKeyMaps(),
+            TestConfigurableKeys,
+            layout);
+
+        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.A);
+        var player1B = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.Button == NesButton.B);
+        Assert.Equal(Key.F9, player1A.SelectedKey);
+        Assert.Equal(Key.X, player1B.SelectedKey);
+
+        var extra = Assert.Single(state.ExtraBindings);
+        Assert.Equal(1, extra.Player);
+        Assert.Equal(ExtraInputBindingKind.Combo, extra.Kind);
+        Assert.Equal(Key.A, extra.SelectedKey);
+        Assert.Equal("A+B", extra.SummaryText);
+    }
+
+    [Fact]
+    public void BuildGlobalInputConfigSaveState_MapsBindingsAndClonesLayout()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var layout = InputBindingLayoutProfile.CreateDefault();
+        layout.BridgeX += 9;
+        layout.BridgeY -= 4;
+
+        var inputBindings = new List<InputBindingEntry>
+        {
+            new(0, "A", NesButton.A, Key.F9, TestConfigurableKeys),
+            new(0, "B", NesButton.B, Key.X, TestConfigurableKeys),
+            new(1, "A", NesButton.A, Key.Enter, TestConfigurableKeys),
+            new(1, "B", NesButton.B, Key.S, TestConfigurableKeys)
+        };
+        var extraBindings = new List<ExtraInputBindingEntry>
+        {
+            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.A, TestConfigurableKeys)
+        };
+        extraBindings[0].SetTurboHz(12);
+
+        var shortcuts = new Dictionary<string, ShortcutBindingEntry>(StringComparer.Ordinal)
+        {
+            [ShortcutCatalog.GameQuickLoad] = new(
+                ShortcutCatalog.ById[ShortcutCatalog.GameQuickLoad],
+                new ShortcutGesture(Key.F9, KeyModifiers.Control))
+        };
+
+        var state = controller.BuildGlobalInputConfigSaveState(
+            inputBindings,
+            extraBindings,
+            shortcuts,
+            layout);
+
+        Assert.Equal(nameof(Key.F9), state.PlayerInputOverrides["Player1"][nameof(NesButton.A)]);
+        Assert.Equal(Key.Enter.ToString(), state.PlayerInputOverrides["Player2"][nameof(NesButton.A)]);
+
+        var extra = Assert.Single(state.ExtraInputBindings);
+        Assert.Equal(0, extra.Player);
+        Assert.Equal(nameof(Key.A), extra.Key);
+        Assert.Equal(12, extra.TurboHz);
+        Assert.Equal(nameof(NesButton.A), Assert.Single(extra.Buttons));
+
+        Assert.Equal(nameof(Key.F9), state.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Key);
+        Assert.Equal(nameof(KeyModifiers.Control), state.ShortcutBindings[ShortcutCatalog.GameQuickLoad].Modifiers);
+
+        Assert.NotSame(layout, state.InputBindingLayout);
+        Assert.Equal(layout.BridgeX, state.InputBindingLayout.BridgeX, precision: 6);
+        Assert.Equal(layout.BridgeY, state.InputBindingLayout.BridgeY, precision: 6);
+    }
+
+    private static IReadOnlyDictionary<int, IReadOnlyDictionary<NesButton, Key>> BuildDefaultKeyMaps() =>
+        new Dictionary<int, IReadOnlyDictionary<NesButton, Key>>
+        {
+            [0] = new Dictionary<NesButton, Key>
+            {
+                [NesButton.A] = Key.Z,
+                [NesButton.B] = Key.X
+            },
+            [1] = new Dictionary<NesButton, Key>
+            {
+                [NesButton.A] = Key.Enter,
+                [NesButton.B] = Key.S
+            }
+        };
+}

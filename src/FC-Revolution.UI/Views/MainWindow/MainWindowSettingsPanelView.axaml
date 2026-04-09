@@ -1,0 +1,187 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:settings="using:FC_Revolution.UI.Views.Settings"
+             x:Class="FC_Revolution.UI.Views.MainWindowParts.MainWindowSettingsPanelView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+    <ContentControl IsVisible="{Binding IsSettingsOpen}"
+                    Content="{Binding SettingsOverlayContent}">
+        <ContentControl.DataTemplates>
+            <DataTemplate x:DataType="vm:MainWindowViewModel">
+                <Border Background="#88000000"
+                        PointerPressed="OnSettingsBackdropPressed">
+                    <Grid HorizontalAlignment="Right"
+                          VerticalAlignment="Top"
+                          Margin="0,84,24,0">
+                        <Border Width="760"
+                                MaxHeight="820"
+                                CornerRadius="24"
+                                Padding="20"
+                                Background="#1D1410"
+                                BorderBrush="#6A4C36"
+                                BorderThickness="1"
+                                PointerPressed="OnSettingsCardPressed">
+                            <ScrollViewer VerticalScrollBarVisibility="Visible"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Classes="hero"
+                                                       FontSize="24"
+                                                       Text="控制面板"/>
+                                            <TextBlock Classes="label"
+                                                       FontSize="12"
+                                                       Text="按七个使用场景拆分，尽量让每页只处理一类事情。"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                Classes="subtle"
+                                                Content="关闭"
+                                                Command="{Binding CloseSettingsCommand}"/>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*"
+                                          ColumnSpacing="10">
+                                        <Border Classes="settings-summary-card">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="当前游戏"/>
+                                                <TextBlock Classes="hero"
+                                                           FontSize="16"
+                                                           Text="{Binding CurrentRomName}"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="{Binding CurrentRomActionSummary}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1"
+                                                Classes="settings-summary-card">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="会话状态"/>
+                                                <TextBlock Classes="hero"
+                                                           FontSize="16"
+                                                           Text="{Binding ActiveSessionSummary}"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="{Binding LayoutModeSummary}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="2"
+                                                Classes="settings-summary-card">
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="时间线模式"/>
+                                                <TextBlock Classes="hero"
+                                                           FontSize="16"
+                                                           Text="{Binding TimelineModeSummary}"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Classes="label"
+                                                           FontSize="11"
+                                                           Text="{Binding PreviewStatusText}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <TabControl TabStripPlacement="Left">
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="核心设置"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowCoreSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="游戏设置"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowGameSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="快捷键"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowShortcutSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="预览动画设置"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowPreviewSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="局域网点播系统"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowLanSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="手柄设置"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowInputSettingsView/>
+                                        </TabItem>
+
+                                        <TabItem>
+                                            <TabItem.Header>
+                                                <Border Classes="settings-tab-header">
+                                                    <Viewbox Stretch="Uniform"
+                                                             StretchDirection="DownOnly">
+                                                        <TextBlock FontSize="15" Text="游戏ROM设置"/>
+                                                    </Viewbox>
+                                                </Border>
+                                            </TabItem.Header>
+                                            <settings:MainWindowRomSettingsView/>
+                                        </TabItem>
+                                    </TabControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ContentControl.DataTemplates>
+    </ContentControl>
+</UserControl>

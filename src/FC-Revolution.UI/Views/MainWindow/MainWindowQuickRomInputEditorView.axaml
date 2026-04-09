@@ -1,0 +1,356 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:model="using:FC_Revolution.UI.Models"
+             x:Class="FC_Revolution.UI.Views.MainWindowParts.MainWindowQuickRomInputEditorView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+        <ContentControl IsVisible="{Binding IsQuickRomInputEditorOpen}"
+                        Content="{Binding QuickRomInputEditorContent}">
+            <ContentControl.DataTemplates>
+                <DataTemplate x:DataType="vm:MainWindowViewModel">
+                    <Border Background="#99000000"
+                            PointerPressed="OnSettingsBackdropPressed">
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Width="980" MaxHeight="720">
+                            <Border CornerRadius="24"
+                                    Padding="20"
+                                    Background="#181210"
+                                    BorderBrush="#6A4C36"
+                                    BorderThickness="1"
+                                    PointerPressed="OnSettingsCardPressed">
+                                <StackPanel Spacing="16">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="hero" FontSize="24" Text="{Binding QuickRomInputEditorTitle}"/>
+                                <TextBlock Classes="label" FontSize="12" Text="右键 ROM 后可直接在这里快速定义 1P / 2P 独立按键，不再跳回完整设置页。" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <Button Classes="subtle" Content="清除独立按键" Command="{Binding ClearRomInputOverrideCommand}"/>
+                                <Button Classes="chrome" Content="保存" Command="{Binding SaveQuickRomInputEditorCommand}" IsEnabled="{Binding HasCurrentRom}"/>
+                                <Button Classes="subtle" Content="关闭" Command="{Binding CloseQuickRomInputEditorCommand}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                            <Border CornerRadius="18" Padding="14" Background="#252120" BorderBrush="#514746" BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="hero" FontSize="16" Foreground="#F4EBDD" Text="1P 独立"/>
+                                    <Viewbox Height="200" Stretch="Uniform">
+                                        <Grid Width="356" Height="150">
+                                            <Canvas Width="356" Height="150">
+                                                <Border Width="356" Height="150" CornerRadius="28" Background="#34302F" BorderBrush="#5A5352" BorderThickness="5"/>
+                                                <Border Width="104" Height="24" CornerRadius="10" Background="#2A2625" Margin="{Binding DataContext.InputLayoutBridgeMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="87" Height="87" Fill="#2D2928" Margin="{Binding DataContext.InputLayoutLeftCircleMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="87" Height="87" Fill="#2D2928" Margin="{Binding DataContext.InputLayoutRightCircleMargin, ElementName=RootWindow}"/>
+                                                <Border Width="66" Height="27" Background="#E9DDCB" CornerRadius="6" Margin="{Binding DataContext.InputLayoutDPadHorizontalMargin, ElementName=RootWindow}"/>
+                                                <Border Width="27" Height="66" Background="#E9DDCB" CornerRadius="6" Margin="{Binding DataContext.InputLayoutDPadVerticalMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="27" Height="27" Fill="#C96B66" Margin="{Binding DataContext.InputLayoutBDecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="27" Height="27" Fill="#C96B66" Margin="{Binding DataContext.InputLayoutADecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="18" Height="18" Fill="#B7AC9C" Margin="{Binding DataContext.InputLayoutSelectDecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="18" Height="18" Fill="#B7AC9C" Margin="{Binding DataContext.InputLayoutStartDecorationMargin, ElementName=RootWindow}"/>
+                                            </Canvas>
+                                            <ItemsControl ItemsSource="{Binding RomInputBindingsPlayer1}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Grid Width="356" Height="150"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:InputBindingEntry">
+                                                        <Border Width="{Binding EditorWidth}"
+                                                                Height="{Binding EditorHeight}"
+                                                                Margin="{Binding EditorMargin}"
+                                                                Padding="1"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Top"
+                                                                BorderThickness="1"
+                                                                CornerRadius="3"
+                                                                Focusable="True"
+                                                                Background="#120F0E"
+                                                                BorderBrush="#8B7A6A"
+                                                                PointerPressed="OnInputBindingBoxPointerPressed"
+                                                                GotFocus="OnInputBindingBoxGotFocus"
+                                                                LostFocus="OnInputBindingBoxLostFocus"
+                                                                KeyDown="OnInputBindingBoxKeyDown">
+                                                            <Viewbox Stretch="Uniform">
+                                                                <TextBlock Text="{Binding SelectedKeyDisplay}"
+                                                                           Foreground="#F7ECDD"
+                                                                           TextAlignment="Center"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"/>
+                                                            </Viewbox>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </Viewbox>
+                                    <Border Classes="binding-extra-panel rom-dark">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                                <TextBlock Classes="label" FontSize="11" Foreground="#F4EBDD" Text="扩展按键"/>
+                                                <Button Grid.Column="1" Classes="subtle binding-mini" Content="+ 连发" Command="{Binding AddRomTurboBindingCommand}" CommandParameter="0" IsEnabled="{Binding HasCurrentRom}"/>
+                                                <Button Grid.Column="2" Classes="subtle binding-mini" Content="+ 组合" Command="{Binding AddRomComboBindingCommand}" CommandParameter="0" IsEnabled="{Binding HasCurrentRom}"/>
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{Binding RomExtraInputBindingsPlayer1}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:ExtraInputBindingEntry">
+                                                        <Border Classes="binding-extra-row rom-dark" Margin="0,0,0,6">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
+                                                                <Border CornerRadius="6" Padding="5,2" Background="#2D2420" VerticalAlignment="Center">
+                                                                    <TextBlock Classes="label" FontSize="10" Foreground="#F4EBDD" Text="{Binding KindLabel}"/>
+                                                                </Border>
+                                                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="3" VerticalAlignment="Center">
+                                                                    <ItemsControl ItemsSource="{Binding ComboChips}" IsVisible="{Binding IsCombo}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate x:DataType="model:ComboChipItem">
+                                                                                <Border CornerRadius="8" Padding="5,2" Background="#352B24" BorderBrush="#6B5D52" BorderThickness="1">
+                                                                                    <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#F4EBDD" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                    <Border IsVisible="{Binding IsTurbo}"
+                                                                            CornerRadius="8"
+                                                                            Width="60"
+                                                                            Padding="5,2"
+                                                                            Background="#352B24"
+                                                                            BorderBrush="#6B5D52"
+                                                                            BorderThickness="1"
+                                                                            VerticalAlignment="Center"
+                                                                            HorizontalAlignment="Left">
+                                                                        <TextBlock Text="{Binding PrimaryButtonOption.Label}" FontSize="10" Foreground="#F4EBDD" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                                    </Border>
+                                                                    <Grid Grid.Column="1">
+                                                                        <ToggleButton x:Name="QuickRomPlayer1PickerButton"
+                                                                                      Content="+"
+                                                                                      Classes="binding-picker launcher"
+                                                                                      IsChecked="{Binding IsButtonPickerOpen, Mode=TwoWay}"/>
+                                                                        <Popup PlacementTarget="{Binding #QuickRomPlayer1PickerButton}"
+                                                                               Placement="BottomEdgeAlignedLeft"
+                                                                               HorizontalOffset="0"
+                                                                               VerticalOffset="8"
+                                                                               IsLightDismissEnabled="True"
+                                                                               IsOpen="{Binding IsButtonPickerOpen, Mode=TwoWay}">
+                                                                            <Border Classes="binding-picker-popup">
+                                                                                <StackPanel Spacing="8">
+                                                                                    <TextBlock Classes="label" FontSize="10" Foreground="#D8C2A9" Text="{Binding ButtonPickerHintText}" TextWrapping="Wrap"/>
+                                                                                    <ItemsControl ItemsSource="{Binding ButtonPickerItems}">
+                                                                                        <ItemsControl.ItemsPanel>
+                                                                                            <ItemsPanelTemplate>
+                                                                                                <UniformGrid Columns="4"/>
+                                                                                            </ItemsPanelTemplate>
+                                                                                        </ItemsControl.ItemsPanel>
+                                                                                        <ItemsControl.ItemTemplate>
+                                                                                            <DataTemplate x:DataType="model:ExtraInputButtonPickerItem">
+                                                                                                <ToggleButton Margin="0,0,6,6"
+                                                                                                              Classes="binding-picker option"
+                                                                                                              Content="{Binding Label}"
+                                                                                                              IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                                                                              Command="{Binding SelectCommand}"/>
+                                                                                            </DataTemplate>
+                                                                                        </ItemsControl.ItemTemplate>
+                                                                                    </ItemsControl>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </Popup>
+                                                                    </Grid>
+                                                                </Grid>
+                                                                <Border Grid.Column="2"
+                                                                        CornerRadius="6"
+                                                                        BorderThickness="1"
+                                                                        BorderBrush="#8D8174"
+                                                                        Background="#120F0E"
+                                                                        Padding="5,3"
+                                                                        MinWidth="44"
+                                                                        VerticalAlignment="Center"
+                                                                        Focusable="True"
+                                                                        PointerPressed="OnInputBindingBoxPointerPressed"
+                                                                        GotFocus="OnInputBindingBoxGotFocus"
+                                                                        LostFocus="OnInputBindingBoxLostFocus"
+                                                                        KeyDown="OnInputBindingBoxKeyDown">
+                                                                    <Viewbox Stretch="Uniform" Height="14">
+                                                                        <TextBlock Text="{Binding SelectedKeyDisplay}" Foreground="#F7ECDD" HorizontalAlignment="Center"/>
+                                                                    </Viewbox>
+                                                                </Border>
+                                                                <Button Grid.Column="3" Classes="subtle binding-mini" Content="删除" Command="{Binding DataContext.RemoveRomExtraBindingCommand, ElementName=RootWindow}" CommandParameter="{Binding}"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="1" CornerRadius="18" Padding="14" Background="#F3EFE8" BorderBrush="#B2AAA0" BorderThickness="1">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Classes="hero" FontSize="16" Foreground="#1F1A17" Text="2P 独立"/>
+                                    <Viewbox Height="200" Stretch="Uniform">
+                                        <Grid Width="356" Height="150">
+                                            <Canvas Width="356" Height="150">
+                                                <Border Width="356" Height="150" CornerRadius="28" Background="#FFFFFF" BorderBrush="#CBC4BA" BorderThickness="5"/>
+                                                <Border Width="104" Height="24" CornerRadius="10" Background="#E5DED3" Margin="{Binding DataContext.InputLayoutBridgeMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="87" Height="87" Fill="#ECE6DD" Margin="{Binding DataContext.InputLayoutLeftCircleMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="87" Height="87" Fill="#ECE6DD" Margin="{Binding DataContext.InputLayoutRightCircleMargin, ElementName=RootWindow}"/>
+                                                <Border Width="66" Height="27" Background="#5A544D" CornerRadius="6" Margin="{Binding DataContext.InputLayoutDPadHorizontalMargin, ElementName=RootWindow}"/>
+                                                <Border Width="27" Height="66" Background="#5A544D" CornerRadius="6" Margin="{Binding DataContext.InputLayoutDPadVerticalMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="27" Height="27" Fill="#D56F68" Margin="{Binding DataContext.InputLayoutBDecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="27" Height="27" Fill="#D56F68" Margin="{Binding DataContext.InputLayoutADecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="18" Height="18" Fill="#9C9388" Margin="{Binding DataContext.InputLayoutSelectDecorationMargin, ElementName=RootWindow}"/>
+                                                <Ellipse Width="18" Height="18" Fill="#9C9388" Margin="{Binding DataContext.InputLayoutStartDecorationMargin, ElementName=RootWindow}"/>
+                                            </Canvas>
+                                            <ItemsControl ItemsSource="{Binding RomInputBindingsPlayer2}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Grid Width="356" Height="150"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:InputBindingEntry">
+                                                        <Border Width="{Binding EditorWidth}"
+                                                                Height="{Binding EditorHeight}"
+                                                                Margin="{Binding EditorMargin}"
+                                                                Padding="1"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Top"
+                                                                BorderThickness="1"
+                                                                CornerRadius="3"
+                                                                Focusable="True"
+                                                                Background="#FFF9F0"
+                                                                BorderBrush="#8D8174"
+                                                                PointerPressed="OnInputBindingBoxPointerPressed"
+                                                                GotFocus="OnInputBindingBoxGotFocus"
+                                                                LostFocus="OnInputBindingBoxLostFocus"
+                                                                KeyDown="OnInputBindingBoxKeyDown">
+                                                            <Viewbox Stretch="Uniform">
+                                                                <TextBlock Text="{Binding SelectedKeyDisplay}"
+                                                                           Foreground="#1F1A17"
+                                                                           TextAlignment="Center"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center"/>
+                                                            </Viewbox>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Grid>
+                                    </Viewbox>
+                                    <Border Classes="binding-extra-panel rom-light">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                                <TextBlock Classes="label" FontSize="11" Foreground="#1F1A17" Text="扩展按键"/>
+                                                <Button Grid.Column="1" Classes="subtle binding-mini" Content="+ 连发" Command="{Binding AddRomTurboBindingCommand}" CommandParameter="1" IsEnabled="{Binding HasCurrentRom}"/>
+                                                <Button Grid.Column="2" Classes="subtle binding-mini" Content="+ 组合" Command="{Binding AddRomComboBindingCommand}" CommandParameter="1" IsEnabled="{Binding HasCurrentRom}"/>
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{Binding RomExtraInputBindingsPlayer2}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="model:ExtraInputBindingEntry">
+                                                        <Border Classes="binding-extra-row rom-light" Margin="0,0,0,6">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="5">
+                                                                <Border CornerRadius="6" Padding="5,2" Background="#E8DDD0" VerticalAlignment="Center">
+                                                                    <TextBlock Classes="label" FontSize="10" Foreground="#1F1A17" Text="{Binding KindLabel}"/>
+                                                                </Border>
+                                                                <Grid Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="3" VerticalAlignment="Center">
+                                                                    <ItemsControl ItemsSource="{Binding ComboChips}" IsVisible="{Binding IsCombo}">
+                                                                        <ItemsControl.ItemsPanel>
+                                                                            <ItemsPanelTemplate>
+                                                                                <StackPanel Orientation="Horizontal" Spacing="3"/>
+                                                                            </ItemsPanelTemplate>
+                                                                        </ItemsControl.ItemsPanel>
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate x:DataType="model:ComboChipItem">
+                                                                                <Border CornerRadius="8" Padding="5,2" Background="#DDD1C4" BorderBrush="#C0B3A4" BorderThickness="1">
+                                                                                    <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#1F1A17" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                                                </Border>
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                    <Border IsVisible="{Binding IsTurbo}"
+                                                                            CornerRadius="8"
+                                                                            Width="60"
+                                                                            Padding="5,2"
+                                                                            Background="#DDD1C4"
+                                                                            BorderBrush="#C0B3A4"
+                                                                            BorderThickness="1"
+                                                                            VerticalAlignment="Center"
+                                                                            HorizontalAlignment="Left">
+                                                                        <TextBlock Text="{Binding PrimaryButtonOption.Label}" FontSize="10" Foreground="#1F1A17" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                                    </Border>
+                                                                    <Grid Grid.Column="1">
+                                                                        <ToggleButton x:Name="QuickRomPlayer2PickerButton"
+                                                                                      Content="+"
+                                                                                      Classes="binding-picker launcher"
+                                                                                      IsChecked="{Binding IsButtonPickerOpen, Mode=TwoWay}"/>
+                                                                        <Popup PlacementTarget="{Binding #QuickRomPlayer2PickerButton}"
+                                                                               Placement="BottomEdgeAlignedLeft"
+                                                                               HorizontalOffset="0"
+                                                                               VerticalOffset="8"
+                                                                               IsLightDismissEnabled="True"
+                                                                               IsOpen="{Binding IsButtonPickerOpen, Mode=TwoWay}">
+                                                                            <Border Classes="binding-picker-popup">
+                                                                                <StackPanel Spacing="8">
+                                                                                    <TextBlock Classes="label" FontSize="10" Foreground="#D8C2A9" Text="{Binding ButtonPickerHintText}" TextWrapping="Wrap"/>
+                                                                                    <ItemsControl ItemsSource="{Binding ButtonPickerItems}">
+                                                                                        <ItemsControl.ItemsPanel>
+                                                                                            <ItemsPanelTemplate>
+                                                                                                <UniformGrid Columns="4"/>
+                                                                                            </ItemsPanelTemplate>
+                                                                                        </ItemsControl.ItemsPanel>
+                                                                                        <ItemsControl.ItemTemplate>
+                                                                                            <DataTemplate x:DataType="model:ExtraInputButtonPickerItem">
+                                                                                                <ToggleButton Margin="0,0,6,6"
+                                                                                                              Classes="binding-picker option"
+                                                                                                              Content="{Binding Label}"
+                                                                                                              IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                                                                              Command="{Binding SelectCommand}"/>
+                                                                                            </DataTemplate>
+                                                                                        </ItemsControl.ItemTemplate>
+                                                                                    </ItemsControl>
+                                                                                </StackPanel>
+                                                                            </Border>
+                                                                        </Popup>
+                                                                    </Grid>
+                                                                </Grid>
+                                                                <Border Grid.Column="2"
+                                                                        CornerRadius="6"
+                                                                        BorderThickness="1"
+                                                                        BorderBrush="#8D8174"
+                                                                        Background="#FFF9F0"
+                                                                        Padding="5,3"
+                                                                        MinWidth="44"
+                                                                        VerticalAlignment="Center"
+                                                                        Focusable="True"
+                                                                        PointerPressed="OnInputBindingBoxPointerPressed"
+                                                                        GotFocus="OnInputBindingBoxGotFocus"
+                                                                        LostFocus="OnInputBindingBoxLostFocus"
+                                                                        KeyDown="OnInputBindingBoxKeyDown">
+                                                                    <Viewbox Stretch="Uniform" Height="14">
+                                                                        <TextBlock Text="{Binding SelectedKeyDisplay}" Foreground="#1F1A17" HorizontalAlignment="Center"/>
+                                                                    </Viewbox>
+                                                                </Border>
+                                                                <Button Grid.Column="3" Classes="subtle binding-mini" Content="删除" Command="{Binding DataContext.RemoveRomExtraBindingCommand, ElementName=RootWindow}" CommandParameter="{Binding}"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ContentControl.DataTemplates>
+        </ContentControl>
+</UserControl>

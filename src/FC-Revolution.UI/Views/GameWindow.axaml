@@ -1,0 +1,545 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FC_Revolution.UI.ViewModels"
+        x:Class="FC_Revolution.UI.Views.GameWindow"
+        x:Name="RootGameWindow"
+        x:DataType="vm:GameWindowViewModel"
+        Icon="/Assets/logo.ico"
+        Width="960"
+        Height="700"
+        MinWidth="520"
+        MinHeight="380"
+        Background="#0E0D10"
+        Title="{Binding DisplayName}">
+    <Window.Styles>
+        <Style Selector="TextBlock.chrome">
+            <Setter Property="Foreground" Value="#F5EAD9"/>
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#D4C7B2"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+        <Style Selector="TextBlock.caption">
+            <Setter Property="Foreground" Value="#A88C74"/>
+            <Setter Property="FontFamily" Value="Trebuchet MS, Verdana"/>
+        </Style>
+        <Style Selector="Border.status-chip">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Background" Value="#251B18"/>
+            <Setter Property="BorderBrush" Value="#5D4330"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.timeline-action">
+            <Setter Property="Background" Value="#251B18"/>
+            <Setter Property="Foreground" Value="#F4E6D8"/>
+            <Setter Property="BorderBrush" Value="#6D5039"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style Selector="Button.timeline-action:pointerover">
+            <Setter Property="Background" Value="#32231D"/>
+        </Style>
+        <Style Selector="ToggleButton.timeline-toggle">
+            <Setter Property="Background" Value="#251B18"/>
+            <Setter Property="Foreground" Value="#F4E6D8"/>
+            <Setter Property="BorderBrush" Value="#6D5039"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style Selector="ToggleButton.timeline-toggle:pointerover">
+            <Setter Property="Background" Value="#32231D"/>
+        </Style>
+        <Style Selector="ToggleButton.timeline-toggle:checked">
+            <Setter Property="Background" Value="#D2A77E"/>
+            <Setter Property="Foreground" Value="#221610"/>
+            <Setter Property="BorderBrush" Value="#F3D2AE"/>
+        </Style>
+        <Style Selector="ToggleButton.timeline-toggle:checked:pointerover">
+            <Setter Property="Background" Value="#E0B58B"/>
+        </Style>
+    </Window.Styles>
+
+    <Border CornerRadius="0"
+            Background="#171419"
+            BorderBrush="#6C5037"
+            BorderThickness="1">
+        <Grid>
+            <Grid RowDefinitions="Auto,*,Auto,Auto">
+                <Image Grid.RowSpan="4"
+                       Source="{Binding ScreenBitmap}"
+                       Stretch="Fill"
+                       Opacity="0.08"
+                       RenderOptions.BitmapInterpolationMode="None"/>
+
+                <Border IsVisible="{Binding HasTransientMessage}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top"
+                        Margin="0,18,0,0"
+                        Padding="14,8"
+                        CornerRadius="16"
+                        Background="#D61B151A"
+                        BorderBrush="#A8825C"
+                        BorderThickness="1">
+                    <TextBlock Classes="label"
+                               FontSize="12"
+                               Foreground="#FFF4E6"
+                               Text="{Binding TransientMessage}"/>
+                </Border>
+
+                <Border Grid.Row="0"
+                        IsVisible="{Binding HasRemoteControlStatus}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="12,12,12,6"
+                        Padding="10,7"
+                        CornerRadius="14"
+                        Background="#B51C1811"
+                        BorderBrush="#C18B55"
+                        BorderThickness="1">
+                    <TextBlock Classes="label"
+                               FontSize="11"
+                               Foreground="#FFF4E6"
+                               Text="{Binding RemoteControlStatusText}"
+                               TextWrapping="Wrap"/>
+                </Border>
+
+                <Grid Grid.Row="1" Margin="12,6,12,6">
+                    <Border CornerRadius="18"
+                            Background="#2A1E18"
+                            BorderBrush="#75543A"
+                            BorderThickness="1"
+                            Opacity="0.38"/>
+
+                <Grid x:Name="ViewportLayoutRoot" Margin="10">
+                    <Border x:Name="ViewportPresenterFrame"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            CornerRadius="10"
+                            ClipToBounds="True"
+                            BorderBrush="#8E6A4C"
+                            BorderThickness="2"
+                            Background="#110D11">
+                        <Border CornerRadius="6"
+                                ClipToBounds="True"
+                                Background="#090708"
+                                Margin="6">
+                            <Grid x:Name="ViewportPresenterSurface" ClipToBounds="True">
+                                <Image x:Name="SoftwareViewportImage"
+                                       Source="{Binding ScreenBitmap}"
+                                       Stretch="Fill"
+                                       RenderOptions.BitmapInterpolationMode="None"/>
+                            </Grid>
+                        </Border>
+                    </Border>
+                </Grid>
+                </Grid>
+
+                <Border Grid.Row="2"
+                        IsVisible="{Binding IsBranchGalleryVisible}"
+                        Margin="12,6,12,6"
+                        CornerRadius="18"
+                        Background="#D9181417"
+                        BorderBrush="#6C5037"
+                        BorderThickness="1"
+                        Padding="10">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                        <Grid ColumnDefinitions="*,340" ColumnSpacing="12">
+                            <StackPanel Spacing="2">
+                                <TextBlock Classes="chrome" FontSize="16" Text="世界线时间轴"/>
+                                <TextBlock Classes="label" FontSize="11" Text="{Binding TimelinePositionText}" TextWrapping="Wrap"/>
+                                <TextBlock Classes="label" FontSize="10" Text="{Binding TimelineHintText}" TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Spacing="8">
+                                <Border Padding="10,8"
+                                        CornerRadius="12"
+                                        Background="#221813"
+                                        BorderBrush="#5D4330"
+                                        BorderThickness="1">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Classes="caption" FontSize="10" Text="轴点密度"/>
+                                        <WrapPanel>
+                                            <ToggleButton Classes="timeline-toggle"
+                                                          Margin="0,0,6,6"
+                                                          Content="30 秒"
+                                                          Command="{Binding BranchGallery.UseAxisInterval30Command}"
+                                                          IsChecked="{Binding BranchGallery.IsAxisInterval30, Mode=OneWay}"/>
+                                            <ToggleButton Classes="timeline-toggle"
+                                                          Margin="0,0,6,6"
+                                                          Content="60 秒"
+                                                          Command="{Binding BranchGallery.UseAxisInterval60Command}"
+                                                          IsChecked="{Binding BranchGallery.IsAxisInterval60, Mode=OneWay}"/>
+                                            <Border Classes="status-chip" Margin="0,0,0,6">
+                                                <TextBlock Classes="label" FontSize="11" Text="{Binding BranchGallery.AxisIntervalLabel}"/>
+                                            </Border>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Padding="10,8"
+                                        CornerRadius="12"
+                                        Background="#221813"
+                                        BorderBrush="#5D4330"
+                                        BorderThickness="1">
+                                    <StackPanel Spacing="6">
+                                    <TextBlock Classes="caption" FontSize="10" Text="时间尺度"/>
+                                    <WrapPanel>
+                                        <ToggleButton Classes="timeline-toggle"
+                                                      Margin="0,0,6,6"
+                                                      Content="15"
+                                                      Command="{Binding BranchGallery.SetTimeScale15Command}"
+                                                      IsChecked="{Binding BranchGallery.IsTimeScale15, Mode=OneWay}"/>
+                                        <ToggleButton Classes="timeline-toggle"
+                                                      Margin="0,0,6,6"
+                                                      Content="30"
+                                                      Command="{Binding BranchGallery.SetTimeScale30Command}"
+                                                      IsChecked="{Binding BranchGallery.IsTimeScale30, Mode=OneWay}"/>
+                                        <ToggleButton Classes="timeline-toggle"
+                                                      Margin="0,0,6,6"
+                                                      Content="60"
+                                                      Command="{Binding BranchGallery.SetTimeScale60Command}"
+                                                      IsChecked="{Binding BranchGallery.IsTimeScale60, Mode=OneWay}"/>
+                                        <ToggleButton Classes="timeline-toggle"
+                                                      Margin="0,0,6,6"
+                                                      Content="120"
+                                                      Command="{Binding BranchGallery.SetTimeScale120Command}"
+                                                      IsChecked="{Binding BranchGallery.IsTimeScale120, Mode=OneWay}"/>
+                                        <Button Classes="timeline-action"
+                                                Margin="0,0,6,6"
+                                                Content="+"
+                                                Command="{Binding BranchGallery.TimelineScaleInCommand}"/>
+                                        <Button Classes="timeline-action"
+                                                Margin="0,0,6,6"
+                                                Content="-"
+                                                Command="{Binding BranchGallery.TimelineScaleOutCommand}"/>
+                                    </WrapPanel>
+                                    <TextBlock Classes="label" FontSize="11" Text="{Binding BranchGallery.TimeScaleLabel}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="10,8"
+                                    CornerRadius="12"
+                                    Background="#221813"
+                                    BorderBrush="#5D4330"
+                                    BorderThickness="1">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Classes="chrome" FontSize="12" Text="{Binding BranchGallery.SelectedTitle}" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="label" FontSize="10" Text="{Binding BranchGallery.CurrentPositionSummary}" TextWrapping="Wrap"/>
+                                    <TextBlock Classes="label" FontSize="10" Text="{Binding BranchGallery.StatusText}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Grid.Row="1"
+                            CornerRadius="14"
+                            Background="#1A1310"
+                            BorderBrush="#5D4330"
+                            BorderThickness="1"
+                            ClipToBounds="True">
+                        <ScrollViewer x:Name="BranchCanvasScrollViewer"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto"
+                                      PointerWheelChanged="OnBranchCanvasWheelChanged"
+                                      PointerPressed="OnBranchCanvasPointerPressed"
+                                      PointerMoved="OnBranchCanvasPointerMoved"
+                                      PointerReleased="OnBranchCanvasPointerReleased">
+                            <Canvas Width="{Binding BranchGallery.CanvasWidth}"
+                                    Height="{Binding BranchGallery.CanvasHeight}">
+                                <Border Height="2"
+                                        Width="{Binding BranchGallery.CanvasWidth}"
+                                        Background="#8D7358">
+                                    <Canvas.Left>0</Canvas.Left>
+                                    <Canvas.Top>
+                                        <Binding Path="BranchGallery.MainAxisY"/>
+                                    </Canvas.Top>
+                                </Border>
+
+                                <Border Width="2"
+                                        Height="{Binding BranchGallery.CanvasHeight}"
+                                        Background="#D6E6C58C">
+                                    <Canvas.Left>
+                                        <Binding Path="BranchGallery.CurrentMarkerX"/>
+                                    </Canvas.Left>
+                                    <Canvas.Top>0</Canvas.Top>
+                                </Border>
+
+                                <Grid Width="116"
+                                      Height="44"
+                                      IsHitTestVisible="False">
+                                    <Grid.RenderTransform>
+                                        <TranslateTransform X="-58"/>
+                                    </Grid.RenderTransform>
+                                    <Canvas.Left>
+                                        <Binding Path="BranchGallery.CurrentMarkerX"/>
+                                    </Canvas.Left>
+                                    <Canvas.Top>8</Canvas.Top>
+                                    <Border Background="#C6181417"
+                                            BorderBrush="#8D7358"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="6,4">
+                                        <StackPanel Spacing="1">
+                                            <TextBlock Classes="chrome"
+                                                       FontSize="10"
+                                                       HorizontalAlignment="Center"
+                                                       Text="当前时刻"/>
+                                            <TextBlock Classes="label"
+                                                       FontSize="9"
+                                                       HorizontalAlignment="Center"
+                                                       Text="{Binding BranchGallery.CurrentMarkerFrameLabel}"/>
+                                            <TextBlock Classes="label"
+                                                       FontSize="9"
+                                                       HorizontalAlignment="Center"
+                                                       Text="{Binding BranchGallery.CurrentMarkerTimeLabel}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <ItemsControl ItemsSource="{Binding BranchGallery.AxisTicks}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BranchTimelineTick">
+                                            <Grid Width="92"
+                                                  Height="{Binding DataContext.BranchGallery.CanvasHeight, ElementName=RootGameWindow}"
+                                                  IsHitTestVisible="False">
+                                                <Grid.RenderTransform>
+                                                    <TranslateTransform X="-46"/>
+                                                </Grid.RenderTransform>
+                                                <Canvas.Left>
+                                                    <Binding Path="X"/>
+                                                </Canvas.Left>
+                                                <Canvas.Top>0</Canvas.Top>
+                                                <Path Data="M 0,0 L 0,1"
+                                                      Stretch="Fill"
+                                                      Width="1"
+                                                      Height="{Binding DataContext.BranchGallery.CanvasHeight, ElementName=RootGameWindow}"
+                                                      Stroke="#5F4C3B"
+                                                      StrokeThickness="1"
+                                                      StrokeDashArray="2,4"
+                                                      Opacity="0.85"
+                                                      HorizontalAlignment="Center"/>
+                                                <Border Background="#BE181417"
+                                                        BorderBrush="#5D4330"
+                                                        BorderThickness="1"
+                                                        CornerRadius="10"
+                                                        Padding="4,3"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Top"
+                                                        Margin="0,8,0,0">
+                                                    <StackPanel Spacing="0">
+                                                        <TextBlock Classes="label"
+                                                                   FontSize="9"
+                                                                   HorizontalAlignment="Center"
+                                                                   Text="{Binding FrameLabel}"/>
+                                                        <TextBlock Classes="label"
+                                                                   FontSize="9"
+                                                                   HorizontalAlignment="Center"
+                                                                   Text="{Binding TimeLabel}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <ItemsControl ItemsSource="{Binding BranchGallery.CanvasEdges}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BranchCanvasEdge">
+                                            <Line StartPoint="{Binding StartPoint}"
+                                                  EndPoint="{Binding EndPoint}"
+                                                  Stroke="#A88866"
+                                                  StrokeThickness="2"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <ItemsControl ItemsSource="{Binding BranchGallery.CanvasNodes}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BranchCanvasNode">
+                                            <Button Width="{Binding Width}"
+                                                    Height="{Binding Height}"
+                                                    Padding="0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Command="{Binding DataContext.BranchGallery.SelectNodeCommand, ElementName=RootGameWindow}"
+                                                    CommandParameter="{Binding}"
+                                                    DoubleTapped="OnBranchNodeDoubleTapped">
+                                                <Button.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="载入到此时间点"
+                                                                  Command="{Binding DataContext.BranchGallery.SeekToNodeCommand, ElementName=RootGameWindow}"
+                                                                  CommandParameter="{Binding}"/>
+                                                        <MenuItem Header="从当前时刻创建分支"
+                                                                  Command="{Binding DataContext.BranchGallery.CreateBranchAtCurrentCommand, ElementName=RootGameWindow}"/>
+                                                        <MenuItem Header="在此生成画面节点"
+                                                                  Command="{Binding DataContext.BranchGallery.CreatePreviewNodeCommand, ElementName=RootGameWindow}"
+                                                                  CommandParameter="{Binding}"/>
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                                <Canvas.Left>
+                                                    <Binding Path="X"/>
+                                                </Canvas.Left>
+                                                <Canvas.Top>
+                                                    <Binding Path="Y"/>
+                                                </Canvas.Top>
+                                                <Border CornerRadius="14"
+                                                        Padding="8"
+                                                        Background="{Binding BackgroundHex}"
+                                                        BorderBrush="{Binding BorderBrushHex}"
+                                                        BorderThickness="{Binding BorderThicknessValue}">
+                                                    <Grid RowDefinitions="58,*" RowSpacing="6">
+                                                        <Border CornerRadius="10" ClipToBounds="True" Background="#100B09">
+                                                            <Image Source="{Binding Bitmap}" Stretch="UniformToFill" RenderOptions.BitmapInterpolationMode="None"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Row="1" Spacing="1">
+                                                            <TextBlock Classes="chrome" FontSize="12" Text="{Binding Title}" TextWrapping="Wrap"/>
+                                                            <TextBlock Classes="label" FontSize="9" Text="{Binding Subtitle}" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <ItemsControl ItemsSource="{Binding BranchGallery.PreviewMarkers}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <Canvas/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:BranchPreviewMarker">
+                                            <Button Width="{Binding Diameter}"
+                                                    Height="{Binding Diameter}"
+                                                    Padding="0"
+                                                    Background="#E2C48F"
+                                                    BorderBrush="#FFF5D8"
+                                                    BorderThickness="2"
+                                                    CornerRadius="999"
+                                                    Command="{Binding DataContext.BranchGallery.SelectPreviewNodeCommand, ElementName=RootGameWindow}"
+                                                    CommandParameter="{Binding Id}">
+                                                <ToolTip.Tip>
+                                                    <Border Width="220"
+                                                            Padding="8"
+                                                            CornerRadius="12"
+                                                            Background="#1B1411"
+                                                            BorderBrush="#8F6A4C"
+                                                            BorderThickness="1">
+                                                        <StackPanel Spacing="6">
+                                                            <Border Height="128"
+                                                                    CornerRadius="10"
+                                                                    ClipToBounds="True"
+                                                                    Background="#100B09">
+                                                                <Image Source="{Binding Bitmap}"
+                                                                       Stretch="UniformToFill"
+                                                                       RenderOptions.BitmapInterpolationMode="None"/>
+                                                            </Border>
+                                                            <TextBlock Classes="chrome" FontSize="12" Text="{Binding Title}" TextWrapping="Wrap"/>
+                                                            <TextBlock Classes="label" FontSize="10" Text="{Binding Subtitle}" TextWrapping="Wrap"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </ToolTip.Tip>
+                                                <Button.ContextMenu>
+                                                    <ContextMenu>
+                                                        <MenuItem Header="删除画面节点"
+                                                                  Command="{Binding DataContext.BranchGallery.DeletePreviewNodeCommand, ElementName=RootGameWindow}"
+                                                                  CommandParameter="{Binding Id}"/>
+                                                    </ContextMenu>
+                                                </Button.ContextMenu>
+                                                <Canvas.Left>
+                                                    <Binding Path="X"/>
+                                                </Canvas.Left>
+                                                <Canvas.Top>
+                                                    <Binding Path="Y"/>
+                                                </Canvas.Top>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Canvas>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </Border>
+
+            </Grid>
+
+            <Border x:Name="OverlayTopPanel"
+                    IsVisible="{Binding IsOverlayVisible}"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="12,12,12,6"
+                    Padding="10,7"
+                    CornerRadius="14"
+                    Background="#9A141014"
+                    BorderBrush="#6C5037"
+                    BorderThickness="1">
+                <StackPanel Spacing="6">
+                    <TextBlock Classes="chrome" FontSize="20" Text="{Binding DisplayName}"/>
+                    <WrapPanel>
+                        <Border Classes="status-chip" Margin="0,0,8,6">
+                            <TextBlock Classes="label" FontSize="11" Text="{Binding AspectRatioLabel}"/>
+                        </Border>
+                        <Border Classes="status-chip" Margin="0,0,8,6">
+                            <TextBlock Classes="label" FontSize="11" Text="{Binding EnhancementModeLabel}"/>
+                        </Border>
+                        <Border Classes="status-chip" Margin="0,0,8,6">
+                            <TextBlock Classes="label" FontSize="11" Text="{Binding ViewportRendererLabel}"/>
+                        </Border>
+                        <Border Classes="status-chip" Margin="0,0,8,6">
+                            <TextBlock Classes="label" FontSize="11" Text="{Binding StatusText}"/>
+                        </Border>
+                    </WrapPanel>
+                    <TextBlock Classes="label"
+                               FontSize="10"
+                               Text="{Binding ViewportRenderDiagnostics}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="OverlayBottomPanel"
+                    IsVisible="{Binding IsOverlayVisible}"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Bottom"
+                    Margin="12,6,12,12"
+                    Padding="10,8"
+                    CornerRadius="14"
+                    Background="#98161116"
+                    BorderBrush="#4A3728"
+                    BorderThickness="1">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Classes="label"
+                               FontSize="11"
+                               Text="{Binding ShortcutHintText}"
+                               TextWrapping="Wrap"/>
+                        <TextBlock Grid.Column="1"
+                               Classes="label"
+                               FontSize="11"
+                               Text="{Binding FpsText}"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

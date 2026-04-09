@@ -1,0 +1,113 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FC_Revolution.UI.ViewModels"
+             xmlns:model="using:FC_Revolution.UI.Models"
+             x:Class="FC_Revolution.UI.Views.Settings.MainWindowRomSettingsView"
+             x:Name="RootWindow"
+             x:DataType="vm:MainWindowViewModel">
+    <StackPanel Classes="settings-tab-content">
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="ROM 与资源"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="subtle" Content="刷新 ROM 库" Command="{Binding RefreshRomLibraryCommand}"/>
+                    <Button Classes="subtle" Content="导入 ROM" Command="{Binding OpenRomCommand}"/>
+                    <Button Classes="subtle" Content="导入文件夹" Command="{Binding ImportRomFolderCommand}"/>
+                    <Button Classes="chrome"
+                            Content="开始当前游戏"
+                            Command="{Binding PlaySelectedRomCommand}"
+                            IsEnabled="{Binding CanPlaySelectedRom}"/>
+                </StackPanel>
+                <TextBlock Classes="label" FontSize="12" Text="资源根目录"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBox Width="520"
+                             Text="{Binding ResourceRootPathInput}"
+                             CaretBrush="#F7ECDD"
+                             Background="#201612"
+                             Foreground="#F7ECDD"
+                             BorderBrush="#5A3F2E"/>
+                    <Button Classes="subtle" Content="应用路径" Command="{Binding ApplyResourceRootCommand}"/>
+                </StackPanel>
+                <TextBox Classes="label"
+                         FontSize="12"
+                         Text="{Binding ResourceLayoutSummary}"
+                         IsReadOnly="True"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         CaretBrush="#EADCC8"
+                         Foreground="#EADCC8"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="6">
+                <TextBlock Classes="hero" FontSize="18" Text="当前选中"/>
+                <TextBlock Classes="label" FontSize="13" Text="{Binding CurrentRomName}" TextWrapping="Wrap"/>
+                <TextBlock Classes="label" FontSize="11" Text="{Binding CurrentRomPathText}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="12">
+                <TextBlock Classes="hero" FontSize="18" Text="运行中会话"/>
+                <TextBlock Classes="label" FontSize="12" Text="{Binding ActiveSessionSummary}" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding ActiveGameSessions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="model:ActiveGameSessionItem">
+                            <Border CornerRadius="16"
+                                    Padding="12"
+                                    Margin="0,0,0,10"
+                                    Background="#1C1310"
+                                    BorderBrush="#5A3F2E"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="120,*,Auto" ColumnSpacing="12">
+                                    <Border Height="90"
+                                            Width="120"
+                                            CornerRadius="12"
+                                            ClipToBounds="True"
+                                            Background="#0A0808">
+                                        <Image Source="{Binding SnapshotBitmap}"
+                                               Stretch="UniformToFill"
+                                               RenderOptions.BitmapInterpolationMode="None"/>
+                                    </Border>
+
+                                    <StackPanel Grid.Column="1" Spacing="4">
+                                        <TextBlock Classes="hero" FontSize="15" Text="{Binding DisplayName}" TextWrapping="Wrap"/>
+                                        <TextBlock Classes="label" FontSize="11" Text="{Binding SessionId}" TextWrapping="Wrap"/>
+                                        <TextBlock Classes="label" FontSize="12" Text="{Binding RemoteControlSummary}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center">
+                                        <Button Classes="subtle"
+                                                Content="聚焦"
+                                                Command="{Binding DataContext.FocusGameSessionCommand, ElementName=RootWindow}"
+                                                CommandParameter="{Binding}"/>
+                                        <Button Classes="subtle"
+                                                Content="关闭"
+                                                Command="{Binding DataContext.CloseGameSessionFromMenuCommand, ElementName=RootWindow}"
+                                                CommandParameter="{Binding}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Classes="settings-card">
+            <StackPanel Spacing="10">
+                <TextBlock Classes="hero" FontSize="18" Text="工具与退出"/>
+                <TextBlock Classes="label" FontSize="12" Text="调试入口已停用，但时间线、关于和退出仍保留在这里。"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Button Classes="subtle" Content="存档分支画廊" Command="{Binding OpenBranchGalleryCommand}"/>
+                    <Button Classes="subtle" Content="关于" Command="{Binding AboutCommand}"/>
+                    <Button Classes="subtle" Content="退出程序" Command="{Binding ExitCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
