@@ -3,7 +3,7 @@
     <Project Path="src/FC-Revolution.Backend.Abstractions/FC-Revolution.Backend.Abstractions.csproj" />
     <Project Path="src/FC-Revolution.Backend.Hosting/FC-Revolution.Backend.Hosting.csproj" />
     <Project Path="src/FC-Revolution.Backend/FC-Revolution.Backend.csproj" />
-    <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.FC.Managed/FC-Revolution.Core.Nes.Managed.csproj" />
+    <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.FC/Managed/FC-Revolution.Core.Nes.Managed.csproj" />
     <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.Sample.Managed/FC-Revolution.Core.Sample.Managed.csproj" />
     <Project Path="src/FC-Revolution.Contracts/FC-Revolution.Contracts.csproj" />
     <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj" />

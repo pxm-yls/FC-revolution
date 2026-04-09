@@ -14,6 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Managed/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\FC-Revolution.Storage\FC-Revolution.Storage.csproj" />
   </ItemGroup>
 

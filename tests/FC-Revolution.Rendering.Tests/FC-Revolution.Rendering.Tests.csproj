@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.Rendering\FC-Revolution.Rendering.csproj" />
   </ItemGroup>
 
