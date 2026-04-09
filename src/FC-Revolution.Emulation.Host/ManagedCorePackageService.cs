@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text.Json;
 using FCRevolution.Emulation.Abstractions;
@@ -99,6 +100,8 @@ public sealed class ManagedCoreRegistryEntry
 
     public required string FactoryType { get; init; }
 
+    public bool IsBundled { get; init; }
+
     public DateTimeOffset InstalledAtUtc { get; init; } = DateTimeOffset.UtcNow;
 }
 
@@ -109,6 +112,7 @@ public sealed record InstalledManagedCorePackage(
     string ManifestPath,
     string EntryAssemblyPath,
     string FactoryType,
+    bool IsBundled,
     DateTimeOffset InstalledAtUtc);
 
 public sealed record ManagedCorePackageInstallResult(
@@ -166,59 +170,46 @@ public sealed class ManagedCorePackageService
         try
         {
             ExtractPackageToDirectory(normalizedPackagePath, stagingDirectory);
+            return InstallStagedDirectory(stagingDirectory, normalizedResourceRoot);
+        }
+        finally
+        {
+            if (Directory.Exists(stagingDirectory))
+                Directory.Delete(stagingDirectory, recursive: true);
+        }
+    }
 
-            var manifestPath = Path.Combine(stagingDirectory, ManifestFileName);
-            var manifestDocument = ReadManifestDocument(manifestPath);
-            ValidateManifestDocument(manifestDocument, stagingDirectory);
+    public InstalledManagedCorePackage EnsureLooseManagedModuleInstalled(
+        CoreManifest runtimeManifest,
+        string assemblyPath,
+        string moduleTypeName,
+        string? resourceRootPath,
+        bool isBundled = false)
+    {
+        ArgumentNullException.ThrowIfNull(runtimeManifest);
+        if (string.IsNullOrWhiteSpace(assemblyPath))
+            throw new ArgumentException("Assembly path is required.", nameof(assemblyPath));
+        if (string.IsNullOrWhiteSpace(moduleTypeName))
+            throw new ArgumentException("Module type name is required.", nameof(moduleTypeName));
 
-            var payload = manifestDocument.Payload;
-            var installDirectory = AppObjectStorage.GetInstalledCoreVersionDirectory(
-                normalizedResourceRoot,
-                payload.CoreId,
-                payload.Version);
-            var replacedExistingCore = GetInstalledPackages(normalizedResourceRoot)
-                .Any(package => string.Equals(package.Manifest.CoreId, payload.CoreId, StringComparison.OrdinalIgnoreCase));
+        var normalizedResourceRoot = AppObjectStorage.NormalizeConfiguredResourceRoot(resourceRootPath);
+        var installed = GetInstalledPackages(normalizedResourceRoot).FirstOrDefault(package =>
+            string.Equals(package.Manifest.CoreId, runtimeManifest.CoreId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(package.Manifest.Version, runtimeManifest.Version, StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(package.EntryAssemblyPath) &&
+            package.IsBundled == isBundled);
+        if (installed is not null)
+            return installed;
 
-            if (Directory.Exists(installDirectory))
-                Directory.Delete(installDirectory, recursive: true);
+        var stagingDirectory = Path.Combine(
+            AppObjectStorage.GetCoreTempDirectory(normalizedResourceRoot),
+            $"bundle-{runtimeManifest.CoreId}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(stagingDirectory);
 
-            CopyDirectory(stagingDirectory, installDirectory);
-
-            var coresRootDirectory = AppObjectStorage.GetCoresRootDirectory(normalizedResourceRoot);
-            var installRelativePath = Path.GetRelativePath(coresRootDirectory, installDirectory);
-            var manifestRelativePath = Path.Combine(installRelativePath, ManifestFileName);
-            var entryAssemblyRelativePath = Path.Combine(installRelativePath, payload.EntryPoint.AssemblyPath);
-            var registryEntry = new ManagedCoreRegistryEntry
-            {
-                CoreId = payload.CoreId,
-                DisplayName = payload.DisplayName,
-                Version = payload.Version,
-                SystemIds = payload.SystemIds.Count == 0 ? [payload.CoreId] : payload.SystemIds,
-                BinaryKind = payload.BinaryKind,
-                InstallPath = installRelativePath,
-                ManifestPath = manifestRelativePath,
-                EntryAssemblyPath = entryAssemblyRelativePath,
-                FactoryType = payload.EntryPoint.FactoryType,
-                InstalledAtUtc = DateTimeOffset.UtcNow
-            };
-
-            var registry = ReadRegistryDocument(normalizedResourceRoot);
-            var updatedEntries = registry.Payload.Entries
-                .Where(entry => !string.Equals(entry.CoreId, registryEntry.CoreId, StringComparison.OrdinalIgnoreCase))
-                .Append(registryEntry)
-                .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            WriteRegistryDocument(normalizedResourceRoot, new ManagedCoreRegistryDocument
-            {
-                Payload = new ManagedCoreRegistryPayload
-                {
-                    Entries = updatedEntries
-                }
-            });
-
-            return new ManagedCorePackageInstallResult(
-                BuildInstalledPackage(installDirectory, manifestDocument, registryEntry),
-                replacedExistingCore);
+        try
+        {
+            MaterializeLooseManagedModuleDirectory(runtimeManifest, assemblyPath, moduleTypeName, stagingDirectory);
+            return InstallStagedDirectory(stagingDirectory, normalizedResourceRoot, isBundled).Package;
         }
         finally
         {
@@ -237,6 +228,8 @@ public sealed class ManagedCorePackageService
         var entry = registry.Payload.Entries.FirstOrDefault(candidate =>
             string.Equals(candidate.CoreId, coreId, StringComparison.OrdinalIgnoreCase));
         if (entry is null)
+            return false;
+        if (entry.IsBundled)
             return false;
 
         var coresRootDirectory = AppObjectStorage.GetCoresRootDirectory(normalizedResourceRoot);
@@ -284,31 +277,11 @@ public sealed class ManagedCorePackageService
 
         try
         {
-            var managedDirectory = Path.Combine(stagingDirectory, "managed");
-            Directory.CreateDirectory(managedDirectory);
-
-            var packageFileEntries = new List<ManagedCorePackageFileEntry>();
-            var entryAssemblyRelativePath = Path.Combine("managed", Path.GetFileName(normalizedAssemblyPath));
-            foreach (var sourceFile in EnumerateLoosePackageFiles(normalizedAssemblyPath))
-            {
-                var relativePath = Path.Combine("managed", Path.GetFileName(sourceFile));
-                var destinationFile = Path.Combine(stagingDirectory, relativePath);
-                Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
-                File.Copy(sourceFile, destinationFile, overwrite: true);
-
-                packageFileEntries.Add(new ManagedCorePackageFileEntry
-                {
-                    Path = NormalizeManifestPath(relativePath),
-                    Sha256 = ComputeSha256(destinationFile)
-                });
-            }
-
-            var manifestDocument = CreateManifestDocument(
+            var manifestDocument = MaterializeLooseManagedModuleDirectory(
                 runtimeManifest,
+                normalizedAssemblyPath,
                 moduleTypeName,
-                NormalizeManifestPath(entryAssemblyRelativePath),
-                packageFileEntries);
-            WriteManifestDocument(Path.Combine(stagingDirectory, ManifestFileName), manifestDocument);
+                stagingDirectory);
             CreatePackageFromDirectory(stagingDirectory, normalizedDestinationPath);
             return new ManagedCorePackageExportResult(normalizedDestinationPath, manifestDocument);
         }
@@ -373,6 +346,102 @@ public sealed class ManagedCorePackageService
         };
     }
 
+    private ManagedCorePackageInstallResult InstallStagedDirectory(
+        string stagingDirectory,
+        string normalizedResourceRoot,
+        bool isBundled = false)
+    {
+        var manifestPath = Path.Combine(stagingDirectory, ManifestFileName);
+        var manifestDocument = ReadManifestDocument(manifestPath);
+        ValidateManifestDocument(manifestDocument, stagingDirectory);
+
+        var payload = manifestDocument.Payload;
+        var installDirectory = AppObjectStorage.GetInstalledCoreVersionDirectory(
+            normalizedResourceRoot,
+            payload.CoreId,
+            payload.Version);
+        var replacedExistingCore = GetInstalledPackages(normalizedResourceRoot)
+            .Any(package => string.Equals(package.Manifest.CoreId, payload.CoreId, StringComparison.OrdinalIgnoreCase));
+
+        if (Directory.Exists(installDirectory))
+            Directory.Delete(installDirectory, recursive: true);
+
+        CopyDirectory(stagingDirectory, installDirectory);
+
+        var coresRootDirectory = AppObjectStorage.GetCoresRootDirectory(normalizedResourceRoot);
+        var installRelativePath = Path.GetRelativePath(coresRootDirectory, installDirectory);
+        var manifestRelativePath = Path.Combine(installRelativePath, ManifestFileName);
+        var entryAssemblyRelativePath = Path.Combine(installRelativePath, payload.EntryPoint.AssemblyPath);
+        var registryEntry = new ManagedCoreRegistryEntry
+        {
+            CoreId = payload.CoreId,
+            DisplayName = payload.DisplayName,
+            Version = payload.Version,
+            SystemIds = payload.SystemIds.Count == 0 ? [payload.CoreId] : payload.SystemIds,
+            BinaryKind = payload.BinaryKind,
+            InstallPath = installRelativePath,
+            ManifestPath = manifestRelativePath,
+            EntryAssemblyPath = entryAssemblyRelativePath,
+            FactoryType = payload.EntryPoint.FactoryType,
+            IsBundled = isBundled,
+            InstalledAtUtc = DateTimeOffset.UtcNow
+        };
+
+        var registry = ReadRegistryDocument(normalizedResourceRoot);
+        var updatedEntries = registry.Payload.Entries
+            .Where(entry => !string.Equals(entry.CoreId, registryEntry.CoreId, StringComparison.OrdinalIgnoreCase))
+            .Append(registryEntry)
+            .OrderBy(entry => entry.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        WriteRegistryDocument(normalizedResourceRoot, new ManagedCoreRegistryDocument
+        {
+            Payload = new ManagedCoreRegistryPayload
+            {
+                Entries = updatedEntries
+            }
+        });
+
+        CleanupOtherInstalledVersions(normalizedResourceRoot, payload.CoreId, payload.Version);
+
+        return new ManagedCorePackageInstallResult(
+            BuildInstalledPackage(installDirectory, manifestDocument, registryEntry),
+            replacedExistingCore);
+    }
+
+    private static ManagedCorePackageManifestDocument MaterializeLooseManagedModuleDirectory(
+        CoreManifest runtimeManifest,
+        string normalizedAssemblyPath,
+        string moduleTypeName,
+        string stagingDirectory)
+    {
+        var managedDirectory = Path.Combine(stagingDirectory, "managed");
+        Directory.CreateDirectory(managedDirectory);
+
+        var packageFileEntries = new List<ManagedCorePackageFileEntry>();
+        var entryAssemblyRelativePath = Path.Combine("managed", Path.GetFileName(normalizedAssemblyPath));
+        foreach (var sourceFile in EnumerateLoosePackageFiles(normalizedAssemblyPath))
+        {
+            var relativePath = Path.Combine("managed", Path.GetFileName(sourceFile));
+            var destinationFile = Path.Combine(stagingDirectory, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+            File.Copy(sourceFile, destinationFile, overwrite: true);
+
+            packageFileEntries.Add(new ManagedCorePackageFileEntry
+            {
+                Path = NormalizeManifestPath(relativePath),
+                Sha256 = ComputeSha256(destinationFile)
+            });
+        }
+
+        var manifestDocument = CreateManifestDocument(
+            runtimeManifest,
+            moduleTypeName,
+            NormalizeManifestPath(entryAssemblyRelativePath),
+            packageFileEntries);
+        WriteManifestDocument(Path.Combine(stagingDirectory, ManifestFileName), manifestDocument);
+        return manifestDocument;
+    }
+
     private static InstalledManagedCorePackage? TryResolveInstalledPackage(
         string coresRootDirectory,
         ManagedCoreRegistryEntry entry)
@@ -416,6 +485,7 @@ public sealed class ManagedCorePackageService
             Path.Combine(installDirectory, ManifestFileName),
             Path.Combine(installDirectory, manifestDocument.Payload.EntryPoint.AssemblyPath),
             manifestDocument.Payload.EntryPoint.FactoryType,
+            entry.IsBundled,
             entry.InstalledAtUtc);
     }
 
@@ -535,22 +605,62 @@ public sealed class ManagedCorePackageService
         var assemblyDirectory = Path.GetDirectoryName(normalizedAssemblyPath)
             ?? throw new InvalidOperationException("程序集目录不可用。");
 
-        var filePaths = Directory.EnumerateFiles(assemblyDirectory, "*", SearchOption.TopDirectoryOnly)
-            .Where(path =>
+        var localAssemblyPaths = Directory.EnumerateFiles(assemblyDirectory, "*.dll", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFullPath)
+            .ToDictionary(
+                path => Path.GetFileNameWithoutExtension(path),
+                path => path,
+                StringComparer.OrdinalIgnoreCase);
+
+        var resolvedPackageAssemblies = new HashSet<string>(GetPathComparer())
+        {
+            normalizedAssemblyPath
+        };
+        var queuedAssemblyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            Path.GetFileNameWithoutExtension(normalizedAssemblyPath)
+        };
+        var pendingAssemblyPaths = new Queue<string>();
+        pendingAssemblyPaths.Enqueue(normalizedAssemblyPath);
+
+        while (pendingAssemblyPaths.Count > 0)
+        {
+            var currentAssemblyPath = pendingAssemblyPaths.Dequeue();
+            var assembly = TryResolveLoadedAssembly(currentAssemblyPath) ?? TryLoadAssembly(currentAssemblyPath);
+            if (assembly is null)
+                continue;
+
+            foreach (var referencedAssembly in assembly.GetReferencedAssemblies())
             {
-                var fileName = Path.GetFileName(path);
-                return fileName.StartsWith("FC-Revolution.Core", StringComparison.OrdinalIgnoreCase) &&
-                       (fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
-                        fileName.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase) ||
-                        fileName.EndsWith(".deps.json", StringComparison.OrdinalIgnoreCase));
-            })
+                if (!localAssemblyPaths.TryGetValue(referencedAssembly.Name ?? string.Empty, out var referencedAssemblyPath))
+                    continue;
+                if (ShouldTreatAsHostSharedAssembly(referencedAssembly.Name))
+                    continue;
+                if (!queuedAssemblyNames.Add(referencedAssembly.Name!))
+                    continue;
+
+                resolvedPackageAssemblies.Add(referencedAssemblyPath);
+                pendingAssemblyPaths.Enqueue(referencedAssemblyPath);
+            }
+        }
+
+        var filePaths = new HashSet<string>(GetPathComparer());
+        foreach (var resolvedAssemblyPath in resolvedPackageAssemblies)
+        {
+            filePaths.Add(resolvedAssemblyPath);
+
+            var pdbPath = Path.ChangeExtension(resolvedAssemblyPath, ".pdb");
+            if (File.Exists(pdbPath))
+                filePaths.Add(pdbPath);
+
+            var depsPath = Path.ChangeExtension(resolvedAssemblyPath, ".deps.json");
+            if (File.Exists(depsPath))
+                filePaths.Add(depsPath);
+        }
+
+        return filePaths
             .OrderBy(path => path, GetPathComparer())
             .ToList();
-
-        if (!filePaths.Contains(normalizedAssemblyPath, GetPathComparer()))
-            filePaths.Insert(0, normalizedAssemblyPath);
-
-        return filePaths.Distinct(GetPathComparer()).ToList();
     }
 
     private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
@@ -565,6 +675,24 @@ public sealed class ManagedCorePackageService
             var destinationPath = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             File.Copy(file, destinationPath, overwrite: true);
+        }
+    }
+
+    private static void CleanupOtherInstalledVersions(string resourceRootPath, string coreId, string currentVersion)
+    {
+        var coreRootDirectory = Path.Combine(
+            AppObjectStorage.GetInstalledCoreRootDirectory(resourceRootPath),
+            AppObjectStorage.SanitizeFileName(coreId));
+        if (!Directory.Exists(coreRootDirectory))
+            return;
+
+        foreach (var versionDirectory in Directory.EnumerateDirectories(coreRootDirectory))
+        {
+            var versionName = Path.GetFileName(versionDirectory);
+            if (string.Equals(versionName, AppObjectStorage.SanitizeFileName(currentVersion), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            Directory.Delete(versionDirectory, recursive: true);
         }
     }
 
@@ -621,4 +749,60 @@ public sealed class ManagedCorePackageService
     private static StringComparison GetPathComparison() => OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
+
+    private static bool ShouldTreatAsHostSharedAssembly(string? assemblyName)
+    {
+        if (string.IsNullOrWhiteSpace(assemblyName))
+            return false;
+
+        return assemblyName.StartsWith("FC-Revolution.Emulation.", StringComparison.OrdinalIgnoreCase) ||
+               assemblyName.StartsWith("FC-Revolution.Storage", StringComparison.OrdinalIgnoreCase) ||
+               assemblyName.StartsWith("FC-Revolution.Contracts", StringComparison.OrdinalIgnoreCase) ||
+               assemblyName.StartsWith("FC-Revolution.Rendering", StringComparison.OrdinalIgnoreCase) ||
+               assemblyName.StartsWith("FC-Revolution.Backend", StringComparison.OrdinalIgnoreCase) ||
+               assemblyName.StartsWith("FC-Revolution.UI", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Assembly? TryResolveLoadedAssembly(string assemblyPath)
+    {
+        var comparer = GetPathComparer();
+        var normalizedPath = Path.GetFullPath(assemblyPath);
+
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (assembly.IsDynamic)
+                continue;
+
+            try
+            {
+                if (comparer.Equals(Path.GetFullPath(assembly.Location), normalizedPath))
+                    return assembly;
+            }
+            catch
+            {
+            }
+        }
+
+        return null;
+    }
+
+    private static Assembly? TryLoadAssembly(string assemblyPath)
+    {
+        try
+        {
+            return AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(assemblyPath));
+        }
+        catch (FileLoadException)
+        {
+            return TryResolveLoadedAssembly(assemblyPath);
+        }
+        catch (BadImageFormatException)
+        {
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

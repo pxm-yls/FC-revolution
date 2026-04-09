@@ -2,6 +2,7 @@ using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Core.Sample.Managed;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
+using FCRevolution.Storage;
 using System.Reflection;
 
 namespace FC_Revolution.UI.Tests;
@@ -78,13 +79,28 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
-    public void DefaultManagedCoreModuleCatalog_ContainsNesModule()
+    public void DefaultEmulatorCoreHost_ContainsBundledNesModule()
     {
-        var modules = DefaultManagedCoreModuleCatalog.CreateModules();
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-default-emulator-core-host-{Guid.NewGuid():N}");
 
-        Assert.Contains(modules, module => module.Manifest.CoreId == NesManagedCoreModule.CoreId);
-        Assert.Equal(NesManagedCoreModule.CoreId, DefaultManagedCoreModuleCatalog.DefaultCoreId);
-        Assert.Equal(DefaultManagedCoreModuleCatalog.DefaultCoreId, DefaultEmulatorCoreHost.DefaultCoreId);
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+
+            var host = DefaultEmulatorCoreHost.Create();
+            var manifests = host.GetInstalledCoreManifests();
+
+            Assert.Contains(manifests, manifest => manifest.CoreId == NesManagedCoreModule.CoreId);
+            Assert.Equal(NesManagedCoreModule.CoreId, DefaultManagedCoreModuleCatalog.DefaultCoreId);
+            Assert.Equal(DefaultManagedCoreModuleCatalog.DefaultCoreId, DefaultEmulatorCoreHost.DefaultCoreId);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Fact]
@@ -112,14 +128,14 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
-    public void DefaultManagedCoreModuleCatalog_IncludesAdditionalModules()
+    public void DefaultManagedCoreModuleCatalog_IncludesExplicitAdditionalModulesOnly()
     {
         var gbModule = new FakeManagedCoreModule(
             new CoreManifest("fc.gb.managed", "GB Core", "gb", "1.0.0", CoreBinaryKinds.ManagedDotNet));
 
         var modules = DefaultManagedCoreModuleCatalog.CreateModules([gbModule]);
 
-        Assert.Contains(modules, module => module.Manifest.CoreId == NesManagedCoreModule.CoreId);
+        Assert.DoesNotContain(modules, module => module.Manifest.CoreId == NesManagedCoreModule.CoreId);
         Assert.Contains(modules, module => module.Manifest.CoreId == "fc.gb.managed");
     }
 

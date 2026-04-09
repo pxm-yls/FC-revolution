@@ -60,7 +60,7 @@ public sealed class DirectoryManagedCoreModuleRegistrationSource : IManagedCoreM
 
     public IReadOnlyList<IManagedCoreModule> LoadModules() =>
         EnumerateAssemblyPaths()
-            .SelectMany(ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath)
+            .SelectMany(path => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(path))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();
@@ -131,7 +131,7 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IManagedCoreMo
     public IReadOnlyList<IManagedCoreModule> LoadModules() =>
         _packageService
             .GetInstalledPackages(_getResourceRootPath())
-            .SelectMany(package => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(package.EntryAssemblyPath))
+            .SelectMany(package => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(package.EntryAssemblyPath, package.FactoryType))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();
@@ -139,18 +139,39 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IManagedCoreMo
 
 internal static class ManagedCoreAssemblyModuleLoader
 {
-    public static IReadOnlyList<IManagedCoreModule> LoadModulesFromAssemblyPath(string assemblyPath)
+    public static IReadOnlyList<IManagedCoreModule> LoadModulesFromAssemblyPath(string assemblyPath, string? moduleTypeName = null)
     {
         var assembly = TryResolveLoadedAssembly(assemblyPath) ?? TryLoadAssembly(assemblyPath);
-        return assembly is null
-            ? []
-            : DefaultManagedCoreModuleCatalog.DiscoverModulesFromAssembly(assembly);
+        if (assembly is null)
+            return [];
+
+        var modules = DefaultManagedCoreModuleCatalog.DiscoverModulesFromAssembly(assembly);
+        if (string.IsNullOrWhiteSpace(moduleTypeName))
+            return modules;
+
+        return modules
+            .Where(module =>
+            {
+                var type = module.GetType();
+                return string.Equals(type.FullName, moduleTypeName, StringComparison.Ordinal) ||
+                       string.Equals(type.Name, moduleTypeName, StringComparison.Ordinal);
+            })
+            .ToList();
     }
 
     private static Assembly? TryResolveLoadedAssembly(string assemblyPath)
     {
         var comparer = GetPathComparer();
         var normalizedPath = Path.GetFullPath(assemblyPath);
+        AssemblyName? targetAssemblyName = null;
+
+        try
+        {
+            targetAssemblyName = AssemblyName.GetAssemblyName(normalizedPath);
+        }
+        catch
+        {
+        }
 
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
         {
@@ -164,6 +185,12 @@ internal static class ManagedCoreAssemblyModuleLoader
             }
             catch
             {
+            }
+
+            if (targetAssemblyName is not null &&
+                string.Equals(assembly.FullName, targetAssemblyName.FullName, StringComparison.Ordinal))
+            {
+                return assembly;
             }
         }
 

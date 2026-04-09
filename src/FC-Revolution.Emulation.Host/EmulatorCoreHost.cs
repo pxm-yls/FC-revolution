@@ -57,13 +57,25 @@ public sealed class EmulatorCoreHost
 
 public static class DefaultEmulatorCoreHost
 {
-    public const string DefaultCoreId = DefaultManagedCoreModuleCatalog.DefaultCoreId;
+    public const string DefaultCoreId = BundledManagedCoreBootstrapper.DefaultCoreId;
 
     public static EmulatorCoreHost Create() => Create(DefaultCoreId);
 
     public static EmulatorCoreHost Create(string? defaultCoreId) =>
         Create(defaultCoreId, additionalModules: null);
 
-    public static EmulatorCoreHost Create(string? defaultCoreId, IEnumerable<IManagedCoreModule>? additionalModules) =>
-        new(DefaultManagedCoreModuleCatalog.CreateModules(additionalModules), defaultCoreId);
+    public static EmulatorCoreHost Create(string? defaultCoreId, IEnumerable<IManagedCoreModule>? additionalModules)
+    {
+        var resourceRootPath = FCRevolution.Storage.AppObjectStorage.GetResourceRoot();
+        BundledManagedCoreBootstrapper.EnsureBundledCorePackages(resourceRootPath);
+
+        var packageSource = new RegistryManagedCoreModuleRegistrationSource(
+            "default-host-managed-core-package-registry",
+            () => resourceRootPath);
+        var resolvedAdditionalModules = packageSource.LoadModules();
+        if (additionalModules is not null)
+            resolvedAdditionalModules = [.. resolvedAdditionalModules, .. additionalModules];
+
+        return new EmulatorCoreHost(DefaultManagedCoreModuleCatalog.CreateModules(resolvedAdditionalModules), defaultCoreId);
+    }
 }

@@ -1,4 +1,3 @@
-using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Emulation.Abstractions;
 using System.Reflection;
 
@@ -10,7 +9,7 @@ public static class DefaultManagedCoreModuleCatalog
     private static readonly Dictionary<string, IManagedCoreModule> AdditionalModules = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, IManagedCoreModuleRegistrationSource> AdditionalModuleSources = new(StringComparer.OrdinalIgnoreCase);
 
-    public const string DefaultCoreId = NesManagedCoreModule.CoreId;
+    public const string DefaultCoreId = BundledManagedCoreBootstrapper.DefaultCoreId;
 
     public static void RegisterAdditionalModule(IManagedCoreModule module)
     {
@@ -77,10 +76,7 @@ public static class DefaultManagedCoreModuleCatalog
 
     public static IReadOnlyList<IManagedCoreModule> CreateModules(IEnumerable<IManagedCoreModule>? additionalModules = null)
     {
-        var modules = new Dictionary<string, IManagedCoreModule>(StringComparer.OrdinalIgnoreCase)
-        {
-            [NesManagedCoreModule.CoreId] = new NesManagedCoreModule()
-        };
+        var modules = new Dictionary<string, IManagedCoreModule>(StringComparer.OrdinalIgnoreCase);
 
         lock (AdditionalModuleGate)
         {

@@ -22,12 +22,6 @@ public static class CoreCapabilityIds
     public const string DebugRegisters = "debug-registers";
     public const string Disassembly = "disassembly";
     public const string SystemNesRenderState = "system-nes-render-state";
-    public const string LegacySessionAdapter = "legacy-session-adapter";
-}
-
-public static class LegacySessionAdapterIds
-{
-    public const string NesConsole = "system-nes-console";
 }
 
 public sealed record CoreManifest(
@@ -230,13 +224,6 @@ public interface ITimeTravelService
     void ResumeRecording();
 }
 
-public interface ILegacyCoreSessionAdapter
-{
-    string AdapterId { get; }
-
-    object SessionObject { get; }
-}
-
 public interface IManagedCoreModule
 {
     CoreManifest Manifest { get; }
@@ -279,38 +266,4 @@ public interface IEmulatorCoreSession : IDisposable
 
     bool TryGetCapability<TCapability>(out TCapability capability)
         where TCapability : class;
-}
-
-public static class LegacyCoreSessionAdapterExtensions
-{
-    public static bool TryGetLegacySessionObject<TSession>(
-        this IEmulatorCoreSession session,
-        string adapterId,
-        out TSession typedSession)
-        where TSession : class
-    {
-        ArgumentNullException.ThrowIfNull(session);
-
-        if (session.TryGetCapability<ILegacyCoreSessionAdapter>(out var adapter) &&
-            string.Equals(adapter.AdapterId, adapterId, StringComparison.Ordinal) &&
-            adapter.SessionObject is TSession resolvedSession)
-        {
-            typedSession = resolvedSession;
-            return true;
-        }
-
-        typedSession = null!;
-        return false;
-    }
-
-    public static TSession GetRequiredLegacySessionObject<TSession>(
-        this IEmulatorCoreSession session,
-        string adapterId)
-        where TSession : class
-    {
-        if (session.TryGetLegacySessionObject<TSession>(adapterId, out var resolvedSession))
-            return resolvedSession;
-
-        throw new InvalidOperationException($"The current core session does not expose legacy adapter '{adapterId}'.");
-    }
 }

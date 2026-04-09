@@ -1,4 +1,3 @@
-using FCRevolution.Core;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 
@@ -22,12 +21,12 @@ public sealed class CoreSessionCapabilityResolverTests
     public void ResolveInputStateWriter_UsesLegacyFallbackWhenCapabilityMissing()
     {
         var session = new FakeEmulatorCoreSession("fake.core");
-        session.AddCapability<ILegacyCoreSessionAdapter>(
-            new FakeLegacyCoreSessionAdapter(LegacySessionAdapterIds.NesConsole, new NesConsole()));
 
-        var resolved = CoreSessionCapabilityResolver.ResolveInputStateWriter(session);
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => CoreSessionCapabilityResolver.ResolveInputStateWriter(session));
 
-        Assert.IsType<NesConsoleInputStateWriterAdapter>(resolved);
+        Assert.Contains("fake.core", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(ICoreInputStateWriter), ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -40,7 +39,6 @@ public sealed class CoreSessionCapabilityResolverTests
 
         Assert.Contains("missing.core", ex.Message, StringComparison.Ordinal);
         Assert.Contains(nameof(ICoreDebugSurface), ex.Message, StringComparison.Ordinal);
-        Assert.Contains(LegacySessionAdapterIds.NesConsole, ex.Message, StringComparison.Ordinal);
     }
 
     private sealed class FakeEmulatorCoreSession : IEmulatorCoreSession
@@ -128,14 +126,6 @@ public sealed class CoreSessionCapabilityResolverTests
         public void Dispose()
         {
         }
-    }
-
-    private sealed class FakeLegacyCoreSessionAdapter(string adapterId, object sessionObject)
-        : ILegacyCoreSessionAdapter
-    {
-        public string AdapterId { get; } = adapterId;
-
-        public object SessionObject { get; } = sessionObject;
     }
 
     private sealed class FakeInputSchema : IInputSchema

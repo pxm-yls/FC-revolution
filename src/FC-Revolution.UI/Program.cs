@@ -65,6 +65,7 @@ sealed class Program
     {
         var profile = Models.SystemConfigProfile.Load();
         AppObjectStorage.ConfigureResourceRoot(profile.ResourceRootPath);
+        BundledManagedCoreBootstrapper.EnsureBundledCorePackages(profile.ResourceRootPath);
         var managedCoreProbePaths = ResolveManagedCoreProbePaths(profile).ToArray();
 
         DefaultManagedCoreModuleCatalog.RegisterAdditionalModuleSource(

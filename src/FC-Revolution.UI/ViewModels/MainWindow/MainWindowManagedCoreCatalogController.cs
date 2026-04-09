@@ -31,6 +31,7 @@ internal sealed class MainWindowManagedCoreCatalogController
         string? resourceRootPath,
         IReadOnlyList<string>? managedCoreProbePaths)
     {
+        BundledManagedCoreBootstrapper.EnsureBundledCorePackages(resourceRootPath);
         var effectiveProbeDirectories = SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(resourceRootPath, managedCoreProbePaths);
         var installDirectory = Path.GetFullPath(AppObjectStorage.GetManagedCoreModulesDirectory(
             string.IsNullOrWhiteSpace(resourceRootPath)
@@ -65,17 +66,7 @@ internal sealed class MainWindowManagedCoreCatalogController
         IReadOnlyList<string> effectiveProbeDirectories)
     {
         var packageService = new ManagedCorePackageService();
-        var entries = new Dictionary<string, MainWindowManagedCoreCatalogEntry>(StringComparer.OrdinalIgnoreCase)
-        {
-            [NesManagedCoreModule.CoreId] = new(
-                new NesManagedCoreModule().Manifest,
-                AssemblyPath: typeof(NesManagedCoreModule).Assembly.Location,
-                ModuleTypeName: typeof(NesManagedCoreModule).FullName,
-                SourceLabel: "内置",
-                CanUninstall: false,
-                InstallDirectory: null,
-                ManifestPath: null)
-        };
+        var entries = new Dictionary<string, MainWindowManagedCoreCatalogEntry>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var assemblyPath in EnumerateAssemblyPaths(effectiveProbeDirectories))
         {
@@ -100,10 +91,22 @@ internal sealed class MainWindowManagedCoreCatalogController
                 package.Manifest,
                 package.EntryAssemblyPath,
                 package.FactoryType,
-                "已安装核心包",
-                CanUninstall: true,
+                package.IsBundled ? "内置核心包" : "已安装核心包",
+                CanUninstall: !package.IsBundled,
                 package.InstallDirectory,
                 package.ManifestPath);
+        }
+
+        if (!entries.ContainsKey(NesManagedCoreModule.CoreId))
+        {
+            entries[NesManagedCoreModule.CoreId] = new MainWindowManagedCoreCatalogEntry(
+                new NesManagedCoreModule().Manifest,
+                AssemblyPath: typeof(NesManagedCoreModule).Assembly.Location,
+                ModuleTypeName: typeof(NesManagedCoreModule).FullName,
+                SourceLabel: "内置",
+                CanUninstall: false,
+                InstallDirectory: null,
+                ManifestPath: null);
         }
 
         return entries.Values.ToList();

@@ -1,5 +1,3 @@
-using FCRevolution.Core.Debug;
-
 namespace FCRevolution.Emulation.Abstractions;
 
 public sealed class CoreDebugState
@@ -33,28 +31,4 @@ public sealed class CoreDebugState
     public string FlagLine { get; init; } = string.Empty;
 
     public string CycleLine { get; init; } = string.Empty;
-
-    public static CoreDebugState FromLegacy(DebugState state)
-    {
-        ArgumentNullException.ThrowIfNull(state);
-
-        return new CoreDebugState
-        {
-            A = state.A,
-            X = state.X,
-            Y = state.Y,
-            S = state.S,
-            PC = state.PC,
-            P = (byte)state.P,
-            TotalCycles = state.TotalCycles,
-            PpuScanline = state.PpuScanline,
-            PpuCycle = state.PpuCycle,
-            PpuFrame = state.PpuFrame,
-            PpuCtrl = (byte)state.PpuCtrl,
-            PpuMask = (byte)state.PpuMask,
-            PpuStatus = (byte)state.PpuStatus,
-            FlagLine = state.FlagLine,
-            CycleLine = state.CycleLine
-        };
-    }
 }

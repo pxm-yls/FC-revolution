@@ -60,14 +60,12 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
             CoreCapabilityIds.DebugMemory,
             CoreCapabilityIds.DebugRegisters,
             CoreCapabilityIds.Disassembly,
-            CoreCapabilityIds.SystemNesRenderState,
-            CoreCapabilityIds.LegacySessionAdapter);
+            CoreCapabilityIds.SystemNesRenderState);
         InputSchema = NesInputSchema.Instance;
         _capabilitiesByType[typeof(ICoreDebugSurface)] = new NesCoreDebugSurface(_console);
         _capabilitiesByType[typeof(ICoreInputStateWriter)] = new NesCoreInputStateWriter(_console);
         _capabilitiesByType[typeof(ITimeTravelService)] = new NesTimeTravelService(_console);
         _capabilitiesByType[typeof(INesRenderStateProvider)] = new NesRenderStateProvider(_console);
-        _capabilitiesByType[typeof(ILegacyCoreSessionAdapter)] = new NesLegacyCoreSessionAdapter(_console);
         _console.FrameReady += HandleFrameReady;
         _console.AudioChunkReady += HandleAudioReady;
     }
@@ -197,7 +195,7 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
             _console = console;
         }
 
-        public CoreDebugState CaptureDebugState() => CoreDebugState.FromLegacy(DebugState.Capture(_console));
+        public CoreDebugState CaptureDebugState() => MapDebugState(DebugState.Capture(_console));
 
         public byte ReadMemory(ushort address) => _console.Bus.Read(address);
 
@@ -213,6 +211,30 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
                 values[index] = _console.Bus.Read(unchecked((ushort)(startAddress + index)));
 
             return values;
+        }
+
+        private static CoreDebugState MapDebugState(DebugState state)
+        {
+            ArgumentNullException.ThrowIfNull(state);
+
+            return new CoreDebugState
+            {
+                A = state.A,
+                X = state.X,
+                Y = state.Y,
+                S = state.S,
+                PC = state.PC,
+                P = (byte)state.P,
+                TotalCycles = state.TotalCycles,
+                PpuScanline = state.PpuScanline,
+                PpuCycle = state.PpuCycle,
+                PpuFrame = state.PpuFrame,
+                PpuCtrl = (byte)state.PpuCtrl,
+                PpuMask = (byte)state.PpuMask,
+                PpuStatus = (byte)state.PpuStatus,
+                FlagLine = state.FlagLine,
+                CycleLine = state.CycleLine
+            };
         }
     }
 
@@ -416,19 +438,6 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
         public PpuRenderStateSnapshot CaptureRenderStateSnapshot() =>
             _console.Ppu.CaptureRenderStateSnapshot();
     }
-
-    private sealed class NesLegacyCoreSessionAdapter : ILegacyCoreSessionAdapter
-    {
-        public NesLegacyCoreSessionAdapter(NesConsole console)
-        {
-            SessionObject = console;
-        }
-
-        public string AdapterId => LegacySessionAdapterIds.NesConsole;
-
-        public object SessionObject { get; }
-    }
-
     private sealed class NesInputSchema : IInputSchema
     {
         public static NesInputSchema Instance { get; } = new();
