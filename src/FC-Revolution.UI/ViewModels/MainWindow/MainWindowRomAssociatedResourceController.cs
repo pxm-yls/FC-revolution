@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -33,8 +33,8 @@ internal sealed class MainWindowRomAssociatedResourceController
 
         try
         {
-            var romId = TimelineStoragePaths.ComputeRomId(romPath);
-            var timelineDirectory = TimelineStoragePaths.GetRomDirectory(romId);
+            var romId = LegacyTimelineStorageAdapter.ComputeRomId(romPath);
+            var timelineDirectory = LegacyTimelineStorageAdapter.GetRomDirectory(romId);
             if (Directory.Exists(timelineDirectory))
                 Directory.Delete(timelineDirectory, recursive: true);
         }
@@ -54,8 +54,8 @@ internal sealed class MainWindowRomAssociatedResourceController
         var timelineCount = 0;
         try
         {
-            var romId = TimelineStoragePaths.ComputeRomId(romPath);
-            timelineCount = Directory.Exists(TimelineStoragePaths.GetRomDirectory(romId)) ? 1 : 0;
+            var romId = LegacyTimelineStorageAdapter.ComputeRomId(romPath);
+            timelineCount = Directory.Exists(LegacyTimelineStorageAdapter.GetRomDirectory(romId)) ? 1 : 0;
         }
         catch
         {

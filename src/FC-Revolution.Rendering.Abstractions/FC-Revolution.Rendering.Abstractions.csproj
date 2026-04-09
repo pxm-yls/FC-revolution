@@ -8,10 +8,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Include="..\FC-Revolution.Rendering\Common\VisibleTile.cs" Link="Common\VisibleTile.cs" />
   </ItemGroup>
 

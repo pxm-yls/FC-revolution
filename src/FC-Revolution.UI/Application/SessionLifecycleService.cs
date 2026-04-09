@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Contracts.RemoteControl;
-using FCRevolution.Core;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Models;
 

@@ -1,5 +1,5 @@
 using FCRevolution.Storage;
-using FCRevolution.Core.Timeline.Persistence;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
@@ -123,8 +123,8 @@ public sealed class MainWindowResourceManagementControllerTests
             RomConfigProfile.RegisterAdditionalObject(romPath, "exports.video.1", "demo/export.mp4");
             RomConfigProfile.RegisterAdditionalObject(romPath, "misc.payload", "misc/demo.bin");
 
-            var romId = TimelineStoragePaths.ComputeRomId(romPath);
-            var timelineDirectory = TimelineStoragePaths.GetRomDirectory(romId);
+            var romId = LegacyTimelineStorageAdapter.ComputeRomId(romPath);
+            var timelineDirectory = LegacyTimelineStorageAdapter.GetRomDirectory(romId);
             WriteFile(Path.Combine(timelineDirectory, "manifest.json"));
             Assert.True(Directory.Exists(timelineDirectory));
 
@@ -222,8 +222,8 @@ public sealed class MainWindowResourceManagementControllerTests
             RomConfigProfile.RegisterAdditionalObject(romPath, "exports.video.1", "summary-export-1.mp4");
             RomConfigProfile.RegisterAdditionalObject(romPath, "exports.video.2", "summary-export-2.mp4");
 
-            var romId = TimelineStoragePaths.ComputeRomId(romPath);
-            var timelineDirectory = TimelineStoragePaths.GetRomDirectory(romId);
+            var romId = LegacyTimelineStorageAdapter.ComputeRomId(romPath);
+            var timelineDirectory = LegacyTimelineStorageAdapter.GetRomDirectory(romId);
             WriteFile(Path.Combine(timelineDirectory, "manifest.json"));
 
             var summary = controller.BuildRomAssociatedResourceSummary(romPath);

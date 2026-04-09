@@ -11,7 +11,6 @@ using FCRevolution.Backend.Abstractions;
 using FCRevolution.Contracts.RemoteControl;
 using FCRevolution.Contracts.Roms;
 using FCRevolution.Contracts.Sessions;
-using FCRevolution.Core;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Models;
 

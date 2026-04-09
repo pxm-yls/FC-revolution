@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.ViewModels;

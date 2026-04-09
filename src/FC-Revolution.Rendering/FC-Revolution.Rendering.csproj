@@ -10,7 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
     <ProjectReference Include="..\FC-Revolution.Rendering.Abstractions\FC-Revolution.Rendering.Abstractions.csproj" />
     <ProjectReference Include="..\FC-Revolution.Rendering.Pipeline\FC-Revolution.Rendering.Pipeline.csproj" />
     <ProjectReference Include="..\FC-Revolution.Rendering.Metal\FC-Revolution.Rendering.Metal.csproj" />

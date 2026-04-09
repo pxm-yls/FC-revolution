@@ -1,4 +1,3 @@
-using FCRevolution.Core;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Common;
 
@@ -8,8 +7,8 @@ public static class ReferenceFrameRenderer
 {
     public static uint[] Render(
         IFrameMetadata metadata,
-        int frameWidth = NesConstants.ScreenWidth,
-        int frameHeight = NesConstants.ScreenHeight)
+        int frameWidth = FrameRenderDefaults.Width,
+        int frameHeight = FrameRenderDefaults.Height)
     {
         ArgumentNullException.ThrowIfNull(metadata);
         return Render(LayeredFrameBuilder.Build(metadata, frameWidth, frameHeight));

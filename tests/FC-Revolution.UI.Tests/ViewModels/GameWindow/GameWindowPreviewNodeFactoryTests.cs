@@ -1,6 +1,6 @@
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Core.Timeline.Persistence;
-using FC_Revolution.UI.ViewModels;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 
 namespace FC_Revolution.UI.Tests;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 
 namespace FC_Revolution.UI.ViewModels;
 

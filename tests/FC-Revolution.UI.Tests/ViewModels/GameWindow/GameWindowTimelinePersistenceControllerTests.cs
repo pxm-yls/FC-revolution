@@ -3,6 +3,7 @@ using System.Linq;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.ViewModels;
 
 namespace FC_Revolution.UI.Tests;
@@ -131,7 +132,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     public void ReadManifestWriteTimeUtc_WhenManifestMissing_ReturnsDateTimeMinValue()
     {
         var romId = $"test-rom-{Guid.NewGuid():N}";
-        var manifestPath = TimelineStoragePaths.GetManifestPath(romId);
+        var manifestPath = Path.Combine(LegacyTimelineStorageAdapter.GetRomDirectory(romId), "manifest.json");
         Assert.False(File.Exists(manifestPath));
 
         var writeTime = GameWindowTimelinePersistenceController.ReadManifestWriteTimeUtc(romId);
@@ -386,7 +387,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
 
     private static void DeleteRomDirectory(string romId)
     {
-        var romDirectory = TimelineStoragePaths.GetRomDirectory(romId);
+        var romDirectory = LegacyTimelineStorageAdapter.GetRomDirectory(romId);
         if (Directory.Exists(romDirectory))
             Directory.Delete(romDirectory, recursive: true);
     }

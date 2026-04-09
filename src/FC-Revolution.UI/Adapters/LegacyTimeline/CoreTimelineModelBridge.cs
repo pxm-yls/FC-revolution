@@ -3,7 +3,7 @@ using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 
-namespace FC_Revolution.UI.ViewModels;
+namespace FC_Revolution.UI.Adapters.LegacyTimeline;
 
 internal static class CoreTimelineModelBridge
 {

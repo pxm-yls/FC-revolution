@@ -1,6 +1,6 @@
 using System;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 
 namespace FC_Revolution.UI.ViewModels;
 
@@ -29,8 +29,8 @@ internal static class MainWindowBranchExportWorkflowController
         ArgumentNullException.ThrowIfNull(resolveNearestState);
 
         var branchId = startNode.BranchPoint?.Id ?? currentBranchId;
-        var inputLogPath = TimelineStoragePaths.GetInputLogPath(currentRomId, branchId);
-        var outputPath = TimelineStoragePaths.GetExportPath(currentRomId, branchId, startFrame, endFrame);
+        var inputLogPath = LegacyTimelineStorageAdapter.GetInputLogPath(currentRomId, branchId);
+        var outputPath = LegacyTimelineStorageAdapter.GetExportPath(currentRomId, branchId, startFrame, endFrame);
 
         if (startNode.BranchPoint != null)
         {
@@ -39,7 +39,7 @@ internal static class MainWindowBranchExportWorkflowController
                 RomPath: romPath,
                 InputLogPath: inputLogPath,
                 OutputPath: outputPath,
-                SnapshotPath: TimelineStoragePaths.GetBranchSnapshotPath(currentRomId, branchId),
+                SnapshotPath: LegacyTimelineStorageAdapter.GetBranchSnapshotPath(currentRomId, branchId),
                 SnapshotBytes: null);
         }
 

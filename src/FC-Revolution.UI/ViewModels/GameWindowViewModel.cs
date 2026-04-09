@@ -11,11 +11,11 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FCRevolution.Backend.Hosting;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.Audio;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
@@ -56,15 +56,12 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _uiTimer;
     private readonly DispatcherTimer _toastTimer;
     private readonly Stopwatch _fpsWatch = Stopwatch.StartNew();
-    private readonly TimelineRepository _timelineRepository = new();
+    private readonly LegacyTimelineSessionAdapter _legacyTimeline;
     private readonly string _romPath;
-    private readonly string _romId;
     private readonly Dictionary<Key, (int Player, string ActionId)> _keyMap;
     private readonly IReadOnlyList<GameWindowResolvedExtraInputBinding> _extraInputBindings;
     private readonly HashSet<Key> _pressedKeys = [];
     private readonly CoreBranchTree _branchTree = new();
-    private TimelineManifest _timelineManifest;
-    private Guid _currentBranchId;
     private readonly GameWindowSessionLoopHost _sessionLoopHost;
     private volatile int _emuFpsRaw;
     private volatile int _frameTimeMicros;
@@ -98,7 +95,6 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private string _remoteControlStatusText = "";
     private string _timelinePositionText = "时间线位置: 帧 0";
     private string _timelineHintText = "右侧可直接切换轴点和时间尺度；右键节点可载入、创建分支或生成画面节点";
-    private DateTime _timelineManifestWriteTimeUtc;
 
     public GameWindowViewModel(
         string displayName,
@@ -159,13 +155,11 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         _enhancementMode = enhancementMode;
         DisplayName = displayName;
         _romPath = romPath;
-        _romId = TimelineStoragePaths.ComputeRomId(romPath);
-        var timelineState = GameWindowTimelinePersistenceController.LoadTimelineState(
-            _timelineRepository,
-            _branchTree,
-            _romId,
-            displayName,
+        _legacyTimeline = new LegacyTimelineSessionAdapter(_branchTree);
+        var timelineState = _legacyTimeline.Initialize(
             _romPath,
+            displayName,
+            loadFullTimeline: true,
             ScreenWidth,
             ScreenHeight);
         var sessionDebugWindowDisplaySettings = DebugWindowDisplaySettingsProfile.Sanitize(
@@ -253,8 +247,6 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             () => _audio.Dispose(),
             () => _coreSession.Dispose(),
             () => _framePresenter.Dispose());
-        _timelineManifest = timelineState.Manifest;
-        _currentBranchId = timelineState.CurrentBranchId;
         _keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputBindingsByPort);
         _extraInputBindings = GameWindowInputBindingResolver.ResolveExtraInputBindings(extraInputBindings);
         _statusText = $"正在启动 {displayName}";
@@ -303,7 +295,6 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             notifyTimelineJump: () => RequestTemporalHistoryReset(MacMetalTemporalResetReason.TimelineJump),
             useCenteredTimelineRail: true);
         BranchGallery.ReplacePreviewNodes(timelineState.PreviewNodes);
-        _timelineManifestWriteTimeUtc = timelineState.ManifestWriteTimeUtc;
         RefreshBranchGallery(force: true);
         _sessionLoopHost.Start();
     }

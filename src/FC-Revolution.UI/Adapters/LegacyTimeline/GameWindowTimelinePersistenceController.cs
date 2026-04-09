@@ -5,8 +5,9 @@ using System.Linq;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.ViewModels;
 
-namespace FC_Revolution.UI.ViewModels;
+namespace FC_Revolution.UI.Adapters.LegacyTimeline;
 
 internal readonly record struct GameWindowPersistPreviewNodePlan(
     bool ShouldPersist,
@@ -243,7 +244,6 @@ internal static class GameWindowTimelinePersistenceController
 
     public static DateTime ReadManifestWriteTimeUtc(string romId)
     {
-        var manifestPath = TimelineStoragePaths.GetManifestPath(romId);
-        return File.Exists(manifestPath) ? File.GetLastWriteTimeUtc(manifestPath) : DateTime.MinValue;
+        return LegacyTimelineStorageAdapter.ReadManifestWriteTimeUtc(romId);
     }
 }

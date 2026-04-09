@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Models;
@@ -123,104 +122,51 @@ public sealed partial class GameWindowViewModel
 
     private void PersistBranchPoint(CoreBranchPoint branchPoint, Guid? parentBranchId)
     {
-        GameWindowTimelinePersistenceController.PersistBranchPoint(
-            _timelineRepository,
-            _timelineManifest,
-            _romId,
-            branchPoint,
-            parentBranchId,
-            _romPath);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.PersistBranchPoint(branchPoint, parentBranchId);
     }
 
     private void DeleteBranchPoint(Guid branchId)
     {
-        GameWindowTimelinePersistenceController.DeleteBranchPoint(
-            _timelineRepository,
-            _timelineManifest,
-            _romId,
-            branchId);
-        _currentBranchId = _timelineManifest.CurrentBranchId;
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.DeleteBranchPoint(branchId);
     }
 
     private void RenameBranchPoint(CoreBranchPoint branchPoint)
     {
-        GameWindowTimelinePersistenceController.RenameBranchPoint(
-            _timelineRepository,
-            _timelineManifest,
-            branchPoint);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.RenameBranchPoint(branchPoint);
     }
 
     private void ActivateBranch(Guid branchId)
     {
-        _currentBranchId = GameWindowTimelinePersistenceController.ActivateBranch(
-            _timelineRepository,
-            _timelineManifest,
-            branchId);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.ActivateBranch(branchId);
     }
 
     private BranchPreviewNode? PersistPreviewNode(BranchCanvasNode node)
     {
-        var persistResult = GameWindowTimelinePersistenceController.TryPersistPreviewNode(
-            _timelineRepository,
-            _timelineManifest,
-            _romId,
-            _currentBranchId,
+        return _legacyTimeline.PersistPreviewNode(
             node,
             _sessionRuntime.GetNearestSnapshot,
             ScreenWidth,
             ScreenHeight);
-        if (persistResult is null)
-            return null;
-
-        _timelineManifestWriteTimeUtc = persistResult.Value.ManifestWriteTimeUtc;
-        return persistResult.Value.PreviewNode;
     }
 
     private void DeletePersistedPreviewNode(Guid previewNodeId)
     {
-        _timelineManifestWriteTimeUtc = GameWindowTimelinePersistenceController.DeletePreviewNode(
-            _timelineRepository,
-            _timelineManifest,
-            _romId,
-            previewNodeId);
+        _legacyTimeline.DeletePreviewNode(previewNodeId);
     }
 
     private void RenamePersistedPreviewNode(Guid previewNodeId, string title)
     {
-        _timelineManifestWriteTimeUtc = GameWindowTimelinePersistenceController.RenamePreviewNode(
-            _timelineRepository,
-            _timelineManifest,
-            _romId,
-            previewNodeId,
-            title);
+        _legacyTimeline.RenamePreviewNode(previewNodeId, title);
     }
 
     private void MaybeSyncTimelineState()
     {
-        var reloadState = GameWindowTimelinePersistenceController.TryReloadTimelineState(
-            _timelineRepository,
-            _branchTree,
-            _timelineManifestWriteTimeUtc,
-            _romId,
-            DisplayName,
-            _romPath,
+        var reloadState = _legacyTimeline.TryReload(
             ScreenWidth,
             ScreenHeight);
         if (reloadState is null)
             return;
 
-        _timelineManifest = reloadState.Value.Manifest;
-        _currentBranchId = reloadState.Value.CurrentBranchId;
         BranchGallery.ReplacePreviewNodes(reloadState.Value.PreviewNodes);
-        _timelineManifestWriteTimeUtc = reloadState.Value.ManifestWriteTimeUtc;
-    }
-
-    private DateTime GetTimelineManifestWriteTimeUtc()
-    {
-        return GameWindowTimelinePersistenceController.ReadManifestWriteTimeUtc(_romId);
     }
 }

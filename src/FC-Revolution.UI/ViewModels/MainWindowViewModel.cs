@@ -25,12 +25,12 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using FCRevolution.Backend.Hosting;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Audio;
@@ -116,6 +116,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ICoreInputStateWriter _inputStateWriter;
     private readonly ITimeTravelService _timeTravelService;
     private readonly CoreBranchTree _branchTree = new();
+    private readonly LegacyTimelineSessionAdapter _legacyTimeline;
     private readonly CoreAudioPlayer _audio = new();
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _previewTimer;
@@ -151,7 +152,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Dictionary<string, List<ExtraInputBindingProfile>> _romExtraInputOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ShortcutBindingEntry> _shortcutBindings = new(StringComparer.Ordinal);
     private readonly HashSet<Key> _pressedKeys = [];
-    private readonly TimelineRepository _timelineRepository = new();
     private readonly TimelineInputLogWriter _replayLogWriter = new();
     private readonly ILanArcadeService _lanArcadeService;
     private readonly ILanArcadeDiagnosticsService _lanArcadeDiagnosticsService = new LanArcadeDiagnosticsService();
@@ -203,10 +203,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _previewWarmupCts;
     private Thread? _emuThread;
     private string? _romPath;
-    private string? _currentRomId;
-    private Guid _currentBranchId;
-    private Guid? _currentSnapshotId;
-    private TimelineManifest? _timelineManifest;
     private WriteableBitmap? _screenBitmap;
     private WriteableBitmap? _currentPreviewBitmap;
     private WriteableBitmap? _discDisplayBitmap;
@@ -318,7 +314,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private int _shelfVisibleRowCount = 2;
     private bool _isShelfScrolling;
     private int _branchGallerySyncTick;
-    private DateTime _timelineManifestWriteTimeUtc;
     private int _kaleidoscopeCurrentPageIndex;
     private readonly KaleidoscopeBackdropActor _kaleidoscopePrimarySweep = new(220d, 2d, 88d, 18d, 286d, 156d);
     private readonly KaleidoscopeBackdropActor _kaleidoscopeSecondarySweep = new(170d, 2d, 74d, 18d, 652d, 438d);
@@ -356,6 +351,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _coreSession = CreateMainCoreSession();
         _timeTravelService = CoreSessionCapabilityResolver.ResolveTimeTravelService(_coreSession);
         _inputStateWriter = CoreSessionCapabilityResolver.ResolveInputStateWriter(_coreSession);
+        _legacyTimeline = new LegacyTimelineSessionAdapter(_branchTree);
         _taskMessageController = new MainWindowTaskMessageController(TaskMessageHub.Instance);
         _taskMessageController.StateChanged += RefreshTaskMessageSummary;
         _previewCleanupController = new MainWindowPreviewCleanupController();
@@ -2667,25 +2663,12 @@ public partial class MainWindowViewModel : ViewModelBase
             LoadCoreMedia(path);
 
             _romPath = path;
-            _currentRomId = TimelineStoragePaths.ComputeRomId(path);
-            _currentBranchId = TimelineStoragePaths.GetStableMainBranchId(_currentRomId);
-            _timelineManifest = null;
-            _currentSnapshotId = null;
-            _branchTree.Clear();
-
-            if (TimelineMode == TimelineModeOption.FullTimeline)
-            {
-                _timelineManifest = _timelineRepository.LoadOrCreate(_currentRomId, Path.GetFileNameWithoutExtension(path));
-                _currentBranchId = _timelineManifest.CurrentBranchId;
-                _currentSnapshotId = _timelineManifest.Branches.FirstOrDefault(branch => branch.BranchId == _currentBranchId)?.HeadSnapshotId;
-                GameWindowTimelinePersistenceController.PopulateCoreBranchTree(
-                    _timelineRepository,
-                    _branchTree,
-                    _timelineManifest,
-                    _currentRomId,
-                    path);
-                _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
-            }
+            _ = _legacyTimeline.Initialize(
+                path,
+                Path.GetFileNameWithoutExtension(path),
+                loadFullTimeline: TimelineMode == TimelineModeOption.FullTimeline,
+                PreviewSourceWidth,
+                PreviewSourceHeight);
 
             _player1InputMask = 0;
             _player2InputMask = 0;
@@ -2914,138 +2897,66 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private string GetQuickSavePath()
     {
-        if (_currentRomId == null)
-            return "quicksave.fcs";
-
-        TimelineStoragePaths.EnsureBranchDirectory(_currentRomId, _currentBranchId);
-        return TimelineStoragePaths.GetQuickSavePath(_currentRomId, _currentBranchId);
+        return _legacyTimeline.GetQuickSavePath();
     }
 
     private void PersistQuickSaveSnapshot(long frame, double timestampSeconds)
     {
-        if (_timelineManifest == null || _currentRomId == null)
-            return;
-
-        var record = _timelineRepository.UpsertQuickSaveSnapshot(
-            _timelineManifest,
-            _currentBranchId,
-            frame,
-            timestampSeconds);
-
-        _currentSnapshotId = record.SnapshotId;
-        _timelineRepository.Save(_timelineManifest);
+        _legacyTimeline.PersistQuickSaveSnapshot(frame, timestampSeconds);
     }
 
     private void PersistBranchPoint(CoreBranchPoint branchPoint, Guid? parentBranchId)
     {
-        if (_timelineManifest == null || _currentRomId == null)
-            return;
-
-        _timelineRepository.SaveBranchPoint(
-            _timelineManifest,
-            _currentRomId,
-            CoreTimelineModelBridge.ToLegacyBranchPoint(branchPoint, _romPath),
-            parentBranchId);
+        _legacyTimeline.PersistBranchPoint(branchPoint, parentBranchId);
     }
 
     private void DeletePersistedBranch(Guid branchId)
     {
-        if (_timelineManifest == null || _currentRomId == null)
-            return;
-
-        _timelineRepository.DeleteBranch(_timelineManifest, _currentRomId, branchId);
-        _currentBranchId = _timelineManifest.CurrentBranchId;
-        _currentSnapshotId = _timelineManifest.Branches.FirstOrDefault(branch => branch.BranchId == _currentBranchId)?.HeadSnapshotId;
+        _legacyTimeline.DeleteBranchPoint(branchId);
         ReopenReplayLog(resetFile: false);
     }
 
     private void RenamePersistedBranch(CoreBranchPoint branchPoint)
     {
-        if (_timelineManifest == null)
-            return;
-
-        _timelineRepository.RenameBranch(_timelineManifest, branchPoint.Id, branchPoint.Name);
+        _legacyTimeline.RenameBranchPoint(branchPoint);
     }
 
     private void ActivatePersistedBranch(Guid branchId)
     {
-        if (_timelineManifest == null)
-            return;
-
-        _currentBranchId = branchId;
-        _timelineManifest.CurrentBranchId = branchId;
-        _timelineRepository.Save(_timelineManifest);
+        _legacyTimeline.ActivateBranch(branchId);
         ReopenReplayLog(resetFile: false);
     }
 
     private void SyncCurrentSnapshotFromManifest()
     {
-        if (_timelineManifest == null)
-            return;
-
-        _timelineManifest.CurrentBranchId = _currentBranchId;
-        _currentSnapshotId = _timelineRepository.GetQuickSaveSnapshot(_timelineManifest, _currentBranchId)?.SnapshotId;
-        _timelineRepository.Save(_timelineManifest);
+        _legacyTimeline.SyncCurrentSnapshotFromManifest();
     }
 
     private void LoadPersistedPreviewNodes(BranchGalleryViewModel galleryViewModel)
     {
-        if (_timelineManifest == null || _romPath == null)
-        {
-            galleryViewModel.ReplacePreviewNodes(Array.Empty<BranchPreviewNode>());
-            return;
-        }
-
-        var nodes = _timelineRepository.LoadPreviewNodes(_timelineManifest)
-            .Select(entry => CreatePreviewNode(entry.Record, CoreTimelineModelBridge.ToCoreTimelineSnapshot(entry.Snapshot)))
-            .ToList();
-        galleryViewModel.ReplacePreviewNodes(nodes);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        galleryViewModel.ReplacePreviewNodes(_legacyTimeline.LoadPreviewNodes(PreviewSourceWidth, PreviewSourceHeight));
     }
 
     private BranchPreviewNode? PersistPreviewNode(BranchCanvasNode node)
     {
-        if (_timelineManifest == null || _currentRomId == null)
-            return null;
-
-        CoreTimelineSnapshot? snapshot;
         lock (_romLock)
         {
-            snapshot = node.BranchPoint?.Snapshot ?? _timeTravelService.GetNearestSnapshot(node.Frame);
+            return _legacyTimeline.PersistPreviewNode(
+                node,
+                _timeTravelService.GetNearestSnapshot,
+                PreviewSourceWidth,
+                PreviewSourceHeight);
         }
-
-        if (snapshot == null)
-            return null;
-
-        var previewNodeId = Guid.NewGuid();
-        var record = _timelineRepository.SavePreviewNode(
-            _timelineManifest,
-            _currentRomId,
-            node.BranchPoint?.Id ?? _currentBranchId,
-            previewNodeId,
-            node.Title,
-            CoreTimelineModelBridge.ToLegacyFrameSnapshot(snapshot));
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
-
-        return CreatePreviewNode(record, snapshot);
     }
 
     private void DeletePersistedPreviewNode(Guid previewNodeId)
     {
-        if (_timelineManifest == null || _currentRomId == null)
-            return;
-
-        _timelineRepository.DeletePreviewNode(_timelineManifest, _currentRomId, previewNodeId);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.DeletePreviewNode(previewNodeId);
     }
 
     private void RenamePersistedPreviewNode(Guid previewNodeId, string title)
     {
-        if (_timelineManifest == null)
-            return;
-
-        _timelineRepository.RenamePreviewNode(_timelineManifest, previewNodeId, title);
-        _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
+        _legacyTimeline.RenamePreviewNode(previewNodeId, title);
     }
 
     private void AppendReplayFrame()
@@ -3058,14 +2969,20 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ReopenReplayLog(bool resetFile)
     {
-        if (_currentRomId == null || TimelineMode != TimelineModeOption.FullTimeline)
+        if (TimelineMode != TimelineModeOption.FullTimeline)
         {
             _replayLogWriter.Close();
             return;
         }
 
-        TimelineStoragePaths.EnsureBranchDirectory(_currentRomId, _currentBranchId);
-        _replayLogWriter.Open(TimelineStoragePaths.GetInputLogPath(_currentRomId, _currentBranchId), resetFile);
+        var inputLogPath = _legacyTimeline.GetInputLogPath();
+        if (inputLogPath == null)
+        {
+            _replayLogWriter.Close();
+            return;
+        }
+
+        _replayLogWriter.Open(inputLogPath, resetFile);
     }
 
     private void ApplyTimelineMode()
@@ -3270,9 +3187,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private Task<string> ExportBranchRangeAsync(BranchCanvasNode startNode, long startFrame, long endFrame)
     {
         var exportPlan = MainWindowBranchExportWorkflowController.BuildPlan(
-            _currentRomId,
+            _legacyTimeline.RomId,
             _romPath,
-            _currentBranchId,
+            _legacyTimeline.CurrentBranchId,
             startNode,
             startFrame,
             endFrame,
@@ -3303,52 +3220,18 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_galleryWindow?.DataContext is not BranchGalleryViewModel galleryViewModel ||
             !_galleryWindow.IsVisible ||
-            _timelineManifest == null ||
-            _currentRomId == null ||
+            !_legacyTimeline.IsTimelineLoaded ||
             ++_branchGallerySyncTick % 15 != 0)
         {
             return;
         }
 
-        var manifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
-        if (manifestWriteTimeUtc <= _timelineManifestWriteTimeUtc)
+        var reloadState = _legacyTimeline.TryReload(PreviewSourceWidth, PreviewSourceHeight);
+        if (reloadState is null)
             return;
 
-        _timelineManifest = _timelineRepository.LoadOrCreate(_currentRomId, Path.GetFileNameWithoutExtension(_romPath ?? CurrentRom?.Path ?? "ROM"));
-        _currentBranchId = _timelineManifest.CurrentBranchId;
-        _currentSnapshotId = _timelineManifest.Branches.FirstOrDefault(branch => branch.BranchId == _currentBranchId)?.HeadSnapshotId;
-        GameWindowTimelinePersistenceController.PopulateCoreBranchTree(
-            _timelineRepository,
-            _branchTree,
-            _timelineManifest,
-            _currentRomId,
-            _romPath);
-        LoadPersistedPreviewNodes(galleryViewModel);
+        galleryViewModel.ReplacePreviewNodes(reloadState.Value.PreviewNodes);
         galleryViewModel.RefreshAll();
-    }
-
-    private DateTime GetTimelineManifestWriteTimeUtc()
-    {
-        if (_currentRomId == null)
-            return DateTime.MinValue;
-
-        var manifestPath = TimelineStoragePaths.GetManifestPath(_currentRomId);
-        return File.Exists(manifestPath) ? File.GetLastWriteTimeUtc(manifestPath) : DateTime.MinValue;
-    }
-
-    private BranchPreviewNode CreatePreviewNode(TimelineSnapshotRecord record, CoreTimelineSnapshot snapshot)
-    {
-        if (_romPath == null)
-            throw new InvalidOperationException("当前没有可用 ROM，无法恢复画面节点。");
-
-        return new BranchPreviewNode
-        {
-            Id = record.SnapshotId,
-            Frame = record.Frame,
-            TimestampSeconds = record.TimestampSeconds,
-            Title = record.Name ?? $"画面节点 {record.Frame}",
-            Bitmap = ThumbnailItem.CreateBitmap(snapshot.Thumbnail, PreviewSourceWidth, PreviewSourceHeight),
-        };
     }
 
     private static WriteableBitmap CreateBitmap(uint[] frameBuffer, int width, int height)

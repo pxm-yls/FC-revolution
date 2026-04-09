@@ -10,6 +10,5 @@
     <ProjectReference Include="..\FC-Revolution.Backend.Abstractions\FC-Revolution.Backend.Abstractions.csproj" />
     <ProjectReference Include="..\FC-Revolution.Backend.Hosting\FC-Revolution.Backend.Hosting.csproj" />
     <ProjectReference Include="..\FC-Revolution.Contracts\FC-Revolution.Contracts.csproj" />
-    <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
   </ItemGroup>
 </Project>
