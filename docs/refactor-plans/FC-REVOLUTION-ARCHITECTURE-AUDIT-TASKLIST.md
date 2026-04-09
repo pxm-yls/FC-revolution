@@ -25,15 +25,15 @@
 ## 方向文档
 
 - UI / LAN / 预览方向：
-  - `docs/FC-REVOLUTION-UI-LAN-PREVIEW-TASKLIST.md`
+  - `docs/refactor-plans/FC-REVOLUTION-UI-LAN-PREVIEW-TASKLIST.md`
 - Backend / Hosting / WebSocket 方向：
-  - `docs/FC-REVOLUTION-BACKEND-HOSTING-TASKLIST.md`
+  - `docs/refactor-plans/FC-REVOLUTION-BACKEND-HOSTING-TASKLIST.md`
 - Core / Timeline / Timing 方向：
-  - `docs/FC-REVOLUTION-CORE-REFINEMENT-TASKLIST.md`
+  - `docs/refactor-plans/FC-REVOLUTION-CORE-REFINEMENT-TASKLIST.md`
 - Rendering / Storage 方向：
-  - `docs/FC-REVOLUTION-RENDERING-STORAGE-TASKLIST.md`
+  - `docs/refactor-plans/FC-REVOLUTION-RENDERING-STORAGE-TASKLIST.md`
 - 测试与回归护栏方向：
-  - `docs/FC-REVOLUTION-TEST-HARDENING-TASKLIST.md`
+  - `docs/refactor-plans/FC-REVOLUTION-TEST-HARDENING-TASKLIST.md`
 
 ## 总任务节点
 

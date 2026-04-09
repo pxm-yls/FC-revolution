@@ -39,7 +39,7 @@
 
 > **当前阶段说明**：Phase 2.2 已完成。`GameWindow` 主视口在 macOS 下已优先走基于 `IFrameMetadata` / `LayeredFrameData` 的背景与精灵 GPU 分层渲染；并新增离屏 Metal 输出读回，使用 `ReferenceRenderer` 做像素级自动化 diff 回归。下一步进入 Phase 3（MetalFX Spatial）。
 
-> **后续执行清单**：Phase 3 / Phase 4 及其配套验证、运行 hygiene、收口标准，见 [MACOS_SPATIAL_TEMPORAL_EXECUTION_CHECKLIST.md](./MACOS_SPATIAL_TEMPORAL_EXECUTION_CHECKLIST.md)。
+> **后续执行清单**：Phase 3 / Phase 4 及其配套验证、运行 hygiene、收口标准，见 [MACOS_SPATIAL_TEMPORAL_EXECUTION_CHECKLIST.md](../feature-guides/MACOS_SPATIAL_TEMPORAL_EXECUTION_CHECKLIST.md)。
 
 ---
 
