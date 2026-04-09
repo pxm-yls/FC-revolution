@@ -1,4 +1,3 @@
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -13,7 +12,7 @@ public sealed class BranchGalleryBranchWorkflowControllerTests
         var refreshCalls = 0;
         var controller = new BranchGalleryBranchWorkflowController(
             new FakeTimeTravelService(),
-            new BranchTree(),
+            new CoreBranchTree(),
             persistBranch: null,
             deleteBranch: null,
             renameBranch: null,
@@ -31,10 +30,9 @@ public sealed class BranchGalleryBranchWorkflowControllerTests
     [Fact]
     public void CreateBranch_WithParentNode_ForksTreePersistsAndRefreshes()
     {
-        var tree = new BranchTree();
+        var tree = new CoreBranchTree();
         var parentCore = CreateCoreBranchPoint("Parent", frame: 120);
-        var parentLegacy = CreateLegacyBranchPoint(parentCore);
-        tree.AddRoot(parentLegacy);
+        tree.AddRoot(parentCore);
 
         var createdCore = CreateCoreBranchPoint("New Branch", frame: 180);
         var timeTravel = new FakeTimeTravelService
@@ -66,16 +64,16 @@ public sealed class BranchGalleryBranchWorkflowControllerTests
         Assert.Equal($"branch:{createdCore.Id}", selectedNodeId);
         Assert.Equal(parentCore.Id, persistedParentId);
         Assert.Equal(1, refreshCalls);
-        Assert.Contains(parentLegacy.Children, node => node.Id == createdCore.Id);
+        Assert.Contains(parentCore.Children, node => node.Id == createdCore.Id);
         Assert.NotNull(tree.Find(createdCore.Id));
     }
 
     [Fact]
     public void DeleteBranch_WhenSelected_RemovesBranchClearsSelectionAndRefreshes()
     {
-        var tree = new BranchTree();
+        var tree = new CoreBranchTree();
         var branchPoint = CreateCoreBranchPoint("Delete Me", frame: 240);
-        tree.AddRoot(CreateLegacyBranchPoint(branchPoint));
+        tree.AddRoot(branchPoint);
 
         Guid? deletedBranchId = null;
         BranchCanvasNode? selectedNode = CreateCanvasNode(branchPoint);
@@ -106,9 +104,9 @@ public sealed class BranchGalleryBranchWorkflowControllerTests
     [Fact]
     public void RenameBranch_WhenSelected_UpdatesTreeInvokesCallbackAndRefreshes()
     {
-        var tree = new BranchTree();
+        var tree = new CoreBranchTree();
         var original = CreateCoreBranchPoint("Old", frame: 300);
-        tree.AddRoot(CreateLegacyBranchPoint(original));
+        tree.AddRoot(original);
 
         var selectedCore = CreateCoreBranchPoint("Renamed", frame: 300, id: original.Id);
         CoreBranchPoint? renamedBranch = null;
@@ -153,23 +151,6 @@ public sealed class BranchGalleryBranchWorkflowControllerTests
                 }
             },
             CreatedAt = DateTime.UtcNow
-        };
-
-    private static BranchPoint CreateLegacyBranchPoint(CoreBranchPoint point) =>
-        new()
-        {
-            Id = point.Id,
-            Name = point.Name,
-            RomPath = point.RomPath,
-            Frame = point.Frame,
-            Timestamp = point.TimestampSeconds,
-            Snapshot = new FrameSnapshot
-            {
-                Frame = point.Frame,
-                Timestamp = point.TimestampSeconds,
-                Thumbnail = []
-            },
-            CreatedAt = point.CreatedAt
         };
 
     private static BranchCanvasNode CreateCanvasNode(CoreBranchPoint branchPoint) =>

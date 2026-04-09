@@ -1,4 +1,3 @@
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -17,7 +16,7 @@ public sealed class BranchGalleryViewModelTimelineNavigationTests
         var jumpCount = 0;
         var vm = new BranchGalleryViewModel(
             timeTravel,
-            new BranchTree(),
+            new CoreBranchTree(),
             activateBranch: branchId => activatedBranchId = branchId,
             notifyTimelineJump: () => jumpCount++);
         vm.SelectedNode = branchNode;
@@ -41,7 +40,7 @@ public sealed class BranchGalleryViewModelTimelineNavigationTests
         var jumpCount = 0;
         var vm = new BranchGalleryViewModel(
             timeTravel,
-            new BranchTree(),
+            new CoreBranchTree(),
             notifyTimelineJump: () => jumpCount++);
 
         vm.SeekToNodeCommand.Execute(mainlineNode);
@@ -61,7 +60,7 @@ public sealed class BranchGalleryViewModelTimelineNavigationTests
         };
         var vm = new BranchGalleryViewModel(
             timeTravel,
-            new BranchTree(),
+            new CoreBranchTree(),
             notifyTimelineJump: () => timeTravel.TimelineJumpNotifications++);
         var thumbnailsBefore = timeTravel.GetThumbnailsCallCount;
 

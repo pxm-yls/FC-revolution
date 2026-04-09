@@ -1,4 +1,3 @@
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -96,19 +95,24 @@ public sealed class BranchGalleryCanvasRefreshControllerTests
         Assert.Equal($"branch:{branchRoot.Id}", result.SelectedNodeId);
     }
 
-    private static BranchPoint CreateBranchPoint(string name, string romPath, long frame) =>
+    private static CoreBranchPoint CreateBranchPoint(string name, string romPath, long frame) =>
         new()
         {
             Id = Guid.NewGuid(),
             Name = name,
             RomPath = romPath,
             Frame = frame,
-            Timestamp = frame / 60d,
-            Snapshot = new FrameSnapshot
+            TimestampSeconds = frame / 60d,
+            Snapshot = new CoreTimelineSnapshot
             {
                 Frame = frame,
-                Timestamp = frame / 60d,
-                Thumbnail = new uint[64 * 60]
+                TimestampSeconds = frame / 60d,
+                Thumbnail = new uint[64 * 60],
+                State = new CoreStateBlob
+                {
+                    Format = "test/state",
+                    Data = []
+                }
             },
             CreatedAt = DateTime.UtcNow
         };

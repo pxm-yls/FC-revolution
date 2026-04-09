@@ -8,8 +8,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FCRevolution.Core;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 
@@ -87,7 +85,7 @@ public partial class BranchGalleryViewModel : ViewModelBase
     private const double DetailPreviewHeight = 204;
 
     private readonly ITimeTravelService _timeTravelService;
-    private readonly BranchTree _tree;
+    private readonly CoreBranchTree _tree;
     private readonly BranchGalleryCanvasProjectionController _canvasProjectionController = new();
     private readonly BranchGalleryCanvasRefreshController _canvasRefreshController;
     private readonly BranchGalleryCanvasApplyController _canvasApplyController;
@@ -343,7 +341,7 @@ public partial class BranchGalleryViewModel : ViewModelBase
 
     public BranchGalleryViewModel(
         ITimeTravelService timeTravelService,
-        BranchTree tree,
+        CoreBranchTree tree,
         string? romPath = null,
         uint[]? lastFrame = null,
         Action<CoreBranchPoint, Guid?>? persistBranch = null,

@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -8,7 +7,7 @@ namespace FC_Revolution.UI.ViewModels;
 internal sealed class BranchGalleryBranchWorkflowController
 {
     private readonly ITimeTravelService _timeTravelService;
-    private readonly BranchTree _tree;
+    private readonly CoreBranchTree _tree;
     private readonly Action<CoreBranchPoint, Guid?> _persistBranch;
     private readonly Action<Guid> _deleteBranch;
     private readonly Action<CoreBranchPoint> _renameBranch;
@@ -19,7 +18,7 @@ internal sealed class BranchGalleryBranchWorkflowController
 
     public BranchGalleryBranchWorkflowController(
         ITimeTravelService timeTravelService,
-        BranchTree tree,
+        CoreBranchTree tree,
         Action<CoreBranchPoint, Guid?>? persistBranch,
         Action<Guid>? deleteBranch,
         Action<CoreBranchPoint>? renameBranch,
@@ -56,11 +55,10 @@ internal sealed class BranchGalleryBranchWorkflowController
 
         var branchPoint = _timeTravelService.CreateBranch($"分支 {_tree.AllBranches().Count() + 1}", lastFrame);
         branchPoint.RomPath = romPath ?? string.Empty;
-        var legacyBranchPoint = CoreTimelineModelBridge.ToLegacyBranchPoint(branchPoint, romPath);
         if (selectedNode?.BranchPoint is { } parentBranch)
-            _tree.Fork(parentBranch.Id, legacyBranchPoint);
+            _tree.Fork(parentBranch.Id, branchPoint);
         else
-            _tree.AddRoot(legacyBranchPoint);
+            _tree.AddRoot(branchPoint);
 
         _persistBranch(branchPoint, selectedNode?.BranchPoint?.Id);
         _updateStatus($"已创建分支「{branchPoint.Name}」帧 {branchPoint.Frame}");

@@ -29,7 +29,7 @@ internal static class GameWindowTimelinePersistenceController
 {
     public static GameWindowTimelineReloadState LoadTimelineState(
         TimelineRepository timelineRepository,
-        BranchTree branchTree,
+        CoreBranchTree branchTree,
         string romId,
         string displayName,
         string romPath,
@@ -37,7 +37,7 @@ internal static class GameWindowTimelinePersistenceController
         int previewHeight)
     {
         var manifest = timelineRepository.LoadOrCreate(romId, displayName);
-        timelineRepository.PopulateBranchTree(branchTree, manifest, romId, romPath);
+        PopulateCoreBranchTree(timelineRepository, branchTree, manifest, romId, romPath);
         var previewNodes = LoadPreviewNodes(timelineRepository, manifest, previewWidth, previewHeight);
         return new GameWindowTimelineReloadState(
             manifest,
@@ -203,7 +203,7 @@ internal static class GameWindowTimelinePersistenceController
 
     public static GameWindowTimelineReloadState? TryReloadTimelineState(
         TimelineRepository timelineRepository,
-        BranchTree branchTree,
+        CoreBranchTree branchTree,
         DateTime knownWriteTimeUtc,
         string romId,
         string displayName,
@@ -223,6 +223,22 @@ internal static class GameWindowTimelinePersistenceController
             romPath,
             previewWidth,
             previewHeight);
+    }
+
+    public static void PopulateCoreBranchTree(
+        TimelineRepository timelineRepository,
+        CoreBranchTree branchTree,
+        TimelineManifest timelineManifest,
+        string romId,
+        string? romPath)
+    {
+        ArgumentNullException.ThrowIfNull(timelineRepository);
+        ArgumentNullException.ThrowIfNull(branchTree);
+        ArgumentNullException.ThrowIfNull(timelineManifest);
+
+        var legacyBranchTree = new BranchTree();
+        timelineRepository.PopulateBranchTree(legacyBranchTree, timelineManifest, romId, romPath);
+        branchTree.ReplaceRoots(legacyBranchTree.Roots.Select(CoreTimelineModelBridge.ToCoreBranchPoint));
     }
 
     public static DateTime ReadManifestWriteTimeUtc(string romId)

@@ -611,14 +611,14 @@ public sealed class MainWindowViewModelConfigurationTests
         using var host = new MainWindowViewModelTestHost();
         var vm = host.ViewModel;
 
-        vm.TimelineMode = TimelineMode.Disabled;
+        vm.TimelineMode = TimelineModeOption.Disabled;
         Assert.Contains("仅保留快速存档/读档", vm.TimelineModeSummary);
 
-        vm.TimelineMode = TimelineMode.ShortRewindOnly;
+        vm.TimelineMode = TimelineModeOption.ShortRewindOnly;
         vm.ShortRewindSecondsInput = "5";
         Assert.Contains("最近 5 秒", vm.TimelineModeSummary);
 
-        vm.TimelineMode = TimelineMode.FullTimeline;
+        vm.TimelineMode = TimelineModeOption.FullTimeline;
         Assert.Contains("完整时间线", vm.TimelineModeSummary);
     }
 
@@ -628,11 +628,11 @@ public sealed class MainWindowViewModelConfigurationTests
         using var host = new MainWindowViewModelTestHost();
         var vm = host.ViewModel;
 
-        vm.TimelineMode = TimelineMode.ShortRewindOnly;
+        vm.TimelineMode = TimelineModeOption.ShortRewindOnly;
         vm.OpenBranchGalleryCommand.Execute(null);
         Assert.Equal("当前时间线模式未启用完整分支画廊", vm.StatusText);
 
-        vm.TimelineMode = TimelineMode.Disabled;
+        vm.TimelineMode = TimelineModeOption.Disabled;
         vm.OpenBranchGalleryCommand.Execute(null);
         Assert.Equal("当前时间线模式未启用完整分支画廊", vm.StatusText);
     }
@@ -658,15 +658,15 @@ public sealed class MainWindowViewModelConfigurationTests
 
         vm.SetTimelineModeShortRewindCommand.Execute(null);
         vm.SetShortRewindSeconds10Command.Execute(null);
-        Assert.Equal(TimelineMode.ShortRewindOnly, vm.TimelineMode);
+        Assert.Equal(TimelineModeOption.ShortRewindOnly, vm.TimelineMode);
         Assert.Contains("最近 10 秒", vm.TimelineModeSummary);
 
         vm.SetTimelineModeDisabledCommand.Execute(null);
-        Assert.Equal(TimelineMode.Disabled, vm.TimelineMode);
+        Assert.Equal(TimelineModeOption.Disabled, vm.TimelineMode);
         Assert.Contains("仅保留快速存档/读档", vm.TimelineModeSummary);
 
         vm.SetTimelineModeFullCommand.Execute(null);
-        Assert.Equal(TimelineMode.FullTimeline, vm.TimelineMode);
+        Assert.Equal(TimelineModeOption.FullTimeline, vm.TimelineMode);
     }
 
     [Fact]

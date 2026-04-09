@@ -25,8 +25,6 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using FCRevolution.Backend.Hosting;
-using FCRevolution.Core.State;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
@@ -117,7 +115,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IEmulatorCoreSession _coreSession;
     private readonly ICoreInputStateWriter _inputStateWriter;
     private readonly ITimeTravelService _timeTravelService;
-    private readonly BranchTree _branchTree = new();
+    private readonly CoreBranchTree _branchTree = new();
     private readonly CoreAudioPlayer _audio = new();
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _previewTimer;
@@ -310,7 +308,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private GameAspectRatioMode _gameAspectRatioMode = GameAspectRatioMode.Native;
     private MacUpscaleMode _macUpscaleMode = MacUpscaleMode.None;
     private MacUpscaleOutputResolution _macUpscaleOutputResolution = MacUpscaleOutputResolution.Hd1080;
-    private TimelineMode _timelineMode = TimelineMode.FullTimeline;
+    private TimelineModeOption _timelineMode = TimelineModeOption.FullTimeline;
     private int _shortRewindFrames = 5 * EmulatorFramesPerSecond;
     private string _shortRewindSecondsInput = "5.00";
     private string _shortRewindFramesInput = (5 * EmulatorFramesPerSecond).ToString(CultureInfo.InvariantCulture);
@@ -1674,7 +1672,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool IsKaleidoscopeMode => LayoutMode == LibraryLayoutMode.Kaleidoscope;
 
-    public TimelineMode TimelineMode
+    public TimelineModeOption TimelineMode
     {
         get => _timelineMode;
         set
@@ -1723,8 +1721,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string TimelineModeSummary => TimelineMode switch
     {
-        TimelineMode.Disabled => "关闭时间线：仅保留快速存档/读档，不记录回溯历史。",
-        TimelineMode.ShortRewindOnly => $"短回溯模式：仅保留最近 {FormatShortRewindSeconds(ShortRewindSeconds)} 秒（{ShortRewindFrames} 帧）的回溯，不启用分支画廊和视频导出。",
+        TimelineModeOption.Disabled => "关闭时间线：仅保留快速存档/读档，不记录回溯历史。",
+        TimelineModeOption.ShortRewindOnly => $"短回溯模式：仅保留最近 {FormatShortRewindSeconds(ShortRewindSeconds)} 秒（{ShortRewindFrames} 帧）的回溯，不启用分支画廊和视频导出。",
         _ => "完整时间线：启用分支树、分支存档、输入日志和视频导出。",
     };
 
@@ -1761,7 +1759,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (Enum.TryParse<MacUpscaleOutputResolution>(profile.MacRenderUpscaleOutputResolution, out var parsedUpscaleOutputResolution))
                 _macUpscaleOutputResolution = parsedUpscaleOutputResolution;
 
-            if (Enum.TryParse<TimelineMode>(profile.TimelineMode, out var timelineMode))
+            if (Enum.TryParse<TimelineModeOption>(profile.TimelineMode, out var timelineMode))
                 TimelineMode = timelineMode;
 
             UpdateShortRewindFrames(profile.ShortRewindFrames, saveConfig: false);
@@ -2542,13 +2540,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private void UseMacUpscaleSpatial() => SetMacUpscaleMode(global::FCRevolution.Rendering.Metal.MacUpscaleMode.Spatial);
 
     [RelayCommand]
-    private void SetTimelineModeDisabled() => TimelineMode = TimelineMode.Disabled;
+    private void SetTimelineModeDisabled() => TimelineMode = TimelineModeOption.Disabled;
 
     [RelayCommand]
-    private void SetTimelineModeShortRewind() => TimelineMode = TimelineMode.ShortRewindOnly;
+    private void SetTimelineModeShortRewind() => TimelineMode = TimelineModeOption.ShortRewindOnly;
 
     [RelayCommand]
-    private void SetTimelineModeFull() => TimelineMode = TimelineMode.FullTimeline;
+    private void SetTimelineModeFull() => TimelineMode = TimelineModeOption.FullTimeline;
 
     [RelayCommand]
     private void SetShortRewindSeconds3() => UpdateShortRewindFrames(ConvertSecondsToFrames(3));
@@ -2675,12 +2673,17 @@ public partial class MainWindowViewModel : ViewModelBase
             _currentSnapshotId = null;
             _branchTree.Clear();
 
-            if (TimelineMode == TimelineMode.FullTimeline)
+            if (TimelineMode == TimelineModeOption.FullTimeline)
             {
                 _timelineManifest = _timelineRepository.LoadOrCreate(_currentRomId, Path.GetFileNameWithoutExtension(path));
                 _currentBranchId = _timelineManifest.CurrentBranchId;
                 _currentSnapshotId = _timelineManifest.Branches.FirstOrDefault(branch => branch.BranchId == _currentBranchId)?.HeadSnapshotId;
-                _timelineRepository.PopulateBranchTree(_branchTree, _timelineManifest, _currentRomId, path);
+                GameWindowTimelinePersistenceController.PopulateCoreBranchTree(
+                    _timelineRepository,
+                    _branchTree,
+                    _timelineManifest,
+                    _currentRomId,
+                    path);
                 _timelineManifestWriteTimeUtc = GetTimelineManifestWriteTimeUtc();
             }
 
@@ -2864,7 +2867,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     private void OpenBranchGallery()
     {
-        if (TimelineMode != TimelineMode.FullTimeline)
+        if (TimelineMode != TimelineModeOption.FullTimeline)
         {
             StatusText = "当前时间线模式未启用完整分支画廊";
             return;
@@ -3047,7 +3050,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void AppendReplayFrame()
     {
-        if (TimelineMode != TimelineMode.FullTimeline || !_replayLogWriter.IsOpen)
+        if (TimelineMode != TimelineModeOption.FullTimeline || !_replayLogWriter.IsOpen)
             return;
 
         _replayLogWriter.Append(_timeTravelService.CurrentFrame, _player1InputMask, _player2InputMask);
@@ -3055,7 +3058,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ReopenReplayLog(bool resetFile)
     {
-        if (_currentRomId == null || TimelineMode != TimelineMode.FullTimeline)
+        if (_currentRomId == null || TimelineMode != TimelineModeOption.FullTimeline)
         {
             _replayLogWriter.Close();
             return;
@@ -3071,10 +3074,10 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             switch (TimelineMode)
             {
-                case TimelineMode.Disabled:
+                case TimelineModeOption.Disabled:
                     _timeTravelService.PauseRecording();
                     break;
-                case TimelineMode.ShortRewindOnly:
+                case TimelineModeOption.ShortRewindOnly:
                     _timeTravelService.ResumeRecording();
                     _timeTravelService.SnapshotInterval = 1;
                     break;
@@ -3085,7 +3088,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
 
-        if (TimelineMode != TimelineMode.FullTimeline)
+        if (TimelineMode != TimelineModeOption.FullTimeline)
         {
             _branchTree.Clear();
             _galleryWindow?.Close();
@@ -3234,13 +3237,13 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!IsRomLoaded)
             return;
 
-        if (TimelineMode == TimelineMode.Disabled)
+        if (TimelineMode == TimelineModeOption.Disabled)
         {
             StatusText = "当前模式已关闭时间回溯";
             return;
         }
 
-        var allowedFrames = TimelineMode == TimelineMode.ShortRewindOnly
+        var allowedFrames = TimelineMode == TimelineModeOption.ShortRewindOnly
             ? Math.Min(frames, ShortRewindFrames)
             : frames;
         long landed;
@@ -3314,7 +3317,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _timelineManifest = _timelineRepository.LoadOrCreate(_currentRomId, Path.GetFileNameWithoutExtension(_romPath ?? CurrentRom?.Path ?? "ROM"));
         _currentBranchId = _timelineManifest.CurrentBranchId;
         _currentSnapshotId = _timelineManifest.Branches.FirstOrDefault(branch => branch.BranchId == _currentBranchId)?.HeadSnapshotId;
-        _timelineRepository.PopulateBranchTree(_branchTree, _timelineManifest, _currentRomId, _romPath);
+        GameWindowTimelinePersistenceController.PopulateCoreBranchTree(
+            _timelineRepository,
+            _branchTree,
+            _timelineManifest,
+            _currentRomId,
+            _romPath);
         LoadPersistedPreviewNodes(galleryViewModel);
         galleryViewModel.RefreshAll();
     }

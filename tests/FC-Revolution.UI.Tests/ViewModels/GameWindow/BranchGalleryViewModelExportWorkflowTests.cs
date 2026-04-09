@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -93,7 +92,7 @@ public sealed class BranchGalleryViewModelExportWorkflowTests
         Func<BranchCanvasNode, long, long, Task<string>>? exportRange = null) =>
         new(
             new FakeTimeTravelService(),
-            new BranchTree(),
+            new CoreBranchTree(),
             exportRange: exportRange);
 
     private static BranchCanvasNode CreateNode(long frame) =>

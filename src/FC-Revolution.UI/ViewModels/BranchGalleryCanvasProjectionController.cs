@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Media.Imaging;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 
@@ -11,7 +10,7 @@ namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record BranchGalleryCanvasProjectionRequest(
     IReadOnlyList<CoreTimelineThumbnail> Timeline,
-    IReadOnlyList<BranchPoint> Roots,
+    IReadOnlyList<CoreBranchPoint> Roots,
     IReadOnlyList<BranchPreviewNode> PreviewNodes,
     BranchLayoutOrientation Orientation,
     double ZoomFactor,
@@ -192,7 +191,7 @@ internal sealed class BranchGalleryCanvasProjectionController
 
     private static void LayoutBranchRecursive(
         BranchGalleryCanvasProjectionRequest request,
-        BranchPoint point,
+        CoreBranchPoint point,
         int direction,
         int laneIndex,
         int depth,
@@ -211,7 +210,7 @@ internal sealed class BranchGalleryCanvasProjectionController
             request,
             id: $"branch:{point.Id}",
             title: point.Name,
-            subtitle: $"帧 {point.Frame} • {TimeSpan.FromSeconds(point.Timestamp):mm\\:ss}",
+            subtitle: $"帧 {point.Frame} • {TimeSpan.FromSeconds(point.TimestampSeconds):mm\\:ss}",
             frame: point.Frame,
             createdAt: point.CreatedAt.ToLocalTime(),
             x: logicalX,
@@ -219,7 +218,7 @@ internal sealed class BranchGalleryCanvasProjectionController
             bitmap: ThumbnailItem.Create(point.Frame, point.Snapshot.Thumbnail).Bitmap,
             isBranchNode: true,
             isMainlineNode: false,
-            branchPoint: CoreTimelineModelBridge.ToCoreBranchPoint(point)));
+            branchPoint: point));
         edges.Add(CreateEdge(request, anchor.x, anchor.y, logicalX, logicalY, isPrimary: false));
 
         var childOffset = 0;
@@ -241,7 +240,7 @@ internal sealed class BranchGalleryCanvasProjectionController
 
     private static void LayoutBranchChildRecursive(
         BranchGalleryCanvasProjectionRequest request,
-        BranchPoint childPoint,
+        CoreBranchPoint childPoint,
         double parentX,
         double parentY,
         int direction,
@@ -259,7 +258,7 @@ internal sealed class BranchGalleryCanvasProjectionController
             request,
             id: $"branch:{childPoint.Id}",
             title: childPoint.Name,
-            subtitle: $"帧 {childPoint.Frame} • {TimeSpan.FromSeconds(childPoint.Timestamp):mm\\:ss}",
+            subtitle: $"帧 {childPoint.Frame} • {TimeSpan.FromSeconds(childPoint.TimestampSeconds):mm\\:ss}",
             frame: childPoint.Frame,
             createdAt: childPoint.CreatedAt.ToLocalTime(),
             x: logicalX,
@@ -267,7 +266,7 @@ internal sealed class BranchGalleryCanvasProjectionController
             bitmap: ThumbnailItem.Create(childPoint.Frame, childPoint.Snapshot.Thumbnail).Bitmap,
             isBranchNode: true,
             isMainlineNode: false,
-            branchPoint: CoreTimelineModelBridge.ToCoreBranchPoint(childPoint)));
+            branchPoint: childPoint));
         edges.Add(CreateEdge(request, parentX, parentY, logicalX, logicalY, isPrimary: false));
 
         var nestedIndex = 0;

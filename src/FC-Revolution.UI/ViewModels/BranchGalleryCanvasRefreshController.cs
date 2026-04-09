@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal readonly record struct BranchGalleryCanvasRefreshRequest(
     IReadOnlyList<CoreTimelineThumbnail> Timeline,
-    IReadOnlyList<BranchPoint> Roots,
+    IReadOnlyList<CoreBranchPoint> Roots,
     IReadOnlyList<BranchPreviewNode> PreviewNodes,
     string? RomPath,
     BranchLayoutOrientation Orientation,

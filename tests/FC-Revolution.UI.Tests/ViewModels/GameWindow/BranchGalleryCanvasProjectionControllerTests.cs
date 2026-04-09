@@ -1,5 +1,4 @@
 using System.Linq;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -11,7 +10,7 @@ public sealed class BranchGalleryCanvasProjectionControllerTests
     public void BuildProjection_WithSelectedBranchNode_ProjectsNodesEdgesAndSelectionBorder()
     {
         var controller = new BranchGalleryCanvasProjectionController();
-        var root = CreateLegacyBranchPoint("Boss Branch", frame: 180);
+        var root = CreateBranchPoint("Boss Branch", frame: 180);
 
         var result = controller.BuildProjection(
             new BranchGalleryCanvasProjectionRequest(
@@ -111,19 +110,24 @@ public sealed class BranchGalleryCanvasProjectionControllerTests
     private static IReadOnlyList<CoreTimelineThumbnail> CreateTimeline(params long[] frames) =>
         frames.Select(frame => new CoreTimelineThumbnail(frame, Enumerable.Repeat((uint)frame, 64 * 60).ToArray())).ToList();
 
-    private static BranchPoint CreateLegacyBranchPoint(string name, long frame) =>
+    private static CoreBranchPoint CreateBranchPoint(string name, long frame) =>
         new()
         {
             Id = Guid.NewGuid(),
             Name = name,
             RomPath = "/tmp/test-rom.nes",
             Frame = frame,
-            Timestamp = frame / 60.0,
-            Snapshot = new FrameSnapshot
+            TimestampSeconds = frame / 60.0,
+            Snapshot = new CoreTimelineSnapshot
             {
                 Frame = frame,
-                Timestamp = frame / 60.0,
-                Thumbnail = Enumerable.Repeat((uint)frame, 64 * 60).ToArray()
+                TimestampSeconds = frame / 60.0,
+                Thumbnail = Enumerable.Repeat((uint)frame, 64 * 60).ToArray(),
+                State = new CoreStateBlob
+                {
+                    Format = "test/state",
+                    Data = []
+                }
             },
             CreatedAt = DateTime.UtcNow
         };

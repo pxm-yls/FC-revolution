@@ -105,6 +105,39 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
+    public void EnsureBundledCorePackages_ReinstallsBundle_WhenResourceRootWasCleared()
+    {
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-bundled-core-reinstall-{Guid.NewGuid():N}");
+        var packageService = new ManagedCorePackageService();
+
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+
+            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            Assert.Contains(
+                packageService.GetInstalledPackages(tempRoot),
+                package => package.Manifest.CoreId == NesManagedCoreModule.CoreId && package.IsBundled);
+
+            Directory.Delete(tempRoot, recursive: true);
+            Directory.CreateDirectory(tempRoot);
+
+            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+
+            Assert.Contains(
+                packageService.GetInstalledPackages(tempRoot),
+                package => package.Manifest.CoreId == NesManagedCoreModule.CoreId && package.IsBundled);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DefaultNesCore_InputSchema_ContainsXYAndReservedActionsForBothPorts()
     {
         var host = DefaultEmulatorCoreHost.Create(NesManagedCoreModule.CoreId);

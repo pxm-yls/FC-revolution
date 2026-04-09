@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FCRevolution.Emulation.Host;
-using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Storage;
 
 namespace FC_Revolution.UI.Models;
@@ -60,7 +59,7 @@ public sealed class SystemConfigProfile
 
     public string MacRenderUpscaleOutputResolution { get; set; } = "Hd1080";
 
-    public string TimelineMode { get; set; } = FCRevolution.Core.Timeline.Persistence.TimelineMode.FullTimeline.ToString();
+    public string TimelineMode { get; set; } = TimelineModeOption.FullTimeline.ToString();
 
     public double ShortRewindSeconds { get; set; } = 5.0;
 

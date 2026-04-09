@@ -1,5 +1,4 @@
 using System;
-using FCRevolution.Core.Timeline;
 using FCRevolution.Emulation.Abstractions;
 
 namespace FC_Revolution.UI.ViewModels;

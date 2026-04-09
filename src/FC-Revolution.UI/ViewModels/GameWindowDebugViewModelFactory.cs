@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.Core.Debug;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;

@@ -218,7 +218,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
                 "Reload Preview",
                 MakeFrameSnapshot(245));
 
-            var tree = new BranchTree();
+            var tree = new CoreBranchTree();
             var loadState = GameWindowTimelinePersistenceController.LoadTimelineState(
                 repository,
                 tree,
@@ -256,7 +256,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
             _ = repository.LoadOrCreate(romId, "No Sync Rom");
             var knownWriteTimeUtc = GameWindowTimelinePersistenceController.ReadManifestWriteTimeUtc(romId);
 
-            var tree = new BranchTree();
+            var tree = new CoreBranchTree();
             var reloadState = GameWindowTimelinePersistenceController.TryReloadTimelineState(
                 repository,
                 tree,
@@ -306,7 +306,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
                 "Resync Preview",
                 MakeFrameSnapshot(305));
 
-            var tree = new BranchTree();
+            var tree = new CoreBranchTree();
             var reloadState = GameWindowTimelinePersistenceController.TryReloadTimelineState(
                 repository,
                 tree,
