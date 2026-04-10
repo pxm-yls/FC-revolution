@@ -206,7 +206,7 @@ src/FC-Revolution.Core/FC-Revolution.Core.MySystem/
 
 - 你的模块要能被 `IManagedCoreModule` 发现。
 - 需要支持从 assembly、probe path 或 package registry 被加载。
-- `DefaultEmulatorCoreHost.Create().CreateSession(...)` 必须能创建你的会话。
+- `ManagedCoreRuntime.TryCreateSession(...)` 或带显式 `coreId` 的 `EmulatorCoreHost.CreateSession(...)` 必须能创建你的会话。
 
 ### 6.2 核心包导出、安装、卸载
 
@@ -301,7 +301,7 @@ src/FC-Revolution.Core/FC-Revolution.Core.MySystem/
 - `src/FC-Revolution.Core/FC-Revolution.Core.FC/Managed/NesManagedCoreModule.cs`
 - `src/FC-Revolution.Core/FC-Revolution.Core.Sample.Managed/SampleManagedCoreModule.cs`
 - `src/FC-Revolution.UI/Infrastructure/CoreSessionCapabilityResolver.cs`
-- `src/FC-Revolution.Emulation.Host/Adapters/Nes/BundledManagedCoreBootstrapper.cs`
+- `src/FC-Revolution.Emulation.Host/ManagedCorePackageService.cs`
 
 建议参考方式：
 

@@ -7,8 +7,7 @@ namespace FCRevolution.Emulation.Host;
 
 public sealed record ManagedCoreRuntimeOptions(
     string? ResourceRootPath = null,
-    IReadOnlyList<string>? ProbeDirectories = null,
-    bool EnsureBundledCorePackages = false);
+    IReadOnlyList<string>? ProbeDirectories = null);
 
 public enum ManagedCoreCatalogSourceKind
 {
@@ -34,7 +33,6 @@ public static class ManagedCoreRuntime
         IEnumerable<IManagedCoreModule>? additionalModules = null)
     {
         var resolvedOptions = ResolveOptions(options);
-        EnsureBundledCorePackagesIfRequested(resolvedOptions);
 
         var resolvedAdditionalModules = new List<IManagedCoreModule>();
         resolvedAdditionalModules.AddRange(LoadPackageModules(resolvedOptions.ResourceRootPath));
@@ -65,7 +63,6 @@ public static class ManagedCoreRuntime
     public static IReadOnlyList<ManagedCoreCatalogEntry> LoadCatalogEntries(ManagedCoreRuntimeOptions? options = null)
     {
         var resolvedOptions = ResolveOptions(options);
-        EnsureBundledCorePackagesIfRequested(resolvedOptions);
 
         var installDirectory = Path.GetFullPath(AppObjectStorage.GetManagedCoreModulesDirectory(
             string.IsNullOrWhiteSpace(resolvedOptions.ResourceRootPath)
@@ -120,14 +117,7 @@ public static class ManagedCoreRuntime
             .ToList();
         return new ResolvedManagedCoreRuntimeOptions(
             resourceRootPath,
-            probeDirectories,
-            options?.EnsureBundledCorePackages ?? false);
-    }
-
-    private static void EnsureBundledCorePackagesIfRequested(ResolvedManagedCoreRuntimeOptions options)
-    {
-        if (options.EnsureBundledCorePackages)
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(options.ResourceRootPath);
+            probeDirectories);
     }
 
     private static IReadOnlyList<IManagedCoreModule> LoadPackageModules(string? resourceRootPath)
@@ -253,8 +243,7 @@ public static class ManagedCoreRuntime
 
     private sealed record ResolvedManagedCoreRuntimeOptions(
         string ResourceRootPath,
-        IReadOnlyList<string> ProbeDirectories,
-        bool EnsureBundledCorePackages);
+        IReadOnlyList<string> ProbeDirectories);
 
     private sealed record DiscoveredManagedCoreModuleDescriptor(
         CoreManifest Manifest,

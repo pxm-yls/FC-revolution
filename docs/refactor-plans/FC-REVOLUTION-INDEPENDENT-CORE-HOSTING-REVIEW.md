@@ -215,8 +215,8 @@
 1. `Emulation.Host` 仍直接引用 NES managed core 项目。
 见 [FC-Revolution.Emulation.Host.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/FC-Revolution.Emulation.Host.csproj)。
 
-2. 启动时仍强制 bootstrap bundled NES core。
-见 [Program.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Program.cs) 和 [BundledManagedCoreBootstrapper.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/Adapters/Nes/BundledManagedCoreBootstrapper.cs)。
+2. 历史上启动时曾强制 bootstrap bundled NES core；当前仓库已改为允许零核心启动。
+现状请见 [Program.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Program.cs) 与 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
 
 3. `DefaultEmulatorCoreHost.Create()` 仍隐式假设“先保证至少有一个 NES bundled core 已安装”。
 见 [EmulatorCoreHost.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/EmulatorCoreHost.cs)。

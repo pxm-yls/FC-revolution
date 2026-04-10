@@ -3612,11 +3612,10 @@ public partial class MainWindowViewModel : ViewModelBase
         return installedCoreManifests.FirstOrDefault()?.CoreId ?? string.Empty;
     }
 
-    private ManagedCoreRuntimeOptions CreateManagedCoreRuntimeOptions(bool ensureBundledCorePackages = false) =>
+    private ManagedCoreRuntimeOptions CreateManagedCoreRuntimeOptions() =>
         new(
             ResourceRootPath: ResourceRootPath,
-            ProbeDirectories: EffectiveManagedCoreProbeDirectories,
-            EnsureBundledCorePackages: ensureBundledCorePackages);
+            ProbeDirectories: EffectiveManagedCoreProbeDirectories);
 
     private IEmulatorCoreSession CreateMainCoreSession() =>
         ManagedCoreRuntime.TryCreateSession(

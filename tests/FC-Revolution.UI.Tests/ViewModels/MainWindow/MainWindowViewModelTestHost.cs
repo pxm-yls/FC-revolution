@@ -24,7 +24,7 @@ internal sealed class MainWindowViewModelTestHost : IDisposable
         var profile = SystemConfigProfile.Load();
         FCRevolution.Storage.AppObjectStorage.ConfigureResourceRoot(profile.ResourceRootPath);
         if (ensureBundledCorePackages)
-            FCRevolution.Emulation.Host.BundledManagedCoreBootstrapper.EnsureBundledCorePackages(profile.ResourceRootPath);
+            NesManagedCoreTestBootstrap.EnsureInstalled(profile.ResourceRootPath);
         ViewModel = new MainWindowViewModel();
     }
 

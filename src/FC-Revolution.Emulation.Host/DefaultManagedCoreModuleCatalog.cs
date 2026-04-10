@@ -9,8 +9,6 @@ public static class DefaultManagedCoreModuleCatalog
     private static readonly Dictionary<string, IManagedCoreModule> AdditionalModules = new(StringComparer.OrdinalIgnoreCase);
     private static readonly Dictionary<string, IManagedCoreModuleRegistrationSource> AdditionalModuleSources = new(StringComparer.OrdinalIgnoreCase);
 
-    public const string DefaultCoreId = BundledManagedCoreBootstrapper.DefaultCoreId;
-
     public static void RegisterAdditionalModule(IManagedCoreModule module)
     {
         lock (AdditionalModuleGate)

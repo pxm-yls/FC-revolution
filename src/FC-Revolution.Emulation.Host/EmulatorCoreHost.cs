@@ -79,9 +79,7 @@ public sealed class EmulatorCoreHost
 
 public static class DefaultEmulatorCoreHost
 {
-    public const string DefaultCoreId = BundledManagedCoreBootstrapper.DefaultCoreId;
-
-    public static EmulatorCoreHost Create() => Create(DefaultCoreId);
+    public static EmulatorCoreHost Create() => Create(defaultCoreId: null);
 
     public static EmulatorCoreHost Create(string? defaultCoreId) =>
         Create(defaultCoreId, options: null, additionalModules: null);

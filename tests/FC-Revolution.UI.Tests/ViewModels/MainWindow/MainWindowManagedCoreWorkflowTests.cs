@@ -1,5 +1,4 @@
 using System.IO.Compression;
-using FCRevolution.Emulation.Host;
 using System.Reflection;
 using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Core.Sample.Managed;
@@ -171,7 +170,7 @@ public sealed class MainWindowManagedCoreWorkflowTests
 
         try
         {
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            NesManagedCoreTestBootstrap.EnsureInstalled(tempRoot);
             var controller = new MainWindowManagedCoreCatalogController();
 
             var state = controller.LoadCatalog(tempRoot, []);

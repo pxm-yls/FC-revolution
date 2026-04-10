@@ -101,18 +101,16 @@ public sealed class EmulatorCoreHostTests
         try
         {
             AppObjectStorage.ConfigureResourceRoot(tempRoot);
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            NesManagedCoreTestBootstrap.EnsureInstalled(tempRoot);
 
             var host = DefaultEmulatorCoreHost.Create(
                 defaultCoreId: null,
                 options: new ManagedCoreRuntimeOptions(
-                    ResourceRootPath: tempRoot,
-                    EnsureBundledCorePackages: false));
+                    ResourceRootPath: tempRoot));
             var manifests = host.GetInstalledCoreManifests();
 
             Assert.Contains(manifests, manifest => manifest.CoreId == NesManagedCoreModule.CoreId);
-            Assert.Equal(NesManagedCoreModule.CoreId, DefaultManagedCoreModuleCatalog.DefaultCoreId);
-            Assert.Equal(DefaultManagedCoreModuleCatalog.DefaultCoreId, DefaultEmulatorCoreHost.DefaultCoreId);
+            Assert.Equal(NesManagedCoreModule.CoreId, host.DefaultCoreId);
         }
         finally
         {
@@ -135,8 +133,7 @@ public sealed class EmulatorCoreHostTests
             var host = DefaultEmulatorCoreHost.Create(
                 defaultCoreId: null,
                 options: new ManagedCoreRuntimeOptions(
-                    ResourceRootPath: tempRoot,
-                    EnsureBundledCorePackages: false));
+                    ResourceRootPath: tempRoot));
 
             Assert.False(host.HasInstalledCores);
             Assert.Empty(host.GetInstalledCoreManifests());
@@ -151,7 +148,7 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
-    public void EnsureBundledCorePackages_ReinstallsBundle_WhenResourceRootWasCleared()
+    public void ExplicitBundledNesInstall_ReinstallsBundle_WhenResourceRootWasCleared()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-bundled-core-reinstall-{Guid.NewGuid():N}");
@@ -161,7 +158,7 @@ public sealed class EmulatorCoreHostTests
         {
             AppObjectStorage.ConfigureResourceRoot(tempRoot);
 
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            NesManagedCoreTestBootstrap.EnsureInstalled(tempRoot);
             Assert.Contains(
                 packageService.GetInstalledPackages(tempRoot),
                 package => package.Manifest.CoreId == NesManagedCoreModule.CoreId && package.IsBundled);
@@ -169,7 +166,7 @@ public sealed class EmulatorCoreHostTests
             Directory.Delete(tempRoot, recursive: true);
             Directory.CreateDirectory(tempRoot);
 
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            NesManagedCoreTestBootstrap.EnsureInstalled(tempRoot);
 
             Assert.Contains(
                 packageService.GetInstalledPackages(tempRoot),
@@ -192,13 +189,12 @@ public sealed class EmulatorCoreHostTests
         try
         {
             AppObjectStorage.ConfigureResourceRoot(tempRoot);
-            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+            NesManagedCoreTestBootstrap.EnsureInstalled(tempRoot);
 
             var host = DefaultEmulatorCoreHost.Create(
                 NesManagedCoreModule.CoreId,
                 new ManagedCoreRuntimeOptions(
-                    ResourceRootPath: tempRoot,
-                    EnsureBundledCorePackages: false));
+                    ResourceRootPath: tempRoot));
             using var session = host.CreateSession(new CoreSessionLaunchRequest(NesManagedCoreModule.CoreId));
 
             Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "x");

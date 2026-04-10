@@ -68,8 +68,7 @@ sealed class Program
         var managedCoreProbePaths = ResolveManagedCoreProbePaths(profile).ToArray();
         var runtimeOptions = new ManagedCoreRuntimeOptions(
             ResourceRootPath: profile.ResourceRootPath,
-            ProbeDirectories: managedCoreProbePaths,
-            EnsureBundledCorePackages: false);
+            ProbeDirectories: managedCoreProbePaths);
 
         var installedCoreIds = ManagedCoreRuntime.LoadCatalogEntries(runtimeOptions)
             .Select(entry => entry.Manifest)

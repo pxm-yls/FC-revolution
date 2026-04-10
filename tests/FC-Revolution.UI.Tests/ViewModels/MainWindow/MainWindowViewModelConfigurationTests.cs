@@ -1,7 +1,7 @@
 using Avalonia.Input;
 using FCRevolution.Core.Input;
+using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Core.Sample.Managed;
-using FCRevolution.Emulation.Host;
 using FCRevolution.Storage;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
@@ -170,7 +170,7 @@ public sealed class MainWindowViewModelConfigurationTests
 
             using var host = new MainWindowViewModelTestHost();
 
-            Assert.Equal(DefaultEmulatorCoreHost.DefaultCoreId, host.ViewModel.DefaultCoreId);
+            Assert.Equal(ResolveInstalledTestCoreId(), host.ViewModel.DefaultCoreId);
             Assert.Contains(host.ViewModel.InstalledCoreManifests, manifest => manifest.CoreId == host.ViewModel.DefaultCoreId);
         }
         finally
@@ -301,7 +301,7 @@ public sealed class MainWindowViewModelConfigurationTests
             vm.UninstallSelectedManagedCoreCommand.Execute(null);
 
             Assert.DoesNotContain(vm.InstalledCoreManifests, manifest => string.Equals(manifest.CoreId, SampleManagedCoreModule.CoreId, StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(DefaultEmulatorCoreHost.DefaultCoreId, vm.DefaultCoreId);
+            Assert.Equal(ResolveInstalledTestCoreId(), vm.DefaultCoreId);
             Assert.False(Directory.Exists(installedDirectory));
         }
         finally
@@ -745,7 +745,7 @@ public sealed class MainWindowViewModelConfigurationTests
 
     private static string ResolveInstalledTestCoreId()
     {
-        return BundledManagedCoreBootstrapper.DefaultCoreId;
+        return NesManagedCoreModule.CoreId;
     }
 
     private static string CreateSampleManagedCorePackage(string baseRoot, string name)

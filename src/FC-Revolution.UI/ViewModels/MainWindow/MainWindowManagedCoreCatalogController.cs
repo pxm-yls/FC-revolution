@@ -29,8 +29,7 @@ internal sealed class MainWindowManagedCoreCatalogController
         var effectiveProbeDirectories = SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(resourceRootPath, managedCoreProbePaths);
         var entries = ManagedCoreRuntime.LoadCatalogEntries(new ManagedCoreRuntimeOptions(
                 ResourceRootPath: resourceRootPath,
-                ProbeDirectories: effectiveProbeDirectories,
-                EnsureBundledCorePackages: false))
+                ProbeDirectories: effectiveProbeDirectories))
             .Select(MapEntry)
             .OrderBy(entry => entry.Manifest.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();

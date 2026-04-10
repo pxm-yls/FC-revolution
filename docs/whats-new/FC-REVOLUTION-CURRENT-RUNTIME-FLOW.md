@@ -7,7 +7,7 @@
 - 从 ROM 选择到游戏窗口启动
 - LAN Arcade 嵌入式后端与远控回流
 
-当前架构下，默认核心加载已经是 package-first：宿主会先确保 bundled core package 已安装，再从 package registry 和 probe path 解析可用核心。bundled NES core 仍是默认核心，但它已经作为一个 bundled package 被挂载，而不是 UI/Host 的硬编码后门。
+当前架构下，核心发现已经是 package registry + probe path 驱动。桌面程序允许零核心启动；只有在存在可用核心时，主窗口/预览/独立游戏窗口才会通过统一的 `ManagedCoreRuntime` / `EmulatorCoreHost` 路径创建会话。默认核心不再写死为 NES，而是由配置决定；如果配置为空或无效，则回退到首个已安装核心。
 
 ## 1. 整体运行总览
 
@@ -15,8 +15,7 @@
 flowchart TD
     User["用户启动程序"] --> Program["Program.Main"]
     Program --> InitCatalog["InitializeManagedCoreCatalog()"]
-    InitCatalog --> Bootstrap["BundledManagedCoreBootstrapper.EnsureBundledCorePackages()"]
-    InitCatalog --> HostCatalog["DefaultManagedCoreModuleCatalog + DefaultEmulatorCoreHost"]
+    InitCatalog --> HostCatalog["ManagedCoreRuntime.LoadCatalogEntries()"]
     Program --> Avalonia["BuildAvaloniaApp().StartWithClassicDesktopLifetime()"]
     Avalonia --> App["App.OnFrameworkInitializationCompleted()"]
     App --> MainWindow["MainWindow"]
@@ -50,7 +49,6 @@ flowchart TD
 sequenceDiagram
     participant User as 用户
     participant Program as Program.Main
-    participant Bootstrap as BundledManagedCoreBootstrapper
     participant Catalog as ManagedCoreCatalog
     participant App as Avalonia App
     participant Window as MainWindow
@@ -66,9 +64,8 @@ sequenceDiagram
         LAN-->>Program: CLI 模式结束后退出
     else 桌面模式
         Program->>Program: InitializeManagedCoreCatalog()
-        Program->>Bootstrap: EnsureBundledCorePackages(resourceRoot)
-        Program->>Catalog: 注册 AppDomain / package registry / probe path source
-        Program->>Catalog: DefaultEmulatorCoreHost.Create().GetInstalledCoreManifests()
+        Program->>Catalog: 解析 package registry / probe path
+        Program->>Catalog: ManagedCoreRuntime.LoadCatalogEntries()
         Program->>App: BuildAvaloniaApp()
         App->>Window: 创建 MainWindow
         App->>VM: new MainWindowViewModel(deferStartupWork: true)
@@ -87,35 +84,32 @@ sequenceDiagram
 
 启动时有两个并行感比较强的层次：
 
-- `Program.Main` 先把可用核心目录准备好，再交给 Avalonia 建壳。
+- `Program.Main` 先解析当前可用核心清单，再交给 Avalonia 建壳。
 - `MainWindowViewModel` 构造时只搭服务图和长期资源，真正重活放到窗口 `Opened` 之后的 deferred startup sequence。
 
 ## 3. 核心发现与会话创建
 
 ```mermaid
 flowchart TD
-    CallerA["MainWindowViewModel.CreateMainCoreSession()"] --> HostCreate["DefaultEmulatorCoreHost.Create(defaultCoreId?)"]
+    CallerA["MainWindowViewModel.CreateMainCoreSession()"] --> HostCreate["ManagedCoreRuntime.CreateHost(defaultCoreId?)"]
     CallerB["MainWindowViewModel.CreatePreviewCoreSession()"] --> HostCreate
     CallerC["GameSessionRegistry.StartSessionWithInputBindings()"] --> HostCreate
 
-    HostCreate --> EnsureBundled["BundledManagedCoreBootstrapper.EnsureBundledCorePackages(resourceRoot)"]
     HostCreate --> RegistrySource["RegistryManagedCoreModuleRegistrationSource.LoadModules()"]
-    RegistrySource --> ModuleCatalog["DefaultManagedCoreModuleCatalog.CreateModules(...)"]
-    ModuleCatalog --> Host["EmulatorCoreHost"]
+    HostCreate --> Probe["DirectoryManagedCoreModuleRegistrationSource.LoadModules()"]
+    RegistrySource --> Host["EmulatorCoreHost"]
+    Probe --> Host
     Host --> SelectCore["Resolve requested coreId / default coreId"]
     SelectCore --> Module["IManagedCoreModule"]
     Module --> Factory["module.CreateFactory()"]
     Factory --> Session["CreateSession(CoreSessionLaunchRequest)"]
     Session --> CoreSession["IEmulatorCoreSession"]
-
-    Probe["可选：DirectoryManagedCoreModuleRegistrationSource"] --> ModuleCatalog
-    Assembly["可选：AssemblyManagedCoreModuleRegistrationSource"] --> ModuleCatalog
 ```
 
 这条链路说明了当前“核心只是挂件”的关键事实：
 
 - UI、Host、后端调用的是 `IEmulatorCoreSession`、`CoreManifest`、`CoreSessionLaunchRequest` 这类通用抽象。
-- 默认核心仍可能落到 bundled NES package，但装载入口已经是统一的 package/module/factory 路径。
+- 宿主只认识 package / probe / module / factory 这条通用路径，不再内建 NES 默认核心。
 - 同一条装载链同时服务主窗口长期会话、预览生成会话和独立游戏窗口会话。
 
 ## 4. 从 ROM 选择到游戏窗口启动
@@ -127,7 +121,7 @@ flowchart TD
     Start --> LaunchCtl["MainWindowSessionLaunchController.Launch(...)"]
     LaunchCtl --> GameSvc["IGameSessionService.StartSessionWithInputBindings(...)"]
     GameSvc --> Registry["GameSessionRegistry.StartSessionWithInputBindings(...)"]
-    Registry --> Host["DefaultEmulatorCoreHost.Create().CreateSession(...)"]
+    Registry --> Host["ManagedCoreRuntime.TryCreateSession(...)"]
     Host --> CoreSession["IEmulatorCoreSession"]
     Registry --> GameVM["new GameWindowViewModel(..., coreSession)"]
     GameVM --> Capabilities["CoreSessionCapabilityResolver.Resolve*()"]
