@@ -55,7 +55,21 @@ public sealed class GameSessionRegistry
 
         try
         {
-            coreSession = DefaultEmulatorCoreHost.Create().CreateSession(new CoreSessionLaunchRequest(coreId));
+            var profile = SystemConfigProfile.Load();
+            var runtimeOptions = new ManagedCoreRuntimeOptions(
+                ResourceRootPath: profile.ResourceRootPath,
+                ProbeDirectories: profile.GetEffectiveManagedCoreProbeDirectories(),
+                EnsureBundledCorePackages: false);
+            if (!ManagedCoreRuntime.TryCreateSession(
+                    new CoreSessionLaunchRequest(coreId),
+                    out coreSession,
+                    defaultCoreId: coreId,
+                    options: runtimeOptions) ||
+                coreSession is null)
+            {
+                throw new InvalidOperationException("当前没有可用核心，请先安装、导入或启用模拟器核心。");
+            }
+
             vm = CreateViewModel(
                 displayName,
                 romPath,

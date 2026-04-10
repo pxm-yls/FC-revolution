@@ -1,4 +1,5 @@
 using FC_Revolution.UI.AppServices;
+using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 using System.Collections.Generic;
 using System.IO;
@@ -13,13 +14,17 @@ internal sealed class MainWindowViewModelTestHost : IDisposable
     private readonly string _taskMessageStoragePath;
     private readonly List<string> _temporaryFiles = [];
 
-    internal MainWindowViewModelTestHost()
+    internal MainWindowViewModelTestHost(bool ensureBundledCorePackages = true)
     {
         _taskMessageStoragePath = Path.Combine(
             Path.GetTempPath(),
             $"fc-task-message-tests-{Guid.NewGuid():N}",
             "task-messages.json");
         TaskMessageHub.ResetForTests(_taskMessageStoragePath);
+        var profile = SystemConfigProfile.Load();
+        FCRevolution.Storage.AppObjectStorage.ConfigureResourceRoot(profile.ResourceRootPath);
+        if (ensureBundledCorePackages)
+            FCRevolution.Emulation.Host.BundledManagedCoreBootstrapper.EnsureBundledCorePackages(profile.ResourceRootPath);
         ViewModel = new MainWindowViewModel();
     }
 

@@ -46,4 +46,31 @@ public sealed class SystemConfigProfileTests
             Path.GetFullPath(expectedCustomPath)
         ], resolved);
     }
+
+    [Fact]
+    public void SystemConfigProfile_SaveLoad_PreservesEmptyDefaultCoreId()
+    {
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-system-config-empty-core-{Guid.NewGuid():N}");
+
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+            SystemConfigProfile.Save(new SystemConfigProfile
+            {
+                ResourceRootPath = tempRoot,
+                DefaultCoreId = string.Empty
+            });
+
+            var loaded = SystemConfigProfile.Load();
+
+            Assert.Equal(string.Empty, loaded.DefaultCoreId);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }

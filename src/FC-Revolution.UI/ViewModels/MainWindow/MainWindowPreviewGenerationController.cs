@@ -92,7 +92,12 @@ internal sealed class MainWindowPreviewGenerationController
     }
 
     private static IEmulatorCoreSession CreateDefaultCoreSession() =>
-        DefaultEmulatorCoreHost.Create().CreateSession(new CoreSessionLaunchRequest());
+        ManagedCoreRuntime.TryCreateSession(
+            new CoreSessionLaunchRequest(),
+            out var session,
+            options: new ManagedCoreRuntimeOptions())
+            ? session!
+            : ManagedCoreRuntime.CreateUnavailableSession();
 
     public async Task GeneratePreviewVideoWithTimeoutAsync(
         string romPath,

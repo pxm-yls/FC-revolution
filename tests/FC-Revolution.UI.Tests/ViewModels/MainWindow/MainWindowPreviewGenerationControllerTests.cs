@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using FCRevolution.Emulation.Host;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -138,6 +139,50 @@ public sealed class MainWindowPreviewGenerationControllerTests
         {
             if (File.Exists(tempPath))
                 File.Delete(tempPath);
+        }
+    }
+
+    [Fact]
+    public async Task GeneratePreviewVideoWithTimeoutAsync_ThrowsFriendlyMessage_WhenNoCoreIsAvailable()
+    {
+        var controller = new MainWindowPreviewGenerationController(
+            () => ManagedCoreRuntime.CreateUnavailableSession(),
+            previewSourceWidth: 256,
+            previewSourceHeight: 240,
+            previewDurationSeconds: 60,
+            previewPlaybackFps: 30,
+            previewSourceFps: 60,
+            previewAnimationFrameCount: 1800,
+            previewCaptureStride: 2,
+            previewFrameIntervalMs: 33,
+            previewBuildTimeout: TimeSpan.FromSeconds(10),
+            previewMagicV1: PreviewRawTestHelper.PreviewMagicV1,
+            previewMagicV2: PreviewRawTestHelper.PreviewMagicV2,
+            legacyPreviewExtension: ".fcpv");
+        var romPath = Path.Combine(Path.GetTempPath(), $"preview-no-core-{Guid.NewGuid():N}.nes");
+        var previewPath = Path.Combine(Path.GetTempPath(), $"preview-no-core-{Guid.NewGuid():N}.mp4");
+
+        try
+        {
+            File.WriteAllBytes(romPath, [0x4E, 0x45, 0x53, 0x1A]);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => controller.GeneratePreviewVideoWithTimeoutAsync(
+                romPath,
+                previewPath,
+                previewResolutionScale: 1.0,
+                previewGenerationSpeedMultiplier: 1,
+                selectedPreviewEncodingMode: PreviewEncodingMode.Software,
+                progressCallback: null,
+                uiProgressCallback: null));
+
+            Assert.Contains("当前没有可用核心", ex.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (File.Exists(romPath))
+                File.Delete(romPath);
+            if (File.Exists(previewPath))
+                File.Delete(previewPath);
         }
     }
 

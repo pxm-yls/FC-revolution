@@ -51,7 +51,7 @@ public sealed class SystemConfigProfile
 
     public string GameAspectRatioMode { get; set; } = "Native";
 
-    public string DefaultCoreId { get; set; } = DefaultEmulatorCoreHost.DefaultCoreId;
+    public string DefaultCoreId { get; set; } = string.Empty;
 
     public List<string> ManagedCoreProbePaths { get; set; } = [];
 
@@ -217,7 +217,7 @@ public sealed class SystemConfigProfile
             if (string.IsNullOrWhiteSpace(profile.LocalDisplayEnhancementMode))
                 profile.LocalDisplayEnhancementMode = "None";
             var normalizedDefaultCoreId = string.IsNullOrWhiteSpace(profile.DefaultCoreId)
-                ? DefaultEmulatorCoreHost.DefaultCoreId
+                ? string.Empty
                 : profile.DefaultCoreId.Trim();
             if (!string.Equals(profile.DefaultCoreId, normalizedDefaultCoreId, StringComparison.Ordinal))
                 migrated = true;
@@ -263,7 +263,7 @@ public sealed class SystemConfigProfile
         if (!Enum.TryParse<global::FC_Revolution.UI.Models.PreviewEncodingMode>(profile.PreviewEncodingMode, out _))
             profile.PreviewEncodingMode = global::FC_Revolution.UI.Models.PreviewEncodingMode.Auto.ToString();
         profile.DefaultCoreId = string.IsNullOrWhiteSpace(profile.DefaultCoreId)
-            ? DefaultEmulatorCoreHost.DefaultCoreId
+            ? string.Empty
             : profile.DefaultCoreId.Trim();
         profile.ManagedCoreProbePaths = NormalizeManagedCoreProbePaths(profile.ManagedCoreProbePaths);
         profile.ShortRewindFrames = profile.ShortRewindFrames > 0

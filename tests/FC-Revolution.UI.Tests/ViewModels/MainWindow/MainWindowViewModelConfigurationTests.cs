@@ -182,6 +182,38 @@ public sealed class MainWindowViewModelConfigurationTests
     }
 
     [Fact]
+    public void MainWindowViewModel_AllowsZeroCoreStartup_WhenBundledBootstrapIsNotApplied()
+    {
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-main-window-zero-core-{Guid.NewGuid():N}");
+
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+            SystemConfigProfile.Save(new SystemConfigProfile
+            {
+                ResourceRootPath = tempRoot,
+                DefaultCoreId = string.Empty
+            });
+
+            using var host = new MainWindowViewModelTestHost(ensureBundledCorePackages: false);
+            var vm = host.ViewModel;
+
+            Assert.Empty(vm.InstalledCoreManifests);
+            Assert.Equal(string.Empty, vm.DefaultCoreId);
+            Assert.Null(vm.SelectedDefaultCoreManifest);
+            Assert.Contains("未安装核心", vm.DefaultCoreDisplayName, StringComparison.Ordinal);
+            Assert.Contains("未安装核心", vm.DefaultCoreSummary, StringComparison.Ordinal);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void SystemConfigProfile_SaveLoad_PersistsManagedCoreProbePaths()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
@@ -713,12 +745,7 @@ public sealed class MainWindowViewModelConfigurationTests
 
     private static string ResolveInstalledTestCoreId()
     {
-        var installedCoreId = DefaultEmulatorCoreHost.Create()
-            .GetInstalledCoreManifests()
-            .Select(manifest => manifest.CoreId)
-            .FirstOrDefault(coreId => !string.Equals(coreId, DefaultEmulatorCoreHost.DefaultCoreId, StringComparison.OrdinalIgnoreCase));
-
-        return installedCoreId ?? DefaultEmulatorCoreHost.DefaultCoreId;
+        return BundledManagedCoreBootstrapper.DefaultCoreId;
     }
 
     private static string CreateSampleManagedCorePackage(string baseRoot, string name)

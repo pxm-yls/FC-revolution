@@ -11,6 +11,19 @@ namespace FC_Revolution.UI.Tests;
 public sealed class EmulatorCoreHostTests
 {
     [Fact]
+    public void EmulatorCoreHost_AllowsEmptyCatalog_AndTryCreateSessionReturnsFalse()
+    {
+        var host = new EmulatorCoreHost([]);
+
+        Assert.False(host.HasInstalledCores);
+        Assert.Empty(host.GetInstalledCoreManifests());
+        Assert.Null(host.DefaultCoreId);
+        Assert.False(host.TryCreateSession(new CoreSessionLaunchRequest(), out var session));
+        Assert.Null(session);
+        Assert.Throws<InvalidOperationException>(() => host.CreateSession(new CoreSessionLaunchRequest()));
+    }
+
+    [Fact]
     public void CreateSession_WhenCoreIdSpecified_UsesRequestedModule()
     {
         var nesModule = new FakeManagedCoreModule(
@@ -27,7 +40,7 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
-    public void CreateSession_WhenCoreIdMissingOrUnknown_FallsBackToNesDefaultModule()
+    public void CreateSession_WhenCoreIdMissingOrUnknown_FallsBackToFirstAvailableModule()
     {
         var nesModule = new FakeManagedCoreModule(
             new CoreManifest(NesManagedCoreModule.CoreId, "NES Core", "nes", "1.0.0", CoreBinaryKinds.ManagedDotNet));
@@ -38,10 +51,10 @@ public sealed class EmulatorCoreHostTests
         using var sessionWithoutCoreId = host.CreateSession(new CoreSessionLaunchRequest());
         using var sessionWithUnknownCoreId = host.CreateSession(new CoreSessionLaunchRequest("unknown.core"));
 
-        Assert.Equal(NesManagedCoreModule.CoreId, sessionWithoutCoreId.RuntimeInfo.CoreId);
-        Assert.Equal(NesManagedCoreModule.CoreId, sessionWithUnknownCoreId.RuntimeInfo.CoreId);
-        Assert.Equal(2, nesModule.Factory.CreateSessionCallCount);
-        Assert.Equal(0, gbModule.Factory.CreateSessionCallCount);
+        Assert.Equal("fc.gb.managed", sessionWithoutCoreId.RuntimeInfo.CoreId);
+        Assert.Equal("fc.gb.managed", sessionWithUnknownCoreId.RuntimeInfo.CoreId);
+        Assert.Equal(0, nesModule.Factory.CreateSessionCallCount);
+        Assert.Equal(2, gbModule.Factory.CreateSessionCallCount);
     }
 
     [Fact]
@@ -80,7 +93,7 @@ public sealed class EmulatorCoreHostTests
     }
 
     [Fact]
-    public void DefaultEmulatorCoreHost_ContainsBundledNesModule()
+    public void DefaultEmulatorCoreHost_LoadsExplicitlyInstalledBundledNesModule()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-default-emulator-core-host-{Guid.NewGuid():N}");
@@ -88,13 +101,46 @@ public sealed class EmulatorCoreHostTests
         try
         {
             AppObjectStorage.ConfigureResourceRoot(tempRoot);
+            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
 
-            var host = DefaultEmulatorCoreHost.Create();
+            var host = DefaultEmulatorCoreHost.Create(
+                defaultCoreId: null,
+                options: new ManagedCoreRuntimeOptions(
+                    ResourceRootPath: tempRoot,
+                    EnsureBundledCorePackages: false));
             var manifests = host.GetInstalledCoreManifests();
 
             Assert.Contains(manifests, manifest => manifest.CoreId == NesManagedCoreModule.CoreId);
             Assert.Equal(NesManagedCoreModule.CoreId, DefaultManagedCoreModuleCatalog.DefaultCoreId);
             Assert.Equal(DefaultManagedCoreModuleCatalog.DefaultCoreId, DefaultEmulatorCoreHost.DefaultCoreId);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DefaultEmulatorCoreHost_CanSkipBundledBootstrap_AndExposeEmptyCatalog()
+    {
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-default-host-empty-{Guid.NewGuid():N}");
+
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+
+            var host = DefaultEmulatorCoreHost.Create(
+                defaultCoreId: null,
+                options: new ManagedCoreRuntimeOptions(
+                    ResourceRootPath: tempRoot,
+                    EnsureBundledCorePackages: false));
+
+            Assert.False(host.HasInstalledCores);
+            Assert.Empty(host.GetInstalledCoreManifests());
+            Assert.False(host.TryCreateSession(new CoreSessionLaunchRequest(), out _));
         }
         finally
         {
@@ -140,25 +186,44 @@ public sealed class EmulatorCoreHostTests
     [Fact]
     public void DefaultNesCore_InputSchema_ContainsXYAndReservedActionsForBothPorts()
     {
-        var host = DefaultEmulatorCoreHost.Create(NesManagedCoreModule.CoreId);
-        using var session = host.CreateSession(new CoreSessionLaunchRequest(NesManagedCoreModule.CoreId));
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-default-nes-input-schema-{Guid.NewGuid():N}");
 
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "x");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "y");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l1");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r1");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l2");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r2");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l3");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r3");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "x");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "y");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l1");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r1");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l2");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r2");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l3");
-        Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r3");
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+            BundledManagedCoreBootstrapper.EnsureBundledCorePackages(tempRoot);
+
+            var host = DefaultEmulatorCoreHost.Create(
+                NesManagedCoreModule.CoreId,
+                new ManagedCoreRuntimeOptions(
+                    ResourceRootPath: tempRoot,
+                    EnsureBundledCorePackages: false));
+            using var session = host.CreateSession(new CoreSessionLaunchRequest(NesManagedCoreModule.CoreId));
+
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "x");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "y");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l1");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r1");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l2");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r2");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "l3");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p1" && action.ActionId == "r3");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "x");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "y");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l1");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r1");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l2");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r2");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "l3");
+            Assert.Contains(session.InputSchema.Actions, action => action.PortId == "p2" && action.ActionId == "r3");
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Fact]
@@ -295,7 +360,7 @@ public sealed class EmulatorCoreHostTests
 
         Assert.Equal("fc.gb.managed", session.RuntimeInfo.CoreId);
         Assert.Equal(1, gbModule.Factory.CreateSessionCallCount);
-        Assert.Contains(host.GetInstalledCoreManifests(), manifest => manifest.CoreId == NesManagedCoreModule.CoreId);
+        Assert.Contains(host.GetInstalledCoreManifests(), manifest => manifest.CoreId == "fc.gb.managed");
     }
 
     [Fact]

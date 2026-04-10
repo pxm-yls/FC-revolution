@@ -65,29 +65,19 @@ sealed class Program
     {
         var profile = Models.SystemConfigProfile.Load();
         AppObjectStorage.ConfigureResourceRoot(profile.ResourceRootPath);
-        BundledManagedCoreBootstrapper.EnsureBundledCorePackages(profile.ResourceRootPath);
         var managedCoreProbePaths = ResolveManagedCoreProbePaths(profile).ToArray();
+        var runtimeOptions = new ManagedCoreRuntimeOptions(
+            ResourceRootPath: profile.ResourceRootPath,
+            ProbeDirectories: managedCoreProbePaths,
+            EnsureBundledCorePackages: false);
 
-        DefaultManagedCoreModuleCatalog.RegisterAdditionalModuleSource(
-            new AssemblyManagedCoreModuleRegistrationSource(
-                "current-appdomain",
-                () => AppDomain.CurrentDomain.GetAssemblies()));
-        DefaultManagedCoreModuleCatalog.RegisterAdditionalModuleSource(
-            new RegistryManagedCoreModuleRegistrationSource(
-                "managed-core-package-registry",
-                () => Models.SystemConfigProfile.Load().ResourceRootPath));
-        DefaultManagedCoreModuleCatalog.RegisterAdditionalModuleSource(
-            new DirectoryManagedCoreModuleRegistrationSource(
-                "managed-core-probe-paths",
-                () => ResolveManagedCoreProbePaths(Models.SystemConfigProfile.Load())));
-
-        var installedCoreIds = DefaultEmulatorCoreHost.Create()
-            .GetInstalledCoreManifests()
+        var installedCoreIds = ManagedCoreRuntime.LoadCatalogEntries(runtimeOptions)
+            .Select(entry => entry.Manifest)
             .Select(manifest => manifest.CoreId)
             .ToArray();
         StartupDiagnostics.Write(
             "program",
-            $"managed core catalog initialized; sources=current-appdomain,managed-core-package-registry,managed-core-probe-paths; probePaths={string.Join(", ", managedCoreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
+            $"managed core catalog initialized; sources=managed-core-package-registry,managed-core-probe-paths; probePaths={string.Join(", ", managedCoreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
     }
 
     private static IReadOnlyList<string> ResolveManagedCoreProbePaths(Models.SystemConfigProfile profile) =>

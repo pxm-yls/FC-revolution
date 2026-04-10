@@ -300,7 +300,12 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     }
 
     private static IEmulatorCoreSession CreateDefaultCoreSession() =>
-        DefaultEmulatorCoreHost.Create().CreateSession(new CoreSessionLaunchRequest());
+        ManagedCoreRuntime.TryCreateSession(
+            new CoreSessionLaunchRequest(),
+            out var session,
+            options: new ManagedCoreRuntimeOptions())
+            ? session!
+            : throw new InvalidOperationException("当前没有可用核心，请先安装、导入或启用模拟器核心。");
 
     public string DisplayName { get; }
 

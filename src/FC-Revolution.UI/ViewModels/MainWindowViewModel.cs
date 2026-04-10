@@ -246,7 +246,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private IReadOnlyList<CoreManifest> _installedCoreManifests = [];
     private string _resourceRootPath = AppObjectStorage.GetDefaultResourceRoot();
     private string _resourceRootPathInput = AppObjectStorage.GetDefaultResourceRoot();
-    private string _defaultCoreId = DefaultEmulatorCoreHost.DefaultCoreId;
+    private string _defaultCoreId = string.Empty;
     private string _lanFirewallStatusTitle = "尚未检测";
     private string _lanFirewallStatusDetail = "请点击刷新检测，确认系统防火墙不会拦截局域网访问。";
     private string _lanArcadeDiagnosticsText = "尚未执行局域网监听自检。";
@@ -1419,41 +1419,44 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         get => InstalledCoreManifests.FirstOrDefault(
             manifest => string.Equals(manifest.CoreId, DefaultCoreId, StringComparison.OrdinalIgnoreCase));
-        set => DefaultCoreId = value?.CoreId ?? ResolveInstalledFallbackCoreId();
+        set => DefaultCoreId = value?.CoreId ?? string.Empty;
     }
 
     public string DefaultCoreDisplayName =>
         InstalledCoreManifests.FirstOrDefault(manifest => string.Equals(manifest.CoreId, DefaultCoreId, StringComparison.OrdinalIgnoreCase))?.DisplayName
-        ?? DefaultCoreId;
+        ?? (InstalledCoreManifests.Count == 0 ? "未安装核心" : "未选择默认核心");
 
     public string DefaultCoreSummary => SelectedDefaultCoreManifest is { } manifest
         ? $"当前默认核心：{manifest.DisplayName}  ·  system={manifest.SystemId}  ·  version={manifest.Version}  ·  {manifest.BinaryKind}"
-        : $"当前默认核心：{DefaultCoreId}";
+        : InstalledCoreManifests.Count == 0
+            ? "当前未安装核心；请先导入、安装或挂载模拟器核心。"
+            : "当前未选择默认核心。";
 
-    public string InstalledCoreCatalogSummary =>
-        $"已发现 {InstalledCoreManifests.Count} 个核心，当前默认 {DefaultCoreDisplayName}；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。";
+    public string InstalledCoreCatalogSummary => InstalledCoreManifests.Count == 0
+        ? $"当前未发现核心；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。"
+        : $"已发现 {InstalledCoreManifests.Count} 个核心，当前默认 {DefaultCoreDisplayName}；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。";
 
     public string SelectedDefaultCoreSystemId =>
-        SelectedDefaultCoreManifest?.SystemId ?? "unknown";
+        SelectedDefaultCoreManifest?.SystemId ?? "none";
 
     public string SelectedDefaultCoreVersion =>
-        SelectedDefaultCoreManifest?.Version ?? "unknown";
+        SelectedDefaultCoreManifest?.Version ?? "none";
 
     public string SelectedDefaultCoreBinaryKind =>
-        SelectedDefaultCoreManifest?.BinaryKind ?? "unknown";
+        SelectedDefaultCoreManifest?.BinaryKind ?? "unavailable";
 
     public string SelectedDefaultCoreSourceLabel =>
-        GetSelectedManagedCoreCatalogEntry()?.SourceLabel ?? "未知";
+        GetSelectedManagedCoreCatalogEntry()?.SourceLabel ?? "未安装核心";
 
     public string SelectedDefaultCoreRemovabilityLabel =>
-        CanUninstallSelectedManagedCore ? "可卸载" : "不可卸载";
+        CanUninstallSelectedManagedCore ? "可卸载" : SelectedDefaultCoreManifest is null ? "不可用" : "不可卸载";
 
     public string SelectedDefaultCoreAssemblyPathDisplay =>
         GetSelectedManagedCoreCatalogEntry() is { } entry
             ? string.IsNullOrWhiteSpace(entry.InstallDirectory)
                 ? entry.AssemblyPath ?? "入口程序集路径不可用。"
                 : $"{entry.InstallDirectory}{Environment.NewLine}入口程序集：{entry.AssemblyPath ?? "不可用"}"
-            : "当前核心尚未暴露安装位置或入口程序集。";
+            : "当前未选择核心。";
 
     public string SelectedDefaultCoreSourceSummary =>
         _managedCoreCatalogController.BuildSelectedCoreSourceSummary(GetSelectedManagedCoreCatalogEntry());
@@ -3586,19 +3589,6 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static IReadOnlyList<CoreManifest> LoadInstalledCoreManifests(
-        string? resourceRootPath,
-        IReadOnlyList<string>? managedCoreProbePaths)
-    {
-        var directorySource = new DirectoryManagedCoreModuleRegistrationSource(
-            "main-window-managed-core-probe-paths",
-            () => SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(resourceRootPath, managedCoreProbePaths));
-        return new EmulatorCoreHost(
-            DefaultManagedCoreModuleCatalog.CreateModules(directorySource.LoadModules()),
-            DefaultEmulatorCoreHost.DefaultCoreId)
-            .GetInstalledCoreManifests();
-    }
-
     private string NormalizeConfiguredCoreId(string? coreId) =>
         NormalizeConfiguredCoreId(coreId, InstalledCoreManifests);
 
@@ -3619,20 +3609,30 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private static string ResolveInstalledFallbackCoreId(IReadOnlyList<CoreManifest> installedCoreManifests)
     {
-        if (installedCoreManifests.Any(manifest => string.Equals(
-                manifest.CoreId,
-                DefaultEmulatorCoreHost.DefaultCoreId,
-                StringComparison.OrdinalIgnoreCase)))
-        {
-            return DefaultEmulatorCoreHost.DefaultCoreId;
-        }
-
-        return installedCoreManifests.FirstOrDefault()?.CoreId ?? DefaultEmulatorCoreHost.DefaultCoreId;
+        return installedCoreManifests.FirstOrDefault()?.CoreId ?? string.Empty;
     }
 
+    private ManagedCoreRuntimeOptions CreateManagedCoreRuntimeOptions(bool ensureBundledCorePackages = false) =>
+        new(
+            ResourceRootPath: ResourceRootPath,
+            ProbeDirectories: EffectiveManagedCoreProbeDirectories,
+            EnsureBundledCorePackages: ensureBundledCorePackages);
+
     private IEmulatorCoreSession CreateMainCoreSession() =>
-        DefaultEmulatorCoreHost.Create().CreateSession(new CoreSessionLaunchRequest(DefaultCoreId));
+        ManagedCoreRuntime.TryCreateSession(
+            new CoreSessionLaunchRequest(DefaultCoreId),
+            out var session,
+            defaultCoreId: DefaultCoreId,
+            options: CreateManagedCoreRuntimeOptions())
+            ? session!
+            : ManagedCoreRuntime.CreateUnavailableSession(DefaultCoreId);
 
     private IEmulatorCoreSession CreatePreviewCoreSession() =>
-        DefaultEmulatorCoreHost.Create().CreateSession(new CoreSessionLaunchRequest(DefaultCoreId));
+        ManagedCoreRuntime.TryCreateSession(
+            new CoreSessionLaunchRequest(DefaultCoreId),
+            out var session,
+            defaultCoreId: DefaultCoreId,
+            options: CreateManagedCoreRuntimeOptions())
+            ? session!
+            : ManagedCoreRuntime.CreateUnavailableSession(DefaultCoreId);
 }

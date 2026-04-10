@@ -1,12 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.Loader;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
-using FCRevolution.Storage;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -30,13 +26,12 @@ internal sealed class MainWindowManagedCoreCatalogController
         string? resourceRootPath,
         IReadOnlyList<string>? managedCoreProbePaths)
     {
-        BundledManagedCoreBootstrapper.EnsureBundledCorePackages(resourceRootPath);
         var effectiveProbeDirectories = SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(resourceRootPath, managedCoreProbePaths);
-        var installDirectory = Path.GetFullPath(AppObjectStorage.GetManagedCoreModulesDirectory(
-            string.IsNullOrWhiteSpace(resourceRootPath)
-                ? AppObjectStorage.GetResourceRoot()
-                : resourceRootPath!));
-        var entries = BuildCatalogEntries(resourceRootPath, installDirectory, effectiveProbeDirectories)
+        var entries = ManagedCoreRuntime.LoadCatalogEntries(new ManagedCoreRuntimeOptions(
+                ResourceRootPath: resourceRootPath,
+                ProbeDirectories: effectiveProbeDirectories,
+                EnsureBundledCorePackages: false))
+            .Select(MapEntry)
             .OrderBy(entry => entry.Manifest.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -48,7 +43,7 @@ internal sealed class MainWindowManagedCoreCatalogController
     public string BuildSelectedCoreSourceSummary(MainWindowManagedCoreCatalogEntry? entry)
     {
         if (entry == null)
-            return "当前默认核心来源未知。";
+            return "当前未安装或未选择默认核心。";
 
         var locationText = !string.IsNullOrWhiteSpace(entry.InstallDirectory)
             ? $"安装位置：{entry.InstallDirectory}"
@@ -59,168 +54,22 @@ internal sealed class MainWindowManagedCoreCatalogController
         return $"来源：{entry.SourceLabel} · {removableText} · {locationText}";
     }
 
-    private static IReadOnlyList<MainWindowManagedCoreCatalogEntry> BuildCatalogEntries(
-        string? resourceRootPath,
-        string installDirectory,
-        IReadOnlyList<string> effectiveProbeDirectories)
+    private static MainWindowManagedCoreCatalogEntry MapEntry(ManagedCoreCatalogEntry entry)
     {
-        var packageService = new ManagedCorePackageService();
-        var entries = new Dictionary<string, MainWindowManagedCoreCatalogEntry>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var assemblyPath in EnumerateAssemblyPaths(effectiveProbeDirectories))
+        var sourceLabel = entry.SourceKind switch
         {
-            foreach (var descriptor in DiscoverModuleDescriptorsFromAssemblyPath(assemblyPath))
-            {
-                var canUninstall = IsPathUnderDirectory(assemblyPath, installDirectory);
-                var sourceLabel = canUninstall ? "旧版 DLL 安装" : "探测目录";
-                entries[descriptor.Manifest.CoreId] = new MainWindowManagedCoreCatalogEntry(
-                    descriptor.Manifest,
-                    assemblyPath,
-                    descriptor.ModuleTypeName,
-                    sourceLabel,
-                    canUninstall,
-                    InstallDirectory: null,
-                    ManifestPath: null);
-            }
-        }
-
-        foreach (var package in packageService.GetInstalledPackages(resourceRootPath))
-        {
-            entries[package.Manifest.CoreId] = new MainWindowManagedCoreCatalogEntry(
-                package.Manifest,
-                package.EntryAssemblyPath,
-                package.FactoryType,
-                package.IsBundled ? "内置核心包" : "已安装核心包",
-                CanUninstall: !package.IsBundled,
-                package.InstallDirectory,
-                package.ManifestPath);
-        }
-
-        return entries.Values.ToList();
-    }
-
-    private static IReadOnlyList<DiscoveredManagedCoreModuleDescriptor> DiscoverModuleDescriptorsFromAssemblyPath(string assemblyPath)
-    {
-        var loadContext = new ManagedCoreInspectionLoadContext(assemblyPath);
-        try
-        {
-            var assembly = loadContext.LoadFromAssemblyPath(Path.GetFullPath(assemblyPath));
-            return assembly
-                .GetTypes()
-                .Where(type =>
-                    type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IManagedCoreModule).IsAssignableFrom(type) &&
-                    type.GetConstructor(Type.EmptyTypes) != null)
-                .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IManagedCoreModule)Activator.CreateInstance(type)!).Manifest,
-                    type.FullName ?? type.Name))
-                .ToList();
-        }
-        catch (ReflectionTypeLoadException ex)
-        {
-            return ex.Types
-                .Where(type =>
-                    type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IManagedCoreModule).IsAssignableFrom(type) &&
-                    type.GetConstructor(Type.EmptyTypes) != null)
-                .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IManagedCoreModule)Activator.CreateInstance(type!)!).Manifest,
-                    type!.FullName ?? type.Name))
-                .ToList();
-        }
-        catch
-        {
-            return [];
-        }
-        finally
-        {
-            loadContext.Unload();
-        }
-    }
-
-    private static IEnumerable<string> EnumerateAssemblyPaths(IReadOnlyList<string> directories)
-    {
-        var comparer = GetPathComparer();
-        var seenDirectories = new HashSet<string>(comparer);
-        var seenFiles = new HashSet<string>(comparer);
-
-        foreach (var directory in directories)
-        {
-            if (string.IsNullOrWhiteSpace(directory))
-                continue;
-
-            string normalizedDirectory;
-            try
-            {
-                normalizedDirectory = Path.GetFullPath(directory);
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (!seenDirectories.Add(normalizedDirectory) || !Directory.Exists(normalizedDirectory))
-                continue;
-
-            IEnumerable<string> files;
-            try
-            {
-                files = Directory.EnumerateFiles(normalizedDirectory, "*.dll", SearchOption.AllDirectories);
-            }
-            catch
-            {
-                continue;
-            }
-
-            foreach (var file in files.OrderBy(path => path, comparer))
-            {
-                var normalizedFile = Path.GetFullPath(file);
-                if (seenFiles.Add(normalizedFile))
-                    yield return normalizedFile;
-            }
-        }
-    }
-
-    private static bool IsPathUnderDirectory(string path, string directory)
-    {
-        try
-        {
-            var relativePath = Path.GetRelativePath(
-                Path.GetFullPath(directory),
-                Path.GetFullPath(path));
-            return !relativePath.StartsWith("..", StringComparison.Ordinal) &&
-                   !Path.IsPathRooted(relativePath);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static StringComparer GetPathComparer() => OperatingSystem.IsWindows()
-        ? StringComparer.OrdinalIgnoreCase
-        : StringComparer.Ordinal;
-
-    private sealed record DiscoveredManagedCoreModuleDescriptor(
-        CoreManifest Manifest,
-        string ModuleTypeName);
-
-    private sealed class ManagedCoreInspectionLoadContext(string assemblyPath) : AssemblyLoadContext(isCollectible: true)
-    {
-        private readonly AssemblyDependencyResolver _resolver = new(assemblyPath);
-
-        protected override Assembly? Load(AssemblyName assemblyName)
-        {
-            foreach (var assembly in AssemblyLoadContext.Default.Assemblies)
-            {
-                if (AssemblyName.ReferenceMatchesDefinition(assembly.GetName(), assemblyName))
-                    return assembly;
-            }
-
-            var resolvedPath = _resolver.ResolveAssemblyToPath(assemblyName);
-            return string.IsNullOrWhiteSpace(resolvedPath)
-                ? null
-                : LoadFromAssemblyPath(resolvedPath);
-        }
+            ManagedCoreCatalogSourceKind.BundledPackage => "内置核心包",
+            ManagedCoreCatalogSourceKind.InstalledPackage => "已安装核心包",
+            _ when entry.CanUninstall => "旧版 DLL 安装",
+            _ => "探测目录"
+        };
+        return new MainWindowManagedCoreCatalogEntry(
+            entry.Manifest,
+            entry.AssemblyPath,
+            entry.ModuleTypeName,
+            sourceLabel,
+            entry.CanUninstall,
+            entry.InstallDirectory,
+            entry.ManifestPath);
     }
 }
