@@ -14,16 +14,23 @@
 4. 使用统一的 `.fcr` JSON 文档体系承载核心头文件、核心本地配置、核心注册表等数据。
 5. 支持类似 RetroArch 的核心下载、安装、校验、选择、加载、更新与卸载流程。
 6. 为未来多系统调试、回溯、状态存档、串流、输入映射与渲染适配保留扩展位。
+7. 让主程序在“零核心”状态下仍可启动，并把 bundled core 明确降级为发行策略而不是架构前提。
+8. 让核心可以位于主程序仓库之外，独立设计、独立测试、独立打包与独立发布。
+9. 提供一套由主程序和 `Core Workbench` 共享的 Host Runtime，避免复制核心加载、目录探测、包校验与会话驱动逻辑。
 
 非目标：
 
 1. 本次不实现 `SFC` 或其他新核心。
 2. 本次不直接重写当前 `NES` 核心逻辑。
 3. 本次不一次性改造完所有 UI 与后端模块，而是给出可执行的分期重构路径。
+4. 本次不要求立刻把所有现有核心都搬出主仓库，而是先定义稳定边界并以一个参考核心做外置试点。
 
 ## 2. 当前架构诊断
 
 当前仓库的产品层已经比较成熟，但核心宿主边界仍然强绑定于 `NES` 具体实现。
+
+更聚焦的现状判断、优先级和差距结论见
+[FC-REVOLUTION-INDEPENDENT-CORE-HOSTING-REVIEW.md](/Users/pxm/Desktop/Cs/FC/FC-Revolution/docs/refactor-plans/FC-REVOLUTION-INDEPENDENT-CORE-HOSTING-REVIEW.md)。
 
 ### 2.1 当前有利条件
 
@@ -43,6 +50,7 @@
 5. 渲染抽象名义上存在，但接口仍直接吃 `Ppu2C02`。
 6. 当前 `.fcr` 主要是本地配置文档，还不是“核心分发头文件”。
 7. 当前原生动态库加载是“应用内固定依赖加载”，还不是“每个核心独立加载上下文”。
+8. 当前主程序与核心构建、默认 bootstrap、目录探测和预览驱动仍混杂在同一产品壳里，不利于后续抽出共享运行时并支撑外置核心仓库。
 
 ### 2.3 当前耦合点汇总
 
@@ -58,6 +66,7 @@
 | 状态存档 | `StateSnapshotData` 固定五段状态 | 不能兼容其他系统 |
 | 输入模型 | `NesButton`、两手柄 | 不能泛化到其他设备 |
 | FCR 文档 | `system.fcr`、ROM profile `.fcr` | 尚未形成“核心分发文档族” |
+| 构建/交付 | UI 仍直接引用 `FC-Revolution.Core.FC`，并在 build 阶段注入示例核心 | 说明核心尚未完全脱离主程序仓库与主程序构建流程 |
 
 ## 3. 重构目标架构
 
@@ -69,17 +78,20 @@
 4. 文档与包格式统一使用 `.fcr` 家族。
 5. `binaryKind` 决定加载端口。
 6. `sourceLanguage` 只作为签名后的可信元数据，不参与实际加载分流。
+7. 主程序与 `Core Workbench` 必须共用同一套 Host Runtime，而不是复制 loader / package / probe-path 逻辑。
+8. 主程序仓库与核心仓库边界必须分离，零核心启动能力是默认架构验收项。
 
 ### 3.2 目标模块图
 
 ```text
 FC-Revolution.UI
 FC-Revolution.Backend.Hosting
+FC-Revolution.CoreWorkbench
 FC-Revolution.Storage
 FC-Revolution.Rendering
         │
         ▼
-FC-Revolution.Emulation.Host
+FC-Revolution.Emulation.Host (Shared Host Runtime)
         │
         ├── FC-Revolution.Emulation.Abstractions
         │       ├── 核心会话接口
@@ -95,15 +107,30 @@ FC-Revolution.Emulation.Host
         ├── FC-Revolution.CoreLoader.Native
         │       └── NativeLibrary + FCR_GetCoreApi
         │
-        └── FC-Revolution.CoreCatalog
+        ├── FC-Revolution.CoreCatalog
                 ├── 下载
                 ├── 解压
                 ├── 哈希校验
                 ├── 签名校验
                 ├── 注册
                 └── 版本管理
+        │
+        └── Shared Session Services
+                ├── 核心检查 / manifest inspection
+                ├── 目录探测 / probe-path 装载
+                ├── headless 预览驱动
+                └── smoke test / session 驱动
 
-已安装核心
+主程序仓库之外的核心仓库
+├── fc-revolution-core-nes
+│   ├── src/
+│   ├── tests/
+│   ├── packaging/
+│   └── artifacts/*.fcrcore.zip
+├── future-core-snes
+└── future-core-gb
+
+用户机器上的已安装核心
 ├── FC-Revolution.Core.Nes.Managed
 ├── Future.Core.Snes.Native
 ├── Future.Core.Gb.Managed
@@ -153,6 +180,42 @@ FC-Revolution.Emulation.Host
 2. 对宿主暴露统一接口
 3. 按需暴露能力
 4. 自行处理各系统媒体格式、硬件状态、调试信息
+
+#### D. 共享运行时层
+
+职责：
+
+1. 统一提供核心发现、目录探测、包安装、manifest inspection、会话创建与 capability 路由
+2. 向主程序和 `Core Workbench` 同时暴露可复用的会话驱动、预览生成、smoke test 服务
+3. 把“如何加载核心”从具体 UI/工具工作流中隔离出来
+
+禁止事项：
+
+1. 不直接依赖某个具体系统核心
+2. 不直接内嵌主程序 UI 状态、中文展示文案或产品壳专属配置流程
+
+### 3.4 仓库边界与交付拓扑
+
+目标拓扑建议明确为：
+
+1. 主程序仓库负责：
+   - 抽象层
+   - 共享 Host Runtime
+   - 主程序 UI / Backend
+   - `Core Workbench`
+   - package / manifest / 校验工具链
+2. 每个模拟器核心仓库负责：
+   - 核心实现
+   - 该核心专属 adapter
+   - 核心单元测试 / 集成测试
+   - pack 脚本与发布产物
+3. 主程序启动时允许没有任何核心。
+4. 是否预装一个 bundled core，属于发行包策略，不属于运行时架构前提。
+
+过渡期策略：
+
+1. 可以先保留一个参考核心在主仓库内，作为迁移样板。
+2. 但它最终也应遵循与外部核心仓库一致的 build / test / pack / install 合约。
 
 ## 4. 统一核心接口设计
 
@@ -770,6 +833,52 @@ cores/
 2. 更容易做权限边界与清理策略
 3. 更适合未来核心市场和离线包管理
 
+### 11.3 外部核心仓库与独立测试流
+
+推荐把核心开发工作流分成“核心仓库内完成”和“主程序/Workbench 验证”两段：
+
+#### A. 核心仓库内完成
+
+每个核心仓库建议具备下面结构：
+
+```text
+fc-revolution-core-foo/
+  src/
+    FC-Revolution.Core.Foo/
+  tests/
+    FC-Revolution.Core.Foo.Tests/
+  packaging/
+    core-manifest.template.fcr
+    pack.(ps1|sh)
+  artifacts/
+    *.fcrcore.zip
+```
+
+核心仓库本地应完成：
+
+1. 单元测试
+2. 最小集成测试
+3. manifest 生成
+4. 包产物生成
+
+#### B. 使用共享运行时做产品级验证
+
+验证入口建议统一为两种：
+
+1. `Core Workbench`
+   - 图形化加载 `probe path` 或 `*.fcrcore.zip`
+   - 查看 manifest / capability / 输入 schema / 包内容
+   - 运行最小 ROM smoke test / headless preview / 调试能力检查
+2. CLI checker
+   - 适合 CI
+   - 负责 manifest / 包结构 / hash / 入口点 / 最小加载闭环检查
+
+关键约束：
+
+1. `Core Workbench` 与 CLI checker 必须共用主程序同一套 Host Runtime / loader / package service。
+2. 不允许为测试工具复制另一条“专用装载逻辑”。
+3. 主程序加载核心和 Workbench 加载核心，必须走相同 manifest / loader / session contract。
+
 ## 12. 核心下载、安装与校验流程
 
 ### 12.1 安装流程
@@ -789,21 +898,27 @@ cores/
 
 ### 12.2 运行流程
 
-1. 用户选择媒体文件
-2. 核心目录服务按：
+1. 宿主启动时即使没有任何核心，也应能正常进入产品 shell / 设置页 / 核心管理页。
+2. 用户选择媒体文件
+3. 核心目录服务按：
    - 文件扩展名
    - 媒体探测器
    - `systemId`
    - 用户偏好
    选出候选核心
-3. 如有多个核心，交给用户选择默认项
-4. 读取选中核心的 `core-manifest.fcr`
-5. 根据 `binaryKind` 走不同加载端口：
+4. 如有多个核心，交给用户选择默认项
+5. 读取选中核心的 `core-manifest.fcr`
+6. 根据 `binaryKind` 走不同加载端口：
    - `managed-dotnet` -> Managed loader
    - `native-cabi` -> Native loader
-6. 创建 `IEmulatorCoreSession`
-7. 将 session 交给宿主会话
-8. UI、后端、串流、时间线、调试均通过统一接口接入
+7. 创建 `IEmulatorCoreSession`
+8. 将 session 交给宿主会话
+9. UI、后端、串流、时间线、调试均通过统一接口接入
+
+注意：
+
+1. `Core Workbench` 的加载流程应与这里完全一致，只是会话后的 UI / 调试工作流不同。
+2. 主程序与 Workbench 的差异只能停留在产品壳层，不能落到 manifest、loader、package service 或 session contract 层。
 
 ### 12.3 更新流程
 
@@ -1067,6 +1182,37 @@ cores/
 2. 还没有核心 manifest 校验、安装目录版本拓扑、远程 registry / package 元数据与更新策略。
 3. `NES managed core` 目前仍以内置项目引用方式参与构建，尚未真正迁移为“只通过安装目录加载”的分发形态。
 
+### Phase 6A：抽出共享 Host Runtime 并支持零核心启动
+
+工作项：
+
+1. 把目录探测、程序集检查、manifest inspection 从 UI 控制器下沉到共享 Host Runtime 服务
+2. 把基于 `IEmulatorCoreSession` 的 headless 预览驱动抽到共享服务，避免 `Core Workbench` 复制一套
+3. 让 `EmulatorCoreHost` 支持 empty catalog
+4. 去掉 UI / Host 对具体核心项目的直接 `ProjectReference`
+5. 把 bundled core bootstrap 降级为发行层可选预装策略
+
+退出标准：
+
+1. 主程序在没有任何核心时仍可正常启动到空态
+2. 主程序与未来 `Core Workbench` 已能共用同一套核心发现、probe-path、会话创建与预览驱动服务
+3. `UI/Host` 编译时不再直接依赖具体 NES 核心项目
+
+### Phase 6B：Core Workbench 与独立核心仓库试点
+
+工作项：
+
+1. 新建图形化 `FC-Revolution.CoreWorkbench`
+2. 新建 CLI checker，负责 manifest / 包结构 / 最小加载闭环检查
+3. 选一个参考核心做主仓库外置试点，验证独立 build / test / pack / install / run
+4. 让主程序和 `Core Workbench` 都能加载同一个 `probe path` 或 `*.fcrcore.zip`
+
+退出标准：
+
+1. 外部核心仓库产物无需并入主程序仓库，也能被主程序与 `Core Workbench` 加载
+2. 不存在测试工具专用的第二套 loader / package / probe-path 逻辑
+3. 核心作者可在主程序仓库之外完成核心开发、测试与打包
+
 ### Phase 7：引入 native C ABI 加载器
 
 工作项：
@@ -1120,8 +1266,10 @@ cores/
 3. `src/FC-Revolution.CoreCatalog`
 4. `src/FC-Revolution.CoreLoader.Managed`
 5. `src/FC-Revolution.CoreLoader.Native`
-6. `src/FC-Revolution.Core.Nes.Managed`
-7. `src/FC-Revolution.Core.Native.Abstractions`
+6. `src/FC-Revolution.CoreWorkbench`
+7. `tools/FC-Revolution.Core.Checker`
+8. `src/FC-Revolution.Core.Nes.Managed`
+9. `src/FC-Revolution.Core.Native.Abstractions`
 
 ### 16.2 当前项目演进建议
 
@@ -1136,6 +1284,12 @@ cores/
    - 增加核心目录与注册表支持
 5. `FC-Revolution.UI`
    - 会话、调试、时间线、预览全部改为 capability 驱动
+   - 从中移出核心检查、目录探测、headless 预览驱动等可复用逻辑
+6. `FC-Revolution.Emulation.Host`
+   - 继续收口为主程序与 `Core Workbench` 共用的 Shared Host Runtime
+7. 外部核心仓库
+   - 逐步把具体模拟器核心迁出主程序仓库
+   - 每个仓库独立承担 build / test / pack / publish
 
 ## 17. 兼容策略
 
@@ -1167,6 +1321,8 @@ cores/
 3. 渲染抽象是否会重新掉回 NES 语义
 4. 原生核心的依赖冲突与卸载问题
 5. `SFC` 这类复杂系统会暴露更多抽象缺口
+6. 如果主程序与 `Core Workbench` 演化出两套加载逻辑，后续所有核心接入都会出现双维护风险
+7. 如果外部核心仓库缺少统一 pack / validate / smoke test 流程，所谓“独立核心”会退化为难以集成的散装 DLL
 
 ### 18.2 关键决策
 
@@ -1175,6 +1331,9 @@ cores/
 3. 当前 `NES` 核心优先作为第一个 managed plugin，而不是直接原地大改
 4. capability 机制必须早于第二个系统核心落地
 5. 先完成 managed plugin 路径，再接 native 路径
+6. `FC-Revolution.Emulation.Host` 必须收口为主程序与 `Core Workbench` 共用的 Shared Host Runtime
+7. bundled core 只允许作为发行策略，不能再作为宿主启动前提
+8. 至少要用一个外部核心仓库试点验证独立 build / test / pack / install / run
 
 ## 19. 验证策略
 
@@ -1184,6 +1343,9 @@ cores/
 2. 宿主无须直接引用 `NesConsole`
 3. 核心 manifest 校验与注册表更新可独立测试
 4. 存档与时间线使用 `CoreStateBlob` 后仍能驱动 `NES`
+5. 主程序在零核心状态下仍可启动到空态
+6. `Core Workbench` 与主程序加载同一核心包时，必须走同一套 loader / package / probe-path 路径
+7. 至少一个外部核心仓库产物可在不改主程序源码的情况下完成安装与加载
 
 ### 19.2 自动化测试建议
 
@@ -1201,6 +1363,10 @@ cores/
 12. `InputSchemaProjectionTests`
 13. `RemoteControlContractV2Tests`
 14. `BackendStreamPacketFormatTests`
+15. `ZeroCoreStartupTests`
+16. `ManagedCoreInspectionServiceTests`
+17. `CoreWorkbenchSharedRuntimeParityTests`
+18. `ExternalCorePackageSmokeTests`
 
 ### 19.3 当前阶段验证快照（2026-04-08）
 
@@ -1217,16 +1383,18 @@ cores/
    - `BranchGalleryLoadBranch_UpdatesTemporalResetReason_ToTimelineJump`
 2. 该问题当前更像测试基础设施的 UI 线程调度问题，而不是本轮 capability 边界改造直接引入的业务回归，但仍需单独收口。
 
-### 19.3 手工验证建议
+### 19.4 手工验证建议
 
-1. 安装 `NES managed core`
-2. 启动 ROM
-3. 读档/存档
-4. 回溯
-5. 打开调试窗口
-6. 远程串流
-7. 更新核心版本
-8. 切换默认核心
+1. 在零核心状态启动主程序，确认可进入空态与核心管理入口
+2. 安装 `NES managed core`
+3. 启动 ROM
+4. 读档/存档
+5. 回溯
+6. 打开调试窗口
+7. 远程串流
+8. 更新核心版本
+9. 切换默认核心
+10. 用 `Core Workbench` 加载同一核心包，确认 manifest / capability / smoke test 与主程序一致
 
 ## 20. 最终建议
 
@@ -1237,18 +1405,23 @@ cores/
 3. 未来其他系统核心完全可以使用 `C/C++`，但必须通过统一的 `native-cabi` 端口接入。
 4. 运行时“头文件”建议采用 `core-manifest.fcr`，并与开发时 `fcr_core_api.h` 明确分工。
 5. 当前 `.fcr` 设计值得保留，但必须提升为 `FCR 文档家族`，而不是继续复用现有 profile 类型承载所有职责。
+6. 主程序和 `Core Workbench` 必须共用同一套 Shared Host Runtime。
+7. 真正的独立核心不止是代码解耦，还包括外部仓库、独立测试、独立打包与零核心启动。
 
 推荐执行顺序：
 
 1. 先建抽象层
 2. 再把 `NES` 包成第一个 managed plugin
 3. 再让宿主只认统一核心接口
-4. 再升级 FCR 文档家族与核心存储
-5. 最后接 native loader 与第二个系统核心
+4. 再把共享 Host Runtime 从 UI 中收口出来，并支持零核心启动
+5. 再落 `Core Workbench` 与外部核心仓库试点
+6. 再升级 FCR 文档家族与核心存储
+7. 最后接 native loader 与第二个系统核心
 
 这条路径的优点是：
 
 1. 风险可控
 2. 可以持续保持现有 `NES` 可运行
 3. 可以逐步验证抽象质量
-4. 不会因为直接上 `SFC/C++` 而把仓库拖入一次性重写
+4. 能尽早验证“共享运行时 + 独立核心仓库 + Workbench”这条真正影响长期演化的主轴
+5. 不会因为直接上 `SFC/C++` 而把仓库拖入一次性重写

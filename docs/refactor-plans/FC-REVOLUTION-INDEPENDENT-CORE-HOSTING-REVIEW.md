@@ -1,16 +1,17 @@
 # FC-Revolution 独立核心宿主评审
 
-本文档用于对照当前仓库实现，评审下面三个核心判断是否成立，以及它们应该如何进一步落地：
+本文档用于对照当前仓库实现，评审下面四个核心判断是否成立，以及它们应该如何进一步落地：
 
 1. 模拟器核心是否应通过中间层与 UI / Host / Backend 对接
 2. 未来是否应同时支持 `C#` 与 `C++` 两类核心
 3. 核心是否应能独立打包，并且宿主在“没有任何核心”的情况下仍可正常启动
+4. 核心是否应逐步移出主程序仓库，并通过共享运行时接入主程序与独立测试工具
 
 结论先行：
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 最大的剩余差距不在“代码是否分层”，而在“编译依赖、启动默认假设、native loader 缺位、empty catalog 启动能力”这四件事。
+- 最大的剩余差距不在“代码是否分层”，而在“编译依赖、启动默认假设、native loader 缺位、empty catalog 启动能力、共享运行时边界尚未抽干净”这五件事。
 
 ## 1. 当前判断总览
 
@@ -19,6 +20,7 @@
 | 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，但仍有 NES 偏置和扩展缺口 | 方向正确，需要继续强化 |
 | C# / C++ 双核心 | 未来会同时存在两类实现 | 方案已考虑，代码只落地了 managed | 方向正确，但 native 仍未落地 |
 | 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package 已支持，但宿主仍假定至少有一个 bundled NES core | 方向正确，但启动模型仍未独立 |
+| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，但部分目录探测、程序集检查、预览驱动逻辑仍散落在 UI | 方向正确，应改为“共享 Host Runtime + Core Workbench” |
 
 ## 2. 关于“中间层”的判断
 
@@ -245,19 +247,84 @@
 - “发行包内预装一个 NES core”可以接受
 - “宿主架构必须依赖 NES core 才能启动”不应再接受
 
-## 6. 建议的目标形态
+## 6. 关于“核心移出主仓库、独立测试与 Core Workbench”的判断
 
-你想要的最终形态，我建议定义成下面这样：
+### 6.1 当前仓库是否已经有基础
+
+有，而且基础已经不算薄。
+
+当前已经存在几块可直接提升为共享运行时的能力：
+
+1. [ManagedCoreModuleRegistrationSource.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreModuleRegistrationSource.cs)
+   - 已具备程序集源、目录源、注册表源三类 managed core 发现入口
+   - 已具备按 `coreId` 去重与按 `entryAssemblyPath/factoryType` 实例化的共享装载雏形
+2. [MainWindowManagedCoreCatalogController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowManagedCoreCatalogController.cs)
+   - 已具备按 DLL 检查 manifest、可回收 `AssemblyLoadContext` 探测、目录枚举等能力
+   - 但这些逻辑目前放在 UI 内，不利于未来复用
+3. [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs)
+   - 预览生成已经主要依赖 `IEmulatorCoreSession`
+   - 这说明离线跑帧、取帧、做 smoke test 的基础并不依赖 NES 专有类型
+
+结论：
+
+- 当前仓库已经具备“共享 Host Runtime”的雏形。
+- 但它还没有整理成一个可同时服务主程序和独立测试工具的稳定边界。
+
+### 6.2 当前还没达到“外置核心仓库 + 独立测试工具”的地方
+
+主要差距有：
+
+1. UI 项目仍保留对具体核心项目的编译期引用。
+   见 [FC-Revolution.UI.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/FC-Revolution.UI.csproj)。
+2. 目录探测、程序集检查、来源摘要、默认探测策略仍混在 UI 控制器里。
+3. 预览生成的“会话驱动”部分虽然已经抽象化，但仍驻留在主 UI，而不是共享运行时服务。
+4. 宿主仍把 bundled core 当成启动前提，尚不能证明“零核心也能正常运行产品 shell”。
+
+这意味着：
+
+- 现在更像“主程序里已经长出了插件系统”
+- 还不是“主程序与核心仓库真正解耦，任何核心都可独立开发、独立测试、独立打包”
+
+### 6.3 我的建议
+
+这个方向建议明确成下面三个约束：
+
+1. 核心仓库边界
+   - 每个模拟器核心最终应位于自己的仓库或独立源码根
+   - 能独立 build、独立 test、独立 pack，而不是跟主程序一同编译才成立
+2. 共享运行时边界
+   - 主程序与未来 `Core Workbench` 只能共用同一套 Host Runtime / loader / package / probe-path 逻辑
+   - 不要复制一套“测试工具专用装载链”
+3. 测试工具边界
+   - 应有一个图形化 `Core Workbench`
+   - 同时建议有一个更轻量的 CLI checker，适合 CI 验证 manifest、包结构、加载与最小 smoke test
+
+换句话说：
+
+- 主程序不是唯一宿主前端
+- `Core Workbench` 也只是同一套共享运行时的第二个前端
+
+## 7. 建议的目标形态（摘要）
+
+更严格的目标形态建议定义成下面这样：
 
 ```text
-UI / Backend / Host
-    只依赖 Emulation.Abstractions + Loader + Package Catalog
+Main App UI / Backend / Core Workbench
+    只依赖 Emulation.Abstractions + Shared Host Runtime + Loader + Package Catalog
 
-Core Package A (C#)
-    manifest + dll + adapter
+Shared Host Runtime
+    统一负责：
+    - 核心发现
+    - probe-path / package 装载
+    - session 创建
+    - capability 路由
+    - headless 预览/最小 smoke test 驱动
 
-Core Package B (C++)
-    manifest + dylib/dll/so + native-cabi bridge
+External Core Repo A (managed-dotnet)
+    manifest + dll + tests + pack scripts
+
+External Core Repo B (native-cabi)
+    manifest + dylib/dll/so + native bridge + tests + pack scripts
 
 App startup
     无核心也能进 UI
@@ -265,37 +332,42 @@ App startup
     有默认核心才创建会话
 ```
 
-这比“代码解耦”更严格，但它才是真正接近“核心只是挂件”。
+这比“代码解耦”更严格，但它才真正接近“核心只是挂件”。
 
-## 7. 推荐的改造顺序
+更完整的目标拓扑、模块边界和 phase 计划请以
+[FC-REVOLUTION-PLUGGABLE-CORE-ARCHITECTURE-PLAN.md](/Users/pxm/Desktop/Cs/FC/FC-Revolution/docs/refactor-plans/FC-REVOLUTION-PLUGGABLE-CORE-ARCHITECTURE-PLAN.md)
+为准。
 
-### Phase A：把中间层补到可扩展
+## 8. 推荐的改造顺序（摘要）
 
-优先做：
+这里保留结论性顺序，详细 roadmap 统一放在方案文档中：
 
-1. 扩展媒体载入抽象
-2. 审视调试地址模型是否需要泛化
-3. 把高级渲染元数据继续下沉为 capability
-4. 明确哪些 capability 是跨系统的，哪些只能留在 adapter 层
-
-### Phase B：消除宿主对具体核心的编译时依赖
+### Phase A：把共享运行时边界抽出来
 
 优先做：
 
-1. 去掉 `Emulation.Host -> NES Managed Core` 的直接项目引用
-2. 把 bundled core 变成发行层预置，而不是 host 架构前提
-3. 让 `DefaultEmulatorCoreHost` 不再内置 NES bootstrap 假设
+1. 把目录探测、程序集检查、manifest inspection 从 UI 收口到共享 Host Runtime
+2. 把预览生成里依赖 `IEmulatorCoreSession` 的 headless 驱动部分沉到共享服务
+3. 明确主程序与 `Core Workbench` 共用同一套加载与会话创建逻辑
 
-### Phase C：支持零核心启动
+### Phase B：消除编译时核心依赖并支持零核心启动
 
 优先做：
 
-1. `EmulatorCoreHost` 支持 empty catalog
-2. `MainWindowViewModel` 不再构造期强制创建主核心会话
-3. UI 增加“未安装核心”状态和引导入口
-4. 默认核心配置允许为空
+1. 去掉 `UI/Host -> NES Managed Core` 的直接项目引用
+2. 把 bundled core 定位为发行策略，而不是宿主架构前提
+3. 让 `EmulatorCoreHost` 支持 empty catalog
+4. 让 UI 在零核心状态进入空态，而不是强制创建会话
 
-### Phase D：引入 native-cabi loader
+### Phase C：落地独立测试工具与外置核心仓库试点
+
+优先做：
+
+1. 新建图形化 `Core Workbench`
+2. 新建 CLI checker 作为 CI / 打包 smoke test 入口
+3. 先把一个参考核心迁移为外部仓库试点，验证独立 build / test / pack / install / run 闭环
+
+### Phase D：补 native-cabi loader
 
 优先做：
 
@@ -304,15 +376,16 @@ App startup
 3. 给 native core 建最小 smoke test
 4. 用一个假的 native core 跑通 install/load/session 闭环
 
-## 8. 我的意见汇总
+## 9. 我的意见汇总
 
-### 8.1 哪些地方与你的想法一致
+### 9.1 哪些地方与你的想法一致
 
 1. “核心应该通过中间层对接”是正确方向
-2. “未来会有 C# / C++ 两类核心”是正确方向
+2. “未来会有两种装载端口，分别承接 managed 与 native 核心”是正确方向
 3. “核心必须能独立打包，宿主应允许无核心启动”是正确方向
+4. “核心应尽量移出主程序仓库，并有独立测试工具”也是正确方向
 
-### 8.2 哪些地方建议转换表述
+### 9.2 哪些地方建议转换表述
 
 建议把：
 
@@ -330,24 +403,35 @@ App startup
 
 - “有一套分层中间边界：session 主接口 + capability 扩展 + loader/package 层”
 
-### 8.3 当前最不一致的地方
+建议把：
 
-如果以你的目标为标准，当前最不一致的 4 个点是：
+- “给测试工具单独做一套加载逻辑”
+
+转换为：
+
+- “主程序与 `Core Workbench` 共用一套共享 Host Runtime，只在前端工作流上分化”
+
+### 9.3 当前最不一致的地方
+
+如果以你的目标为标准，当前最不一致的 5 个点是：
 
 1. 宿主仍直接编译依赖具体 NES core
 2. 启动链仍强制 bundled NES bootstrap
 3. 宿主当前不接受 empty catalog
 4. native-cabi 路线还只是方案，不是代码能力
+5. 共享运行时边界尚未从 UI 中抽干净，因而还不能自然支撑 `Core Workbench`
 
-## 9. 推荐的下一步
+## 10. 推荐的下一步
 
-如果要把你的想法继续落地成代码，我建议下一轮优先做的不是“再抽一个接口”，而是：
+如果要把这个方向继续落地，我建议下一轮优先做的不是“再抽一个接口”，而是：
 
-1. 先做“无核心启动”改造设计
-2. 再拆掉 `Emulation.Host` 对 NES managed core 的直接项目引用
-3. 然后再补 native loader skeleton
+1. 先抽共享 Host Runtime 边界，把目录探测、程序集检查、headless 预览驱动从 UI 里移出来
+2. 再做“无核心启动”与“去除编译时 NES 引用”
+3. 然后落一个最小 `Core Workbench` / CLI checker skeleton
+4. 最后再补 native loader skeleton
 
 原因很简单：
 
+- 只有主程序和测试工具都能共用同一套运行时，才能证明“核心接入方式”已经稳定
 - 只有宿主真正允许“零核心存在”，才能证明核心已经不是宿主的一部分
-- 在那之前，哪怕代码接口再漂亮，也还只是“被默认绑定的内置核心”
+- 在那之前，哪怕代码接口再漂亮，也还只是“被默认绑定在主程序里的内置核心”

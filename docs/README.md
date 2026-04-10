@@ -8,6 +8,13 @@
 
 用于承载架构重构方案、任务清单、roadmap 和阶段性执行计划。
 
+其中建议优先区分两份核心文档的职责：
+
+- `refactor-plans/FC-REVOLUTION-INDEPENDENT-CORE-HOSTING-REVIEW.md`
+  - 现状评审 / 差距判断 / 优先级结论
+- `refactor-plans/FC-REVOLUTION-PLUGGABLE-CORE-ARCHITECTURE-PLAN.md`
+  - 目标架构 / 模块边界 / 执行 phase / 验收策略
+
 - `refactor-plans/FC-REVOLUTION-ARCHITECTURE-AUDIT-TASKLIST.md`
 - `refactor-plans/FC-REVOLUTION-BACKEND-HOSTING-TASKLIST.md`
 - `refactor-plans/FC-REVOLUTION-CORE-REFINEMENT-TASKLIST.md`
@@ -44,8 +51,9 @@
 如果你第一次进入这个仓库，建议按下面顺序阅读：
 
 1. `README.md`
-2. `docs/refactor-plans/FC-REVOLUTION-PLUGGABLE-CORE-ARCHITECTURE-PLAN.md`
-3. `docs/feature-overviews/RENDERING_PLATFORM_GUIDE.md`
-4. `docs/feature-overviews/MACOS_DEVELOPMENT_GUIDE.md`
+2. `docs/whats-new/FC-REVOLUTION-CURRENT-RUNTIME-FLOW.md`
+3. `docs/refactor-plans/FC-REVOLUTION-INDEPENDENT-CORE-HOSTING-REVIEW.md`
+4. `docs/refactor-plans/FC-REVOLUTION-PLUGGABLE-CORE-ARCHITECTURE-PLAN.md`
 5. `docs/feature-guides/FC-REVOLUTION-NEW-EMULATOR-CORE-INTEGRATION-GUIDE.md`
-6. `docs/whats-new/FC-REVOLUTION-CURRENT-RUNTIME-FLOW.md`
+6. `docs/feature-overviews/RENDERING_PLATFORM_GUIDE.md`
+7. `docs/feature-overviews/MACOS_DEVELOPMENT_GUIDE.md`
