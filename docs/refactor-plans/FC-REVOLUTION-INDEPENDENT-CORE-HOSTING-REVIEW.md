@@ -11,7 +11,7 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时最后一段 preview/legacy adapter 边界尚未完全抽干、CLI checker 虽已落地但独立核心工具链仍未完成、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时与 legacy adapter 的最后边界尚未完全抽干、CLI checker 虽已落地但独立核心工具链仍未完成、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
 - 本轮之后，UI 本地输入、运行时输入和 NES alias 处理已经改为 `InputSchema` 元数据驱动，`NesInputAdapter` 与 NES 位掩码不再是 UI 生产代码的真相来源；backend WebSocket / heartbeat 内部租约也已切到 `portId-first`，剩余输入残留主要集中在 contracts、HTTP `/buttons` / WebPad 兼容壳与配置命名空间还保留 `p1/p2` / `Player1` / `Player2` 过渡形态。
 
 ## 1. 当前判断总览
@@ -21,7 +21,7 @@
 | 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，但仍有 NES 偏置和扩展缺口 | 方向正确，需要继续强化 |
 | C# / C++ 双核心 | 未来会同时存在两类实现 | 方案已考虑，代码只落地了 managed | 方向正确，但 native 仍未落地 |
 | 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package / install / export / uninstall / zero-core 启动已支持，但 UI 仍保留少量 FC/NES 编译期适配层 | 方向正确，运行时前提已基本独立，编译边界还需继续收口 |
-| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 首版已可用，但 `Core Workbench`、外部核心仓库试点与预览驱动共享化仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
+| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 首版已可用，headless preview driver 已开始共享化，但 `Core Workbench` 与外部核心仓库试点仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
 
 ## 2. 关于“中间层”的判断
 
@@ -262,9 +262,9 @@
 2. [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)
    - 已具备按 DLL 检查 manifest、独立 inspection `AssemblyLoadContext` 读取来源信息、目录枚举与 catalog 汇总等共享能力
    - UI catalog controller 现在主要只负责展示映射，这部分已不再是必须继续从 UI 下沉的主阻塞
-3. [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs)
-   - 预览生成已经主要依赖 `IEmulatorCoreSession`
-   - 这说明离线跑帧、取帧、做 smoke test 的基础并不依赖 NES 专有类型
+3. [CorePreviewFrameCaptureService.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CorePreviewFrameCaptureService.cs)
+   - 已把创建 `IEmulatorCoreSession`、`LoadMedia`、离线 `RunFrame`、节流与 `VideoFrameReady` 采样收口到共享 Host Runtime
+   - [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs) 现在主要只保留缩放、ffmpeg 编码和 legacy 预览文件处理
 
 结论：
 
@@ -276,7 +276,7 @@
 主要差距有：
 
 1. UI 主会话与默认核心列表已经不再依赖编译期 `NesManagedCoreModule`，`FC-Revolution.UI` 也不再直接引用 `FC-Revolution.Core.FC`；当前剩余的是 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj) 这一显式 FC adapter 层仍留在主仓内。
-2. 目录探测、程序集检查和来源汇总已经大部分收口到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)，但 [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs) 的 headless 预览驱动仍在 UI。
+2. 目录探测、程序集检查、来源汇总和 headless 预览驱动已经收口到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs) 与 [CorePreviewFrameCaptureService.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CorePreviewFrameCaptureService.cs)，但 ffmpeg 编码、preview asset 管理与 legacy 预览文件迁移仍在 UI。
 3. 轻量 CLI checker 首版已完成，但图形化 `Core Workbench` 仍不存在，外部核心仓库试点也还没有验证独立 build / test / pack / install / run 闭环。
 4. `native-cabi` 目前仍只是 manifest / binary kind 约定，没有真正的 loader、桥接层和 smoke test。
 
@@ -347,14 +347,14 @@ App startup
 优先做：
 
 1. 把目录探测、程序集检查、manifest inspection 从 UI 收口到共享 Host Runtime
-2. 把预览生成里依赖 `IEmulatorCoreSession` 的 headless 驱动部分沉到共享服务
+2. 继续把预览生成周边的编码/资产处理与 legacy 预览文件流程从 UI 宿主工作流中与共享运行时边界清晰分层
 3. 明确主程序与 `Core Workbench` 共用同一套加载与会话创建逻辑
 
 当前状态：
 
 1. package/probe/catalog/inspection/session 创建已经集中到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
-2. 最小 smoke test 驱动已经开始沉到 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)，并由 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs) 复用。
-3. 但 preview 生成与 legacy timeline 适配还在 UI，因此这一阶段还不能算完成。
+2. 最小 smoke test 驱动已经沉到 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)，并由 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs) 复用。
+3. headless preview driver 也已沉到 [CorePreviewFrameCaptureService.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CorePreviewFrameCaptureService.cs)，但 preview 编码/legacy 预览文件处理与 legacy timeline 适配还在 UI，因此这一阶段还不能算完成。
 
 ### Phase B：消除编译时核心依赖并支持零核心启动（大部完成）
 
@@ -435,7 +435,7 @@ App startup
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
 1. `FC-Revolution.UI` 已改为通过显式 FC adapter 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；但这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
-2. headless 预览驱动与旧时间线桥接仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
+2. 旧时间线桥接、preview 编码与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
 3. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
 4. `native-cabi` 路线还只是方案，不是代码能力。
 5. 具体核心项目仍位于主仓内，尚未证明“主仓外独立 build / test / pack”流程。
@@ -445,7 +445,7 @@ App startup
 如果要把这个方向继续落地，我建议下一轮优先做的不是“再抽一个接口”，而是：
 
 1. 先继续把 legacy timeline / NES 辅助逻辑从“显式 NES adapter 包”推进到更稳定的 capability / shared runtime 边界，避免 adapter 层继续膨胀成新的半公共层。
-2. 把 headless 预览驱动继续从 UI 下沉到 Shared Host Runtime，让主程序、CLI checker 与未来 `Core Workbench` 共用同一套服务。
+2. 继续把 preview 编码/preview asset 流程与 Shared Host Runtime 的捕帧服务边界拉直，让主程序、CLI checker 与未来 `Core Workbench` 共用同一套会话驱动。
 3. 在已经落地的 CLI checker 基础上补图形化 `Core Workbench`，并拿一个外部核心仓库做独立 build / test / pack / install 试点。
 4. 最后再补 native loader skeleton。
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
@@ -17,7 +16,7 @@ internal sealed record PreviewFileData(int Width, int Height, int IntervalMs, Li
 
 internal sealed class MainWindowPreviewGenerationController
 {
-    private readonly Func<IEmulatorCoreSession> _createCoreSession;
+    private readonly CorePreviewFrameCaptureService _previewFrameCaptureService;
     private readonly int _previewSourceWidth;
     private readonly int _previewSourceHeight;
     private readonly int _previewDurationSeconds;
@@ -45,7 +44,7 @@ internal sealed class MainWindowPreviewGenerationController
         string previewMagicV2,
         string legacyPreviewExtension)
         : this(
-            CreateDefaultCoreSession,
+            new CorePreviewFrameCaptureService(),
             previewSourceWidth,
             previewSourceHeight,
             previewDurationSeconds,
@@ -75,8 +74,39 @@ internal sealed class MainWindowPreviewGenerationController
         string previewMagicV1,
         string previewMagicV2,
         string legacyPreviewExtension)
+        : this(
+            new CorePreviewFrameCaptureService(createCoreSession),
+            previewSourceWidth,
+            previewSourceHeight,
+            previewDurationSeconds,
+            previewPlaybackFps,
+            previewSourceFps,
+            previewAnimationFrameCount,
+            previewCaptureStride,
+            previewFrameIntervalMs,
+            previewBuildTimeout,
+            previewMagicV1,
+            previewMagicV2,
+            legacyPreviewExtension)
     {
-        _createCoreSession = createCoreSession;
+    }
+
+    public MainWindowPreviewGenerationController(
+        CorePreviewFrameCaptureService previewFrameCaptureService,
+        int previewSourceWidth,
+        int previewSourceHeight,
+        int previewDurationSeconds,
+        int previewPlaybackFps,
+        int previewSourceFps,
+        int previewAnimationFrameCount,
+        int previewCaptureStride,
+        int previewFrameIntervalMs,
+        TimeSpan previewBuildTimeout,
+        string previewMagicV1,
+        string previewMagicV2,
+        string legacyPreviewExtension)
+    {
+        _previewFrameCaptureService = previewFrameCaptureService;
         _previewSourceWidth = previewSourceWidth;
         _previewSourceHeight = previewSourceHeight;
         _previewDurationSeconds = previewDurationSeconds;
@@ -90,14 +120,6 @@ internal sealed class MainWindowPreviewGenerationController
         _previewMagicV2 = previewMagicV2;
         _legacyPreviewExtension = legacyPreviewExtension;
     }
-
-    private static IEmulatorCoreSession CreateDefaultCoreSession() =>
-        ManagedCoreRuntime.TryCreateSession(
-            new CoreSessionLaunchRequest(),
-            out var session,
-            options: new ManagedCoreRuntimeOptions())
-            ? session!
-            : ManagedCoreRuntime.CreateUnavailableSession();
 
     public async Task GeneratePreviewVideoWithTimeoutAsync(
         string romPath,
@@ -229,22 +251,6 @@ internal sealed class MainWindowPreviewGenerationController
         return new PreviewFileData(width, height, intervalMs, frames);
     }
 
-    public void ThrottlePreviewGeneration(int generatedFrames, Stopwatch generationWatch, CancellationToken cancellationToken, int speedMultiplier)
-    {
-        if ((generatedFrames & 15) != 0)
-            return;
-
-        var targetFps = Math.Max(1, speedMultiplier) * _previewSourceFps;
-        var expectedElapsed = TimeSpan.FromSeconds(generatedFrames / (double)targetFps);
-        var delay = expectedElapsed - generationWatch.Elapsed;
-        if (delay <= TimeSpan.Zero)
-            return;
-
-        var sleepMs = (int)Math.Floor(delay.TotalMilliseconds);
-        if (sleepMs > 0)
-            Task.Delay(sleepMs, cancellationToken).GetAwaiter().GetResult();
-    }
-
     private void GeneratePreviewVideo(
         string romPath,
         string previewPath,
@@ -255,78 +261,45 @@ internal sealed class MainWindowPreviewGenerationController
         Action<double>? progressCallback,
         Action<double, string>? uiProgressCallback)
     {
-        using var previewSession = _createCoreSession();
-        var loadResult = previewSession.LoadMedia(new CoreMediaLoadRequest(romPath));
-        if (!loadResult.Success)
-            throw new InvalidOperationException(loadResult.ErrorMessage ?? "无法加载预览 ROM。");
-
-        var generationWatch = Stopwatch.StartNew();
         var previewSize = GetPreviewOutputSize(previewResolutionScale);
         var resizedFrame = previewSize.Width == _previewSourceWidth && previewSize.Height == _previewSourceHeight
             ? null
             : new uint[previewSize.Width * previewSize.Height];
         var frameBytes = new byte[previewSize.Width * previewSize.Height * sizeof(uint)];
         var totalFrames = _previewDurationSeconds * _previewSourceFps;
-        uint[]? latestFrame = null;
-        var observedWidth = 0;
-        var observedHeight = 0;
-        void HandleVideoFrame(VideoFramePacket packet)
+        FFmpegPreviewEncoder.EncodeMp4(previewPath, previewSize.Width, previewSize.Height, _previewFrameIntervalMs, stdin =>
         {
-            latestFrame = packet.Pixels;
-            observedWidth = packet.Width;
-            observedHeight = packet.Height;
-        }
-
-        previewSession.VideoFrameReady += HandleVideoFrame;
-        try
-        {
-            FFmpegPreviewEncoder.EncodeMp4(previewPath, previewSize.Width, previewSize.Height, _previewFrameIntervalMs, stdin =>
-            {
-                var framesWritten = 0;
-                for (var frame = 0; frame < totalFrames && framesWritten < _previewAnimationFrameCount; frame++)
+            var framesWritten = 0;
+            var captureResult = _previewFrameCaptureService.Capture(
+                new CorePreviewFrameCaptureRequest(
+                    romPath,
+                    TotalFrames: totalFrames,
+                    CaptureStride: _previewCaptureStride,
+                    MaxCapturedFrames: _previewAnimationFrameCount,
+                    ExpectedWidth: _previewSourceWidth,
+                    ExpectedHeight: _previewSourceHeight,
+                    TargetRunFps: Math.Max(1, previewGenerationSpeedMultiplier) * _previewSourceFps),
+                capturedFrame =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var frameResult = previewSession.RunFrame();
-                    if (!frameResult.Success)
-                        throw new InvalidOperationException(frameResult.ErrorMessage ?? "预览帧生成失败。");
+                    WritePreviewFrame(capturedFrame.Frame.Pixels, previewSize.Width, previewSize.Height, resizedFrame, frameBytes);
+                    stdin.Write(frameBytes, 0, frameBytes.Length);
+                    framesWritten++;
+                },
+                progress =>
+                {
+                    var completedFrames = Math.Max(0, progress.GeneratedFrames - 1);
+                    var normalizedProgress = completedFrames / (double)Math.Max(1, totalFrames);
+                    var generatedFps = completedFrames / Math.Max(0.001, progress.Elapsed.TotalSeconds);
+                    progressCallback?.Invoke(normalizedProgress);
+                    uiProgressCallback?.Invoke(
+                        normalizedProgress,
+                        $"正在离线生成 {_previewDurationSeconds} 秒 / {_previewAnimationFrameCount} 帧预览，输出 {previewSize.Width}x{previewSize.Height}，进度 {normalizedProgress:P0}，当前速度 {generatedFps:F0} fps");
+                },
+                cancellationToken);
 
-                    if ((frame + 1) % _previewCaptureStride == 0)
-                    {
-                        if (latestFrame == null)
-                            throw new InvalidOperationException("预览核心未产出视频帧。");
-
-                        if (observedWidth != _previewSourceWidth || observedHeight != _previewSourceHeight)
-                        {
-                            throw new InvalidOperationException(
-                                $"预览源帧尺寸不匹配，期望 {_previewSourceWidth}x{_previewSourceHeight}，实际 {observedWidth}x{observedHeight}。");
-                        }
-
-                        WritePreviewFrame(latestFrame, previewSize.Width, previewSize.Height, resizedFrame, frameBytes);
-                        stdin.Write(frameBytes, 0, frameBytes.Length);
-                        framesWritten++;
-                    }
-
-                    ThrottlePreviewGeneration(frame + 1, generationWatch, cancellationToken, previewGenerationSpeedMultiplier);
-
-                    if (frame % 120 == 0)
-                    {
-                        var progress = frame / (double)Math.Max(1, totalFrames);
-                        var generatedFps = frame / Math.Max(0.001, generationWatch.Elapsed.TotalSeconds);
-                        progressCallback?.Invoke(progress);
-                        uiProgressCallback?.Invoke(
-                            progress,
-                            $"正在离线生成 {_previewDurationSeconds} 秒 / {_previewAnimationFrameCount} 帧预览，输出 {previewSize.Width}x{previewSize.Height}，进度 {progress:P0}，当前速度 {generatedFps:F0} fps");
-                    }
-                }
-
-                if (framesWritten == 0)
-                    throw new InvalidOperationException("没有可编码的预览帧。");
-            }, selectedPreviewEncodingMode);
-        }
-        finally
-        {
-            previewSession.VideoFrameReady -= HandleVideoFrame;
-        }
+            if (framesWritten == 0 || captureResult.CapturedFrames == 0)
+                throw new InvalidOperationException("没有可编码的预览帧。");
+        }, selectedPreviewEncodingMode);
     }
 
     private static uint[] DownscaleNearest(uint[] source, int sourceWidth, int sourceHeight, int targetWidth, int targetHeight)

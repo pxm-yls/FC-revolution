@@ -50,7 +50,7 @@
 5. 渲染抽象名义上存在，但接口仍直接吃 `Ppu2C02`。
 6. 当前 `.fcr` 主要是本地配置文档，还不是“核心分发头文件”。
 7. 当前原生动态库加载是“应用内固定依赖加载”，还不是“每个核心独立加载上下文”。
-8. 当前主程序与核心构建、默认 bootstrap、目录探测和预览驱动仍混杂在同一产品壳里，不利于后续抽出共享运行时并支撑外置核心仓库。
+8. 当前主程序与核心构建、默认 bootstrap、目录探测曾长期混杂在同一产品壳里；本轮之后 headless 预览驱动也已开始下沉到共享运行时，但预览编码与 legacy preview 资产流程仍未完全脱离产品壳。
 
 ### 2.3 当前耦合点汇总
 
@@ -1095,6 +1095,7 @@ fc-revolution-core-foo/
 10. `BranchGalleryCanvasProjectionController` 已把 `BranchGalleryViewModel` 中原先直接承担的 timeline/mainline/branch/preview marker 画布投影、layout 和 orientation/zoom 坐标换算抽成独立 controller；此前已补上 `BranchGalleryPreviewNodeWorkflowController`、`BranchGalleryCanvasRefreshController`、`BranchGalleryTimelineNavigationExecutionController`、`BranchGalleryExportExecutionController` 与 `BranchGallerySelectionController`，把 preview workflow、canvas refresh plan、timeline navigation execution、导出执行壳以及 selection 展示派生逻辑逐步从 `ViewModel` 中抽离；本轮再补上 `BranchGalleryBranchWorkflowController`、`BranchGallerySelectionEntryController`、`BranchGalleryViewportWorkflowController` 与 `BranchGalleryCanvasApplyController`，把 branch create/delete/rename、seek/select 命令入口、orientation/zoom/time-scale 调整，以及 `RebuildCanvas` 的最终 apply 都继续下沉。当前 `BranchGalleryViewModel` 已退回到命令入口、展示投影与最终 selection apply 薄壳。
 11. `MainWindowActiveInputRuntimeController` 已把 `MainWindowViewModel.InputAndShortcuts` 中的 `_pressedKeys`、turbo pulse、desired action 计算、transition 生成与 `ICoreInputStateWriter` 写回下沉到独立运行时 controller；此前已补上 `MainWindowActiveInputWorkflowController` 与 `MainWindowInputKeyboardWorkflowController`，把 active input ROM 路径解析、refresh/apply 决策、turbo pulse 编排、legacy mirror 生成，以及 `OnKeyDown/OnKeyUp/ShouldHandleKey` 的键盘工作流/动作分发继续从 partial 中抽离；本轮再补上 `MainWindowInputBindingWorkflowController`，并把主窗口 / 游戏窗口输入绑定解析、extra binding 选项、remote alias 归一化与 legacy replay mask mirror 统一改为吃 `CoreInputBindingSchema`，让 UI 生产代码彻底脱离 `NesInputAdapter + byte mask` 真相来源。主窗口输入 partial 已退回到输入绑定命令、active input apply 与最终 legacy mirror 同步薄壳；按 `FC-Revolution.UI / LAN / 预览治理任务清单` 的口径，`1.5` 已可标记完成。
 12. `MainWindowManagedCoreCatalogController` 与 `MainWindowManagedCoreInstallController` 已补齐本地 managed core DLL 的最小产品闭环：设置页现在可以直接“导入 DLL -> 刷新默认核心列表 -> 展示选中核心来源/路径/是否可卸载 -> 卸载所选核心”，当被卸载的是当前默认核心时，`DefaultCoreId` 会自动回退到 fallback core 并持久化。为避免同程序集身份在 default load context 下被折叠后丢失真实安装来源，catalog 展示侧已改用独立 inspection `AssemblyLoadContext` 按 DLL 文件路径读取 manifest，安装目录来源与可卸载判定已可稳定追踪。
+13. `CorePreviewFrameCaptureService` 已落地到 `FC-Revolution.Emulation.Host`，把 `MainWindowPreviewGenerationController` 中原先直接承担的 `IEmulatorCoreSession` 创建、`LoadMedia`、离线 `RunFrame`、`VideoFrameReady` 捕帧、节流与结构化进度汇报下沉到共享 Host Runtime；主程序预览控制器现在主要只保留缩放、ffmpeg 编码和 legacy preview 文件读写。这样主程序与未来 `Core Workbench`/CLI checker 已开始共用同一套 headless preview session driver。
 
 当前仍未完成：
 
