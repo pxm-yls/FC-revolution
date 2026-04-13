@@ -91,7 +91,7 @@ public sealed class BackendApiEndpointTests
             $"api/sessions/{sessionId}/buttons",
             new
             {
-                player = 0,
+                portId = "p1",
                 button = "A",
                 pressed = true
             });
@@ -99,7 +99,6 @@ public sealed class BackendApiEndpointTests
             $"api/sessions/{sessionId}/buttons",
             new
             {
-                player = 1,
                 pressed = true,
                 portId = "p2",
                 actionId = "right"
@@ -190,7 +189,7 @@ public sealed class BackendApiEndpointTests
             $"api/sessions/{sessionId}/buttons",
             new
             {
-                player = 0,
+                portId = "p1",
                 pressed = true,
                 actionId = "b"
             });
@@ -205,7 +204,7 @@ public sealed class BackendApiEndpointTests
     }
 
     [Fact]
-    public async Task Control_Routes_Normalize_Legacy_Player_Requests_To_PortId_First()
+    public async Task Control_Routes_Normalize_PortId_Requests()
     {
         var bridge = new RecordingRuntimeBridge
         {
@@ -217,25 +216,13 @@ public sealed class BackendApiEndpointTests
 
         using var claim = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/claim",
-            new
-            {
-                player = 1,
-                clientIp = "127.0.0.1",
-                clientName = "ipad"
-            });
+            new ClaimControlRequest(ClientIp: "127.0.0.1", ClientName: "ipad", PortId: " p2 "));
         using var heartbeat = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/heartbeat",
-            new
-            {
-                player = 1
-            });
+            new RefreshHeartbeatRequest(PortId: " p2 "));
         using var release = await host.Client.PostAsJsonAsync(
             $"api/sessions/{sessionId}/release",
-            new
-            {
-                player = 1,
-                reason = "done"
-            });
+            new ReleaseControlRequest(Reason: "done", PortId: " p2 "));
 
         claim.EnsureSuccessStatusCode();
         heartbeat.EnsureSuccessStatusCode();
@@ -243,15 +230,12 @@ public sealed class BackendApiEndpointTests
 
         var claimRequest = Assert.Single(bridge.ClaimCalls).Request;
         Assert.Equal("p2", claimRequest.PortId);
-        Assert.Null(claimRequest.Player);
 
         var heartbeatRequest = Assert.Single(bridge.HeartbeatCalls).Request;
         Assert.Equal("p2", heartbeatRequest.PortId);
-        Assert.Null(heartbeatRequest.Player);
 
         var releaseRequest = Assert.Single(bridge.ReleaseCalls).Request;
         Assert.Equal("p2", releaseRequest.PortId);
-        Assert.Null(releaseRequest.Player);
     }
 
     [Fact]
@@ -291,11 +275,9 @@ public sealed class BackendApiEndpointTests
 
         var claimRequest = Assert.Single(bridge.ClaimCalls).Request;
         Assert.Equal("pad-west", claimRequest.PortId);
-        Assert.Null(claimRequest.Player);
 
         var heartbeatRequest = Assert.Single(bridge.HeartbeatCalls).Request;
         Assert.Equal("pad-west", heartbeatRequest.PortId);
-        Assert.Null(heartbeatRequest.Player);
 
         var inputRequest = Assert.Single(bridge.InputStateCalls).Request;
         var action = Assert.Single(inputRequest.Actions);
@@ -304,6 +286,5 @@ public sealed class BackendApiEndpointTests
 
         var releaseRequest = Assert.Single(bridge.ReleaseCalls).Request;
         Assert.Equal("pad-west", releaseRequest.PortId);
-        Assert.Null(releaseRequest.Player);
     }
 }

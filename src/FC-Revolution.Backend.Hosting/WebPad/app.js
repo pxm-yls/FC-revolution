@@ -81,7 +81,6 @@ var state = {
   isLandscape: false,
   streamStats: { fps: 0, latency: 0, frameCount: 0, lastFrameTime: 0 },
   controlClaimPromise: null,
-  claimedPlayer: null,
   claimedPortId: null,
   claimedSessionId: null,
   keyBindings: {},
@@ -349,7 +348,7 @@ function isControllerViewVisible() {
 }
 
 function hasActiveControlClaim() {
-  return state.controlSocket != null || state.controlClaimPromise != null || state.claimedPlayer != null || state.claimedPortId != null;
+  return state.controlSocket != null || state.controlClaimPromise != null || state.claimedPortId != null;
 }
 
 function isEditableTarget(target) {
@@ -450,7 +449,6 @@ function resetActiveButtonSources() {
 }
 
 function clearClaimedControlState() {
-  state.claimedPlayer = null;
   state.claimedPortId = null;
   state.claimedSessionId = null;
 }
@@ -1754,11 +1752,11 @@ async function launchRom(rom) {
 function startHeartbeat() {
   stopHeartbeat();
   state.heartbeatTimer = setInterval(function() {
-    if (state.controlSocket && state.controlSocket.readyState === WebSocket.OPEN && state.claimedSessionId && (state.claimedPortId || state.claimedPlayer != null)) {
+    if (state.controlSocket && state.controlSocket.readyState === WebSocket.OPEN && state.claimedSessionId && state.claimedPortId) {
       state.controlSocket.send(JSON.stringify({
         action: 'heartbeat',
         sessionId: state.claimedSessionId,
-        portId: state.claimedPortId || getPortIdForPlayer(state.claimedPlayer)
+        portId: state.claimedPortId
       }));
     }
   }, 2000);
@@ -1809,7 +1807,7 @@ async function ensureSocketClaim() {
       state.claimedSessionId === state.selectedSessionId)
     return;
 
-  if (state.controlSocket || state.claimedPlayer != null || state.claimedPortId != null)
+  if (state.controlSocket || state.claimedPortId != null)
     await releaseControl();
 
   if (state.controlClaimPromise)
@@ -1834,7 +1832,6 @@ async function ensureSocketClaim() {
       var msg = JSON.parse(event.data);
       if (msg.type === 'claimed') {
         settled = true;
-        state.claimedPlayer = typeof msg.player === 'number' ? msg.player : getPlayer();
         state.claimedPortId = typeof msg.portId === 'string' ? msg.portId : getSelectedPortId();
         state.claimedSessionId = msg.sessionId || state.selectedSessionId;
         startHeartbeat();
@@ -1845,7 +1842,6 @@ async function ensureSocketClaim() {
       }
       if (msg.type === 'released') {
         var releasedMatchesClaim = (!msg.sessionId || msg.sessionId === state.claimedSessionId) &&
-          (typeof msg.player !== 'number' || msg.player === state.claimedPlayer) &&
           (!msg.portId || msg.portId === state.claimedPortId);
 
         if (releasedMatchesClaim)
@@ -1963,7 +1959,7 @@ async function handlePlayerSelectionChanged() {
       try { await state.controlClaimPromise; } catch (_error) { }
     }
 
-    if (state.controlSocket || state.claimedPlayer != null || state.claimedPortId != null)
+    if (state.controlSocket || state.claimedPortId != null)
       await releaseControl();
 
     if (isControllerViewVisible() && state.selectedSessionId) {

@@ -16,7 +16,7 @@ public sealed class SessionRemoteControlService
 
     public bool ClaimControl(Guid sessionId, ClaimControlRequest request)
     {
-        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
+        if (!TryResolvePortId(request.PortId, out var portId))
             return false;
 
         var claimed = _gameSessionService.TryAcquireRemoteControl(sessionId, portId, request.ClientIp, request.ClientName);
@@ -27,7 +27,7 @@ public sealed class SessionRemoteControlService
 
     public void ReleaseControl(Guid sessionId, ReleaseControlRequest request)
     {
-        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
+        if (!TryResolvePortId(request.PortId, out var portId))
             return;
 
         _gameSessionService.ReleaseRemoteControl(sessionId, portId, request.Reason);
@@ -36,7 +36,7 @@ public sealed class SessionRemoteControlService
 
     public void RefreshHeartbeat(Guid sessionId, RefreshHeartbeatRequest request)
     {
-        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
+        if (!TryResolvePortId(request.PortId, out var portId))
             return;
 
         _gameSessionService.RefreshRemoteHeartbeat(sessionId, portId);
@@ -48,7 +48,7 @@ public sealed class SessionRemoteControlService
         foreach (var action in request.Actions)
         {
             if (string.IsNullOrWhiteSpace(action.ActionId) ||
-                !TryResolvePortId(action.PortId, fallbackPlayer: null, out var portId))
+                !TryResolvePortId(action.PortId, out var portId))
             {
                 return false;
             }
@@ -60,29 +60,10 @@ public sealed class SessionRemoteControlService
         return allApplied;
     }
 
-    private static bool TryResolvePortId(string? portId, int? fallbackPlayer, out string resolvedPortId)
+    private static bool TryResolvePortId(string? portId, out string resolvedPortId)
     {
-        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-        if (!string.IsNullOrWhiteSpace(normalizedPortId))
-        {
-            resolvedPortId = normalizedPortId;
-            return true;
-        }
-
-        if (TryMapCompatibilityPlayer(fallbackPlayer, out resolvedPortId))
-            return true;
-
-        resolvedPortId = string.Empty;
-        return false;
-    }
-
-    private static bool TryMapCompatibilityPlayer(int? player, out string portId)
-    {
-        if (player is { } value && RemoteControlPorts.TryGetPortId(value, out portId))
-            return true;
-
-        portId = string.Empty;
-        return false;
+        resolvedPortId = string.IsNullOrWhiteSpace(portId) ? string.Empty : portId.Trim();
+        return !string.IsNullOrWhiteSpace(resolvedPortId);
     }
 
     private static string GetPortLabel(string portId) => portId switch

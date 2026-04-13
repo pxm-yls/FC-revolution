@@ -60,7 +60,7 @@ internal static class BackendApiEndpointModule
             var ok = await contract.ClaimControlAsync(sessionId, NormalizeRequest(request), cancellationToken);
             return ok
                 ? Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions)
-                : Results.Conflict(new { error = "该玩家槽位已被其他控制端占用" });
+                : Results.Conflict(new { error = "该控制端口已被其他控制端占用" });
         });
 
         app.MapPost("/api/sessions/{sessionId:guid}/release", async (Guid sessionId, ReleaseControlRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
@@ -79,16 +79,7 @@ internal static class BackendApiEndpointModule
             }
             else
             {
-                var portId = RemoteControlPorts.NormalizePortId(httpRequest.Query["portId"].ToString());
-
-                if (string.IsNullOrWhiteSpace(portId) &&
-                    int.TryParse(httpRequest.Query["player"], out var parsedPlayer) &&
-                    RemoteControlPorts.TryGetPortId(parsedPlayer, out var mappedPortId))
-                {
-                    portId = mappedPortId;
-                }
-
-                request = new RefreshHeartbeatRequest(PortId: portId);
+                request = new RefreshHeartbeatRequest(PortId: NormalizePortId(httpRequest.Query["portId"].ToString()));
             }
 
             await contract.RefreshHeartbeatAsync(sessionId, NormalizeRequest(request), cancellationToken);
@@ -140,18 +131,7 @@ internal static class BackendApiEndpointModule
         if (string.IsNullOrWhiteSpace(actionId))
             return false;
 
-        string? portId = null;
-        if (!string.IsNullOrWhiteSpace(request.PortId))
-        {
-            portId = RemoteControlPorts.NormalizePortId(request.PortId);
-            if (portId == null)
-                return false;
-        }
-        else if (request.Player is { } playerValue && RemoteControlPorts.TryGetPortId(playerValue, out var mappedPortId))
-        {
-            portId = mappedPortId;
-        }
-
+        var portId = NormalizePortId(request.PortId);
         if (string.IsNullOrWhiteSpace(portId))
             return false;
 
@@ -166,56 +146,31 @@ internal static class BackendApiEndpointModule
         return true;
     }
 
-    private static ClaimControlRequest NormalizeRequest(ClaimControlRequest request)
+    private static ClaimControlRequest NormalizeRequest(ClaimControlRequest request) =>
+        new(
+            ClientIp: request.ClientIp,
+            ClientName: request.ClientName,
+            PortId: NormalizePortId(request.PortId));
+
+    private static ReleaseControlRequest NormalizeRequest(ReleaseControlRequest request) =>
+        new(
+            Reason: request.Reason,
+            PortId: NormalizePortId(request.PortId));
+
+    private static RefreshHeartbeatRequest NormalizeRequest(RefreshHeartbeatRequest request) =>
+        new(PortId: NormalizePortId(request.PortId));
+
+    private static string? NormalizePortId(string? portId)
     {
-        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
-            return request;
+        if (string.IsNullOrWhiteSpace(portId))
+            return null;
 
-        return request with
-        {
-            Player = null,
-            PortId = portId
-        };
-    }
-
-    private static ReleaseControlRequest NormalizeRequest(ReleaseControlRequest request)
-    {
-        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
-            return request;
-
-        return request with
-        {
-            Player = null,
-            PortId = portId
-        };
-    }
-
-    private static RefreshHeartbeatRequest NormalizeRequest(RefreshHeartbeatRequest request)
-    {
-        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
-            return request;
-
-        return request with
-        {
-            Player = null,
-            PortId = portId
-        };
-    }
-
-    private static bool TryResolveNormalizedPortId(string? portId, int? player, out string resolvedPortId)
-    {
-        resolvedPortId = RemoteControlPorts.NormalizePortId(portId) ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(resolvedPortId))
-            return true;
-
-        return player is { } value &&
-               RemoteControlPorts.TryGetPortId(value, out resolvedPortId);
+        return portId.Trim();
     }
 
     private sealed record ButtonCompatRequest(
-        int? Player = null,
-        bool Pressed = false,
         string? PortId = null,
+        bool Pressed = false,
         string? ActionId = null,
         string? Button = null);
 }

@@ -19,3 +19,12 @@ public sealed class LegacyReplayFrameRenderer : IReplayFrameRenderer
             endFrame);
     }
 }
+
+public sealed class LegacyFeatureBridgeProvider : ILegacyFeatureBridgeProvider
+{
+    public ITimelineRepositoryBridge CreateTimelineRepositoryBridge() => new LegacyTimelineRepositoryAdapter();
+
+    public IReplayFrameRenderer CreateReplayFrameRenderer() => new LegacyReplayFrameRenderer();
+
+    public IRomMapperInfoInspector CreateRomMapperInfoInspector() => new LegacyRomMapperInspector();
+}

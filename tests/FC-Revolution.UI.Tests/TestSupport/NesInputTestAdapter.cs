@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Contracts.RemoteControl;
 using FCRevolution.Core.Input;
 
 namespace FC_Revolution.UI.Tests;
@@ -39,7 +38,7 @@ internal static class NesInputTestAdapter
         var bindingsByPort = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase);
         foreach (var playerMap in source)
         {
-            if (!RemoteControlPorts.TryGetPortId(playerMap.Key, out var portId))
+            if (!TryGetPortId(playerMap.Key, out var portId))
                 continue;
 
             bindingsByPort[portId] = playerMap.Value.ToDictionary(
@@ -53,4 +52,20 @@ internal static class NesInputTestAdapter
 
     public static List<string> ActionIds(params NesButton[] buttons) =>
         buttons.Select(ActionId).ToList();
+
+    private static bool TryGetPortId(int player, out string portId)
+    {
+        switch (player)
+        {
+            case 0:
+                portId = "p1";
+                return true;
+            case 1:
+                portId = "p2";
+                return true;
+            default:
+                portId = string.Empty;
+                return false;
+        }
+    }
 }

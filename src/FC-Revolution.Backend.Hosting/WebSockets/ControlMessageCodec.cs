@@ -19,31 +19,10 @@ internal sealed class ControlMessageCodec
     internal static Guid? ParseSessionId(string? raw)
         => Guid.TryParse(raw, out var parsed) ? parsed : null;
 
-    internal static bool TryResolveControlPort(string? portId, int? player, out string resolvedPortId)
+    internal static bool TryResolveControlPort(string? portId, out string resolvedPortId)
     {
-        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-        if (normalizedPortId != null)
-        {
-            resolvedPortId = normalizedPortId;
-            return true;
-        }
-
-        if (player is { } value &&
-            RemoteControlPorts.TryGetPortId(value, out resolvedPortId))
-        {
-            return true;
-        }
-
-        resolvedPortId = string.Empty;
-        return false;
-    }
-
-    internal static int? ResolveCompatibilityPlayer(string? portId)
-    {
-        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-        return normalizedPortId != null && RemoteControlPorts.TryGetPlayer(normalizedPortId, out var player)
-            ? player
-            : null;
+        resolvedPortId = string.IsNullOrWhiteSpace(portId) ? string.Empty : portId.Trim();
+        return !string.IsNullOrWhiteSpace(resolvedPortId);
     }
 
     internal static SocketMessage CreateSocketMessage(
@@ -51,7 +30,7 @@ internal sealed class ControlMessageCodec
         string? message = null,
         string? sessionId = null,
         string? portId = null)
-        => new(type, message, sessionId, ResolveCompatibilityPlayer(portId), portId);
+        => new(type, message, sessionId, portId);
 
     internal async Task<SocketClientMessage?> ReceiveClientMessageAsync(CancellationToken cancellationToken)
     {
@@ -82,7 +61,6 @@ internal sealed class ControlMessageCodec
 internal sealed record SocketClientMessage(
     string Action,
     string? SessionId,
-    int? Player,
     string? Button,
     bool? Pressed,
     string? ClientName,
@@ -93,5 +71,4 @@ internal sealed record SocketMessage(
     string Type,
     string? Message = null,
     string? SessionId = null,
-    int? Player = null,
     string? PortId = null);
