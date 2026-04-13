@@ -11,7 +11,7 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 最大的剩余差距不在“代码是否分层”，而在“编译依赖、启动默认假设、native loader 缺位、empty catalog 启动能力、共享运行时边界尚未抽干净”这五件事。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时边界尚未完全抽干、独立核心工具链只起了 CLI 头、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
 
 ## 1. 当前判断总览
 
@@ -19,8 +19,8 @@
 | --- | --- | --- | --- |
 | 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，但仍有 NES 偏置和扩展缺口 | 方向正确，需要继续强化 |
 | C# / C++ 双核心 | 未来会同时存在两类实现 | 方案已考虑，代码只落地了 managed | 方向正确，但 native 仍未落地 |
-| 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package 已支持，但宿主仍假定至少有一个 bundled NES core | 方向正确，但启动模型仍未独立 |
-| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，但部分目录探测、程序集检查、预览驱动逻辑仍散落在 UI | 方向正确，应改为“共享 Host Runtime + Core Workbench” |
+| 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package / install / export / uninstall / zero-core 启动已支持，但 UI 仍保留少量 FC/NES 编译期适配层 | 方向正确，运行时前提已基本独立，编译边界还需继续收口 |
+| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 已起步，但 `Core Workbench`、外部核心仓库试点与预览驱动共享化仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
 
 ## 2. 关于“中间层”的判断
 
@@ -212,25 +212,31 @@
 
 当前仓库的主要问题有：
 
-1. `Emulation.Host` 仍直接引用 NES managed core 项目。
-见 [FC-Revolution.Emulation.Host.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/FC-Revolution.Emulation.Host.csproj)。
+1. `Emulation.Host` 已不再直接引用 NES managed core 项目。
+现状见 [FC-Revolution.Emulation.Host.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/FC-Revolution.Emulation.Host.csproj)。
 
-2. 历史上启动时曾强制 bootstrap bundled NES core；当前仓库已改为允许零核心启动。
-现状请见 [Program.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Program.cs) 与 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
+2. 历史上的 bundled NES bootstrap 前提已被移除，宿主现在允许零核心启动，`EmulatorCoreHost` 也接受 empty catalog。
+现状见 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs) 与 [EmulatorCoreHost.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/EmulatorCoreHost.cs)。
 
-3. `DefaultEmulatorCoreHost.Create()` 仍隐式假设“先保证至少有一个 NES bundled core 已安装”。
-见 [EmulatorCoreHost.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/EmulatorCoreHost.cs)。
+3. 主窗口构造阶段虽然仍会创建主核心会话，但已能优雅退回 unavailable session，而不是要求必须有 NES bundled core。
+现状见 [MainWindowViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindowViewModel.cs) 中的 `_coreSession = CreateMainCoreSession();`
 
-4. `EmulatorCoreHost` 本身不允许零核心状态。
-构造函数中 `managedModules.Count == 0` 会直接抛异常。
+4. 真正还没独立干净的地方，已经从 Host 转移到 UI 的编译边界：
+   - [FC-Revolution.UI.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/FC-Revolution.UI.csproj) 仍直接引用 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj)
+   - [NesRomMapperInspector.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/Nes/NesRomMapperInspector.cs)
+   - [NesTimelineVideoExporter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/Nes/NesTimelineVideoExporter.cs)
+   - [NesTimelineInputLogWriter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/Nes/NesTimelineInputLogWriter.cs)
+   - [LegacyTimelineSessionAdapter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/LegacyTimeline/LegacyTimelineSessionAdapter.cs)
+   - [GameWindowTimelinePersistenceController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/LegacyTimeline/GameWindowTimelinePersistenceController.cs)
+   - [CoreTimelineModelBridge.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Adapters/LegacyTimeline/CoreTimelineModelBridge.cs)
 
-5. 主窗口构造阶段就会创建主核心会话。
-见 [MainWindowViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindowViewModel.cs) 中的 `_coreSession = CreateMainCoreSession();`
+5. 共享运行时已经能承担 package/probe/catalog/session 与最小 smoke test，但图形化 workbench 和外部核心仓库试点还没完成，因此“独立打包”仍主要停留在 managed package 与主仓内验证阶段。
+现状见 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs) 与 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)。
 
 这几件事叠加起来意味着：
 
-- 现在的宿主还不能在“完全没有核心”的情况下优雅启动
-- 当前仍然默认把 NES 当作必备基础设施，而不是可选挂载核心
+- 运行时启动模型已经基本摆脱“NES 是必需基础设施”的前提
+- 但 UI 和旧时间线工具链仍没有完全摆脱 `FCRevolution.Core.*` 的 FC/NES 私有实现
 
 ### 5.3 对你这个想法的优化建议
 
@@ -274,16 +280,15 @@
 
 主要差距有：
 
-1. UI 项目仍保留对具体核心项目的编译期引用。
-   见 [FC-Revolution.UI.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/FC-Revolution.UI.csproj)。
-2. 目录探测、程序集检查、来源摘要、默认探测策略仍混在 UI 控制器里。
-3. 预览生成的“会话驱动”部分虽然已经抽象化，但仍驻留在主 UI，而不是共享运行时服务。
-4. 宿主仍把 bundled core 当成启动前提，尚不能证明“零核心也能正常运行产品 shell”。
+1. UI 主会话与默认核心列表虽然已经不再依赖编译期 `NesManagedCoreModule`，但 UI 项目仍保留对 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj) 的直接引用，用于 legacy timeline 与 NES 辅助适配。
+2. 目录探测、程序集检查和来源汇总已经大部分收口到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)，但 [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs) 的 headless 预览驱动仍在 UI。
+3. 轻量 CLI checker 已开始落地，但图形化 `Core Workbench` 仍不存在，外部核心仓库试点也还没有验证独立 build / test / pack / install / run 闭环。
+4. `native-cabi` 目前仍只是 manifest / binary kind 约定，没有真正的 loader、桥接层和 smoke test。
 
 这意味着：
 
-- 现在更像“主程序里已经长出了插件系统”
-- 还不是“主程序与核心仓库真正解耦，任何核心都可独立开发、独立测试、独立打包”
+- 现在已经不是“主程序必须内置 NES 才能启动”的状态
+- 但仍然还不是“主程序与核心仓库真正解耦，任何核心都可独立开发、独立测试、独立打包”
 
 ### 6.3 我的建议
 
@@ -342,7 +347,7 @@ App startup
 
 这里保留结论性顺序，详细 roadmap 统一放在方案文档中：
 
-### Phase A：把共享运行时边界抽出来
+### Phase A：把共享运行时边界抽出来（部分完成）
 
 优先做：
 
@@ -350,7 +355,13 @@ App startup
 2. 把预览生成里依赖 `IEmulatorCoreSession` 的 headless 驱动部分沉到共享服务
 3. 明确主程序与 `Core Workbench` 共用同一套加载与会话创建逻辑
 
-### Phase B：消除编译时核心依赖并支持零核心启动
+当前状态：
+
+1. package/probe/catalog/session 创建已经集中到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
+2. 最小 smoke test 驱动已经开始沉到 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)，并由 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs) 复用。
+3. 但 preview 生成与 legacy timeline 适配还在 UI，因此这一阶段还不能算完成。
+
+### Phase B：消除编译时核心依赖并支持零核心启动（大部完成）
 
 优先做：
 
@@ -359,7 +370,14 @@ App startup
 3. 让 `EmulatorCoreHost` 支持 empty catalog
 4. 让 UI 在零核心状态进入空态，而不是强制创建会话
 
-### Phase C：落地独立测试工具与外置核心仓库试点
+当前状态：
+
+1. `Emulation.Host` 已不再直接 `ProjectReference` NES managed core，`EmulatorCoreHost` 也支持 empty catalog。
+2. bundled NES core 已降级为 bundled package / 发行策略，而不是 Host 架构前提。
+3. UI 主会话链路在零核心场景已能退回 unavailable session。
+4. 但 `FC-Revolution.UI` 仍通过 legacy timeline 与 NES adapter 直接引用 `FC-Revolution.Core.FC`，因此“编译时核心依赖清零”还没彻底完成。
+
+### Phase C：落地独立测试工具与外置核心仓库试点（已启动，未完成）
 
 优先做：
 
@@ -367,7 +385,13 @@ App startup
 2. 新建 CLI checker 作为 CI / 打包 smoke test 入口
 3. 先把一个参考核心迁移为外部仓库试点，验证独立 build / test / pack / install / run 闭环
 
-### Phase D：补 native-cabi loader
+当前状态：
+
+1. 轻量 CLI checker 已开始落地，见 [FC-Revolution.Core.Checker.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj)。
+2. `Core Workbench` 尚未建立。
+3. 外部核心仓库试点尚未启动，因此这个阶段目前只能算刚起步。
+
+### Phase D：补 native-cabi loader（未开始）
 
 优先做：
 
@@ -415,23 +439,23 @@ App startup
 
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
-1. 宿主仍直接编译依赖具体 NES core
-2. 启动链仍强制 bundled NES bootstrap
-3. 宿主当前不接受 empty catalog
-4. native-cabi 路线还只是方案，不是代码能力
-5. 共享运行时边界尚未从 UI 中抽干净，因而还不能自然支撑 `Core Workbench`
+1. `FC-Revolution.UI` 仍直接引用 `FC-Revolution.Core.FC`，并通过 NES / legacy timeline 适配层使用 `FCRevolution.Core.*` 私有类型。
+2. headless 预览驱动与旧时间线桥接仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
+3. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
+4. `native-cabi` 路线还只是方案，不是代码能力。
+5. 具体核心项目仍位于主仓内，尚未证明“主仓外独立 build / test / pack”流程。
 
 ## 10. 推荐的下一步
 
 如果要把这个方向继续落地，我建议下一轮优先做的不是“再抽一个接口”，而是：
 
-1. 先抽共享 Host Runtime 边界，把目录探测、程序集检查、headless 预览驱动从 UI 里移出来
-2. 再做“无核心启动”与“去除编译时 NES 引用”
-3. 然后落一个最小 `Core Workbench` / CLI checker skeleton
-4. 最后再补 native loader skeleton
+1. 先去掉 `FC-Revolution.UI -> FC-Revolution.Core.FC` 的直接引用，把 legacy timeline / NES 辅助逻辑继续搬到通用抽象或显式 adapter 包后面。
+2. 把 headless 预览驱动继续从 UI 下沉到 Shared Host Runtime，让主程序、CLI checker 与未来 `Core Workbench` 共用同一套服务。
+3. 在已经落地的 CLI checker 基础上补图形化 `Core Workbench`，并拿一个外部核心仓库做独立 build / test / pack / install 试点。
+4. 最后再补 native loader skeleton。
 
 原因很简单：
 
-- 只有主程序和测试工具都能共用同一套运行时，才能证明“核心接入方式”已经稳定
-- 只有宿主真正允许“零核心存在”，才能证明核心已经不是宿主的一部分
-- 在那之前，哪怕代码接口再漂亮，也还只是“被默认绑定在主程序里的内置核心”
+- 只有主程序、CLI checker 和未来 `Core Workbench` 都能共用同一套运行时，才能证明“核心接入方式”已经稳定。
+- 只有 UI 彻底不再编译依赖 `FCRevolution.Core.*` 私有实现，才能证明核心真的不再是主程序的一部分。
+- 在那之前，哪怕运行时入口已经 package-first，也还只是“主程序中残留部分 NES/FC 私有实现的半独立核心体系”。

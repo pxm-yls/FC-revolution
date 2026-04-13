@@ -13,8 +13,12 @@
     <Project Path="src/FC-Revolution.Storage/FC-Revolution.Storage.csproj" />
     <Project Path="src/FC-Revolution.UI/FC-Revolution.UI.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FC-Revolution.Backend.Hosting.Tests/FC-Revolution.Backend.Hosting.Tests.csproj" />
+    <Project Path="tests/FC-Revolution.Core.Checker.Tests/FC-Revolution.Core.Checker.Tests.csproj" />
     <Project Path="tests/FC-Revolution.Core.Tests/FC-Revolution.Core.Tests.csproj" />
     <Project Path="tests/FC-Revolution.Rendering.Tests/FC-Revolution.Rendering.Tests.csproj" />
     <Project Path="tests/FC-Revolution.UI.Tests/FC-Revolution.UI.Tests.csproj" />
