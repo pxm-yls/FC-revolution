@@ -57,7 +57,7 @@ internal static class BackendApiEndpointModule
 
         app.MapPost("/api/sessions/{sessionId:guid}/claim", async (Guid sessionId, ClaimControlRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
         {
-            var ok = await contract.ClaimControlAsync(sessionId, request, cancellationToken);
+            var ok = await contract.ClaimControlAsync(sessionId, NormalizeRequest(request), cancellationToken);
             return ok
                 ? Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions)
                 : Results.Conflict(new { error = "该玩家槽位已被其他控制端占用" });
@@ -65,7 +65,7 @@ internal static class BackendApiEndpointModule
 
         app.MapPost("/api/sessions/{sessionId:guid}/release", async (Guid sessionId, ReleaseControlRequest request, IRemoteControlContract contract, CancellationToken cancellationToken) =>
         {
-            await contract.ReleaseControlAsync(sessionId, request, cancellationToken);
+            await contract.ReleaseControlAsync(sessionId, NormalizeRequest(request), cancellationToken);
             return Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions);
         });
 
@@ -79,18 +79,21 @@ internal static class BackendApiEndpointModule
             }
             else
             {
-                int? player = null;
-                if (int.TryParse(httpRequest.Query["player"], out var parsedPlayer))
-                    player = parsedPlayer;
-
                 var portId = string.IsNullOrWhiteSpace(httpRequest.Query["portId"])
                     ? null
                     : httpRequest.Query["portId"].ToString();
 
-                request = new RefreshHeartbeatRequest(Player: player, PortId: portId);
+                if (string.IsNullOrWhiteSpace(portId) &&
+                    int.TryParse(httpRequest.Query["player"], out var parsedPlayer) &&
+                    RemoteControlPorts.TryGetPortId(parsedPlayer, out var mappedPortId))
+                {
+                    portId = mappedPortId;
+                }
+
+                request = new RefreshHeartbeatRequest(PortId: portId);
             }
 
-            await contract.RefreshHeartbeatAsync(sessionId, request, cancellationToken);
+            await contract.RefreshHeartbeatAsync(sessionId, NormalizeRequest(request), cancellationToken);
             return Results.Json(new { ok = true }, BackendJsonDefaults.SerializerOptions);
         });
 
@@ -163,6 +166,52 @@ internal static class BackendApiEndpointModule
                 request.Pressed ? 1f : 0f)
         ]);
         return true;
+    }
+
+    private static ClaimControlRequest NormalizeRequest(ClaimControlRequest request)
+    {
+        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
+            return request;
+
+        return request with
+        {
+            Player = null,
+            PortId = portId
+        };
+    }
+
+    private static ReleaseControlRequest NormalizeRequest(ReleaseControlRequest request)
+    {
+        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
+            return request;
+
+        return request with
+        {
+            Player = null,
+            PortId = portId
+        };
+    }
+
+    private static RefreshHeartbeatRequest NormalizeRequest(RefreshHeartbeatRequest request)
+    {
+        if (!TryResolveNormalizedPortId(request.PortId, request.Player, out var portId))
+            return request;
+
+        return request with
+        {
+            Player = null,
+            PortId = portId
+        };
+    }
+
+    private static bool TryResolveNormalizedPortId(string? portId, int? player, out string resolvedPortId)
+    {
+        resolvedPortId = RemoteControlPorts.NormalizePortId(portId) ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(resolvedPortId))
+            return true;
+
+        return player is { } value &&
+               RemoteControlPorts.TryGetPortId(value, out resolvedPortId);
     }
 
     private sealed record ButtonCompatRequest(

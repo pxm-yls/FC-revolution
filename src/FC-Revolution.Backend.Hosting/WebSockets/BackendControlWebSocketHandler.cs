@@ -14,22 +14,18 @@ internal sealed class BackendControlWebSocketHandler
         SocketClientMessage incoming,
         RemoteControlLeaseCoordinator leaseCoordinator,
         bool allowClaimFallback,
-        out int player,
         out string portId)
     {
-        if (ControlMessageCodec.TryResolveControlPort(incoming.PortId, incoming.Player, out player, out portId))
+        if (ControlMessageCodec.TryResolveControlPort(incoming.PortId, incoming.Player, out portId))
             return true;
 
         if (allowClaimFallback &&
-            leaseCoordinator.ClaimedPlayer is { } claimedPlayer &&
             !string.IsNullOrWhiteSpace(leaseCoordinator.ClaimedPortId))
         {
-            player = claimedPlayer;
             portId = leaseCoordinator.ClaimedPortId;
             return true;
         }
 
-        player = default;
         portId = string.Empty;
         return false;
     }
@@ -72,23 +68,22 @@ internal sealed class BackendControlWebSocketHandler
                             break;
                         }
 
-                        if (!TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: false, out var claimPlayer, out var claimPortId))
+                        if (!TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: false, out var claimPortId))
                         {
                             await codec.SendSocketMessageAsync(new SocketMessage("error", "portId/player 无效", claimSessionId.Value.ToString(), incoming.Player, incoming.PortId));
                             break;
                         }
 
                         leaseCoordinator.UpdateClientName(incoming.ClientName);
-                        var claimResult = await leaseCoordinator.EnsureClaimAsync(claimSessionId.Value, claimPortId, claimPlayer, "该玩家槽位已被其他网页占用");
+                        var claimResult = await leaseCoordinator.EnsureClaimAsync(claimSessionId.Value, claimPortId, "该玩家槽位已被其他网页占用");
                         if (!claimResult.Success)
                             break;
 
                         await codec.SendSocketMessageAsync(
-                            new SocketMessage(
+                            ControlMessageCodec.CreateSocketMessage(
                                 "claimed",
                                 claimResult.Changed ? "控制权已分配" : "控制权保持不变",
                                 claimSessionId.Value.ToString(),
-                                claimPlayer,
                                 claimPortId));
                         break;
                     }
@@ -97,25 +92,25 @@ internal sealed class BackendControlWebSocketHandler
                     {
                         var heartbeatSessionId = ControlMessageCodec.ParseSessionId(incoming.SessionId) ?? leaseCoordinator.ClaimedSessionId;
                         if (!heartbeatSessionId.HasValue ||
-                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var heartbeatPlayer, out var heartbeatPortId))
+                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var heartbeatPortId))
                         {
                             await codec.SendSocketMessageAsync(new SocketMessage("error", "请先 claim 玩家槽位", incoming.SessionId, incoming.Player, incoming.PortId));
                             break;
                         }
 
-                        var heartbeatClaim = await leaseCoordinator.EnsureClaimAsync(heartbeatSessionId.Value, heartbeatPortId, heartbeatPlayer, "目标玩家槽位当前不可用");
+                        var heartbeatClaim = await leaseCoordinator.EnsureClaimAsync(heartbeatSessionId.Value, heartbeatPortId, "目标玩家槽位当前不可用");
                         if (!heartbeatClaim.Success)
                             break;
 
                         if (heartbeatClaim.Changed)
                         {
                             await codec.SendSocketMessageAsync(
-                                new SocketMessage("claimed", "控制权已切换", heartbeatSessionId.Value.ToString(), heartbeatPlayer, heartbeatPortId));
+                                ControlMessageCodec.CreateSocketMessage("claimed", "控制权已切换", heartbeatSessionId.Value.ToString(), heartbeatPortId));
                         }
 
                         await remoteControlContract.RefreshHeartbeatAsync(
                             heartbeatSessionId.Value,
-                            new RefreshHeartbeatRequest(Player: heartbeatPlayer, PortId: heartbeatPortId),
+                            new RefreshHeartbeatRequest(PortId: heartbeatPortId),
                             cancellationToken);
                         break;
                     }
@@ -124,7 +119,7 @@ internal sealed class BackendControlWebSocketHandler
                     {
                         var buttonSessionId = ControlMessageCodec.ParseSessionId(incoming.SessionId) ?? leaseCoordinator.ClaimedSessionId;
                         if (!buttonSessionId.HasValue ||
-                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var buttonPlayer, out var buttonPortId))
+                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var buttonPortId))
                         {
                             await codec.SendSocketMessageAsync(new SocketMessage("error", "请先 claim 玩家槽位", incoming.SessionId, incoming.Player, incoming.PortId));
                             break;
@@ -132,18 +127,18 @@ internal sealed class BackendControlWebSocketHandler
 
                         if (string.IsNullOrWhiteSpace(incoming.Button))
                         {
-                            await codec.SendSocketMessageAsync(new SocketMessage("error", "按键无效", buttonSessionId.Value.ToString(), buttonPlayer, buttonPortId));
+                            await codec.SendSocketMessageAsync(ControlMessageCodec.CreateSocketMessage("error", "按键无效", buttonSessionId.Value.ToString(), buttonPortId));
                             break;
                         }
 
-                        var buttonClaim = await leaseCoordinator.EnsureClaimAsync(buttonSessionId.Value, buttonPortId, buttonPlayer, "目标玩家槽位当前不可用");
+                        var buttonClaim = await leaseCoordinator.EnsureClaimAsync(buttonSessionId.Value, buttonPortId, "目标玩家槽位当前不可用");
                         if (!buttonClaim.Success)
                             break;
 
                         if (buttonClaim.Changed)
                         {
                             await codec.SendSocketMessageAsync(
-                                new SocketMessage("claimed", "控制权已切换", buttonSessionId.Value.ToString(), buttonPlayer, buttonPortId));
+                                ControlMessageCodec.CreateSocketMessage("claimed", "控制权已切换", buttonSessionId.Value.ToString(), buttonPortId));
                         }
 
                         var actionId = incoming.Button.Trim();
@@ -163,7 +158,7 @@ internal sealed class BackendControlWebSocketHandler
                         if (!pressedOk)
                         {
                             leaseCoordinator.InvalidateClaim();
-                            await codec.SendSocketMessageAsync(new SocketMessage("error", "当前控制权已失效", buttonSessionId.Value.ToString(), buttonPlayer, buttonPortId));
+                            await codec.SendSocketMessageAsync(ControlMessageCodec.CreateSocketMessage("error", "当前控制权已失效", buttonSessionId.Value.ToString(), buttonPortId));
                         }
 
                         break;
@@ -173,7 +168,7 @@ internal sealed class BackendControlWebSocketHandler
                     {
                         var inputSessionId = ControlMessageCodec.ParseSessionId(incoming.SessionId) ?? leaseCoordinator.ClaimedSessionId;
                         if (!inputSessionId.HasValue ||
-                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var inputPlayer, out var inputPortId))
+                            !TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var inputPortId))
                         {
                             await codec.SendSocketMessageAsync(new SocketMessage("error", "请先 claim 玩家槽位", incoming.SessionId, incoming.Player, incoming.PortId));
                             break;
@@ -181,18 +176,18 @@ internal sealed class BackendControlWebSocketHandler
 
                         if (incoming.Inputs == null || incoming.Inputs.Count == 0)
                         {
-                            await codec.SendSocketMessageAsync(new SocketMessage("error", "输入动作不能为空", inputSessionId.Value.ToString(), inputPlayer, inputPortId));
+                            await codec.SendSocketMessageAsync(ControlMessageCodec.CreateSocketMessage("error", "输入动作不能为空", inputSessionId.Value.ToString(), inputPortId));
                             break;
                         }
 
-                        var inputClaim = await leaseCoordinator.EnsureClaimAsync(inputSessionId.Value, inputPortId, inputPlayer, "目标玩家槽位当前不可用");
+                        var inputClaim = await leaseCoordinator.EnsureClaimAsync(inputSessionId.Value, inputPortId, "目标玩家槽位当前不可用");
                         if (!inputClaim.Success)
                             break;
 
                         if (inputClaim.Changed)
                         {
                             await codec.SendSocketMessageAsync(
-                                new SocketMessage("claimed", "控制权已切换", inputSessionId.Value.ToString(), inputPlayer, inputPortId));
+                                ControlMessageCodec.CreateSocketMessage("claimed", "控制权已切换", inputSessionId.Value.ToString(), inputPortId));
                         }
 
                         var inputOk = await remoteControlContract.SetInputStateAsync(
@@ -202,7 +197,7 @@ internal sealed class BackendControlWebSocketHandler
                         if (!inputOk)
                         {
                             leaseCoordinator.InvalidateClaim();
-                            await codec.SendSocketMessageAsync(new SocketMessage("error", "当前输入状态未能应用", inputSessionId.Value.ToString(), inputPlayer, inputPortId));
+                            await codec.SendSocketMessageAsync(ControlMessageCodec.CreateSocketMessage("error", "当前输入状态未能应用", inputSessionId.Value.ToString(), inputPortId));
                         }
 
                         break;
@@ -212,12 +207,12 @@ internal sealed class BackendControlWebSocketHandler
                     {
                         var releaseSessionId = ControlMessageCodec.ParseSessionId(incoming.SessionId) ?? leaseCoordinator.ClaimedSessionId;
                         if (releaseSessionId.HasValue &&
-                            TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var releasePlayer, out var releasePortId))
+                            TryResolveIncomingPort(incoming, leaseCoordinator, allowClaimFallback: true, out var releasePortId))
                         {
-                            await leaseCoordinator.ReleaseSpecifiedAsync(releaseSessionId.Value, releasePortId, releasePlayer, "网页控制已释放");
+                            await leaseCoordinator.ReleaseSpecifiedAsync(releaseSessionId.Value, releasePortId, "网页控制已释放");
 
                             await codec.SendSocketMessageAsync(
-                                new SocketMessage("released", "控制权已释放", releaseSessionId.Value.ToString(), releasePlayer, releasePortId));
+                                ControlMessageCodec.CreateSocketMessage("released", "控制权已释放", releaseSessionId.Value.ToString(), releasePortId));
                         }
 
                         break;

@@ -11,8 +11,8 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时边界尚未完全抽干、独立核心工具链只起了 CLI 头、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
-- 本轮之后，UI 本地输入、运行时输入和 NES alias 处理已经改为 `InputSchema` 元数据驱动，`NesInputAdapter` 与 NES 位掩码不再是 UI 生产代码的真相来源；剩余输入残留主要集中在远控协议兼容壳与配置命名空间还保留 `p1/p2` / `Player1/Player2` 过渡形态。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时最后一段 preview/legacy adapter 边界尚未完全抽干、CLI checker 虽已落地但独立核心工具链仍未完成、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
+- 本轮之后，UI 本地输入、运行时输入和 NES alias 处理已经改为 `InputSchema` 元数据驱动，`NesInputAdapter` 与 NES 位掩码不再是 UI 生产代码的真相来源；backend WebSocket / heartbeat 内部租约也已切到 `portId-first`，剩余输入残留主要集中在 contracts、HTTP `/buttons` / WebPad 兼容壳与配置命名空间还保留 `p1/p2` / `Player1` / `Player2` 过渡形态。
 
 ## 1. 当前判断总览
 
@@ -21,7 +21,7 @@
 | 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，但仍有 NES 偏置和扩展缺口 | 方向正确，需要继续强化 |
 | C# / C++ 双核心 | 未来会同时存在两类实现 | 方案已考虑，代码只落地了 managed | 方向正确，但 native 仍未落地 |
 | 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package / install / export / uninstall / zero-core 启动已支持，但 UI 仍保留少量 FC/NES 编译期适配层 | 方向正确，运行时前提已基本独立，编译边界还需继续收口 |
-| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 已起步，但 `Core Workbench`、外部核心仓库试点与预览驱动共享化仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
+| 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 首版已可用，但 `Core Workbench`、外部核心仓库试点与预览驱动共享化仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
 
 ## 2. 关于“中间层”的判断
 
@@ -259,9 +259,9 @@
 1. [ManagedCoreModuleRegistrationSource.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreModuleRegistrationSource.cs)
    - 已具备程序集源、目录源、注册表源三类 managed core 发现入口
    - 已具备按 `coreId` 去重与按 `entryAssemblyPath/factoryType` 实例化的共享装载雏形
-2. [MainWindowManagedCoreCatalogController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowManagedCoreCatalogController.cs)
-   - 已具备按 DLL 检查 manifest、可回收 `AssemblyLoadContext` 探测、目录枚举等能力
-   - 但这些逻辑目前放在 UI 内，不利于未来复用
+2. [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)
+   - 已具备按 DLL 检查 manifest、独立 inspection `AssemblyLoadContext` 读取来源信息、目录枚举与 catalog 汇总等共享能力
+   - UI catalog controller 现在主要只负责展示映射，这部分已不再是必须继续从 UI 下沉的主阻塞
 3. [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs)
    - 预览生成已经主要依赖 `IEmulatorCoreSession`
    - 这说明离线跑帧、取帧、做 smoke test 的基础并不依赖 NES 专有类型
@@ -277,7 +277,7 @@
 
 1. UI 主会话与默认核心列表已经不再依赖编译期 `NesManagedCoreModule`，`FC-Revolution.UI` 也不再直接引用 `FC-Revolution.Core.FC`；当前剩余的是 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj) 这一显式 FC adapter 层仍留在主仓内。
 2. 目录探测、程序集检查和来源汇总已经大部分收口到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)，但 [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs) 的 headless 预览驱动仍在 UI。
-3. 轻量 CLI checker 已开始落地，但图形化 `Core Workbench` 仍不存在，外部核心仓库试点也还没有验证独立 build / test / pack / install / run 闭环。
+3. 轻量 CLI checker 首版已完成，但图形化 `Core Workbench` 仍不存在，外部核心仓库试点也还没有验证独立 build / test / pack / install / run 闭环。
 4. `native-cabi` 目前仍只是 manifest / binary kind 约定，没有真正的 loader、桥接层和 smoke test。
 
 这意味着：
@@ -352,7 +352,7 @@ App startup
 
 当前状态：
 
-1. package/probe/catalog/session 创建已经集中到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
+1. package/probe/catalog/inspection/session 创建已经集中到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
 2. 最小 smoke test 驱动已经开始沉到 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)，并由 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs) 复用。
 3. 但 preview 生成与 legacy timeline 适配还在 UI，因此这一阶段还不能算完成。
 
@@ -382,7 +382,7 @@ App startup
 
 当前状态：
 
-1. 轻量 CLI checker 已开始落地，见 [FC-Revolution.Core.Checker.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj)。
+1. 轻量 CLI checker 首版已可用，见 [FC-Revolution.Core.Checker.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj) 与 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs)。
 2. `Core Workbench` 尚未建立。
 3. 外部核心仓库试点尚未启动，因此这个阶段目前只能算刚起步。
 

@@ -65,8 +65,10 @@ public sealed class BackendControlWebSocketTests
         Assert.EndsWith("127.0.0.1", bridge.ClaimCalls.Single().Request.ClientIp, StringComparison.Ordinal);
         Assert.Equal("ipad", bridge.ClaimCalls.Single().Request.ClientName);
         Assert.Equal("p1", bridge.ClaimCalls.Single().Request.PortId);
+        Assert.Null(bridge.ClaimCalls.Single().Request.Player);
         Assert.Equal(sessionId, bridge.HeartbeatCalls.Single().SessionId);
         Assert.Equal("p1", bridge.HeartbeatCalls.Single().Request.PortId);
+        Assert.Null(bridge.HeartbeatCalls.Single().Request.Player);
         var buttonInput = Assert.Single(bridge.InputStateCalls);
         var action = Assert.Single(buttonInput.Request.Actions);
         Assert.Equal("p1", action.PortId);
@@ -74,6 +76,7 @@ public sealed class BackendControlWebSocketTests
         Assert.Equal(1f, action.Value);
         Assert.Equal(sessionId, bridge.ReleaseCalls.Single().SessionId);
         Assert.Equal("p1", bridge.ReleaseCalls.Single().Request.PortId);
+        Assert.Null(bridge.ReleaseCalls.Single().Request.Player);
         Assert.Equal("网页控制已释放", bridge.ReleaseCalls.Single().Request.Reason);
     }
 
@@ -236,8 +239,9 @@ public sealed class BackendControlWebSocketTests
         Assert.Equal("released", released.RootElement.GetProperty("type").GetString());
 
         Assert.Equal(2, bridge.ClaimCalls.Count);
-        var switchedRelease = bridge.ReleaseCalls.Single(call => call.SessionId == firstSessionId && call.Request.Player == 0);
+        var switchedRelease = bridge.ReleaseCalls.Single(call => call.SessionId == firstSessionId && call.Request.PortId == "p1");
         Assert.Equal("p1", switchedRelease.Request.PortId);
+        Assert.Null(switchedRelease.Request.Player);
         Assert.Equal("网页控制目标已切换", switchedRelease.Request.Reason);
     }
 
@@ -306,9 +310,12 @@ public sealed class BackendControlWebSocketTests
         await WaitUntilAsync(() =>
             bridge.ReleaseCalls.Any(call =>
                 call.SessionId == sessionId &&
-                call.Request.Player == 0 &&
                 call.Request.PortId == "p1" &&
                 call.Request.Reason == "网页连接已断开，已恢复本地控制"));
+
+        Assert.All(
+            bridge.ReleaseCalls.Where(call => call.SessionId == sessionId && call.Request.PortId == "p1"),
+            call => Assert.Null(call.Request.Player));
     }
 
     [Fact]
@@ -355,9 +362,11 @@ public sealed class BackendControlWebSocketTests
 
         Assert.Equal(2, bridge.ReleaseCalls.Count(call =>
             call.SessionId == sessionId &&
-            call.Request.Player == 0 &&
             call.Request.PortId == "p1" &&
             call.Request.Reason == "网页控制已释放"));
+        Assert.All(
+            bridge.ReleaseCalls.Where(call => call.SessionId == sessionId && call.Request.PortId == "p1"),
+            call => Assert.Null(call.Request.Player));
         Assert.DoesNotContain(bridge.ReleaseCalls, call => call.Request.Reason == "网页连接已断开，已恢复本地控制");
     }
 
@@ -390,9 +399,12 @@ public sealed class BackendControlWebSocketTests
         await WaitUntilAsync(() =>
             bridge.ReleaseCalls.Any(call =>
                 call.SessionId == sessionId &&
-                call.Request.Player == 1 &&
                 call.Request.PortId == "p2" &&
                 call.Request.Reason == "网页连接已断开，已恢复本地控制"));
+
+        Assert.All(
+            bridge.ReleaseCalls.Where(call => call.SessionId == sessionId && call.Request.PortId == "p2"),
+            call => Assert.Null(call.Request.Player));
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 2000)

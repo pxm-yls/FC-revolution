@@ -19,13 +19,10 @@ internal sealed class ControlMessageCodec
     internal static Guid? ParseSessionId(string? raw)
         => Guid.TryParse(raw, out var parsed) ? parsed : null;
 
-    internal static bool IsSupportedPlayer(int? player)
-        => player is { } value && RemoteControlPorts.IsSupportedPlayer(value);
-
-    internal static bool TryResolveControlPort(string? portId, int? player, out int resolvedPlayer, out string resolvedPortId)
+    internal static bool TryResolveControlPort(string? portId, int? player, out string resolvedPortId)
     {
         var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-        if (normalizedPortId != null && RemoteControlPorts.TryGetPlayer(normalizedPortId, out resolvedPlayer))
+        if (normalizedPortId != null)
         {
             resolvedPortId = normalizedPortId;
             return true;
@@ -35,14 +32,27 @@ internal sealed class ControlMessageCodec
             RemoteControlPorts.IsSupportedPlayer(value) &&
             RemoteControlPorts.TryGetPortId(value, out resolvedPortId))
         {
-            resolvedPlayer = value;
             return true;
         }
 
-        resolvedPlayer = default;
         resolvedPortId = string.Empty;
         return false;
     }
+
+    internal static int? ResolveCompatibilityPlayer(string? portId)
+    {
+        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
+        return normalizedPortId != null && RemoteControlPorts.TryGetPlayer(normalizedPortId, out var player)
+            ? player
+            : null;
+    }
+
+    internal static SocketMessage CreateSocketMessage(
+        string type,
+        string? message = null,
+        string? sessionId = null,
+        string? portId = null)
+        => new(type, message, sessionId, ResolveCompatibilityPlayer(portId), portId);
 
     internal async Task<SocketClientMessage?> ReceiveClientMessageAsync(CancellationToken cancellationToken)
     {

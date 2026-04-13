@@ -203,4 +203,54 @@ public sealed class BackendApiEndpointTests
         Assert.Equal(HttpStatusCode.Conflict, button.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, input.StatusCode);
     }
+
+    [Fact]
+    public async Task Control_Routes_Normalize_Legacy_Player_Requests_To_PortId_First()
+    {
+        var bridge = new RecordingRuntimeBridge
+        {
+            ClaimControlResult = true
+        };
+
+        await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
+        var sessionId = Guid.NewGuid();
+
+        using var claim = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/claim",
+            new
+            {
+                player = 1,
+                clientIp = "127.0.0.1",
+                clientName = "ipad"
+            });
+        using var heartbeat = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/heartbeat",
+            new
+            {
+                player = 1
+            });
+        using var release = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/release",
+            new
+            {
+                player = 1,
+                reason = "done"
+            });
+
+        claim.EnsureSuccessStatusCode();
+        heartbeat.EnsureSuccessStatusCode();
+        release.EnsureSuccessStatusCode();
+
+        var claimRequest = Assert.Single(bridge.ClaimCalls).Request;
+        Assert.Equal("p2", claimRequest.PortId);
+        Assert.Null(claimRequest.Player);
+
+        var heartbeatRequest = Assert.Single(bridge.HeartbeatCalls).Request;
+        Assert.Equal("p2", heartbeatRequest.PortId);
+        Assert.Null(heartbeatRequest.Player);
+
+        var releaseRequest = Assert.Single(bridge.ReleaseCalls).Request;
+        Assert.Equal("p2", releaseRequest.PortId);
+        Assert.Null(releaseRequest.Player);
+    }
 }
