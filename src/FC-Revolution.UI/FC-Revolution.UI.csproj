@@ -95,6 +95,20 @@
       SkipUnchangedFiles="true" />
   </Target>
 
+  <Target Name="CopyLegacyAdapterAssembliesToBuildOutput" AfterTargets="Build" Condition="'@(LegacyAdapterBuildOutput)' != ''">
+    <Copy
+      SourceFiles="@(LegacyAdapterBuildOutput)"
+      DestinationFiles="@(LegacyAdapterBuildOutput->'$(OutDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyLegacyAdapterAssembliesToPublishOutput" AfterTargets="Publish" Condition="'$(PublishDir)' != '' and '@(LegacyAdapterBuildOutput)' != '' and '$(PublishSingleFile)' != 'true'">
+    <Copy
+      SourceFiles="@(LegacyAdapterBuildOutput)"
+      DestinationFiles="@(LegacyAdapterBuildOutput->'$(PublishDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
   <Target Name="DeleteExternalUiPdbArtifacts" AfterTargets="Build;Publish">
     <Delete Files="$(OutDir)$(AssemblyName).pdb;$(IntermediateOutputPath)$(AssemblyName).pdb;$(PublishDir)$(AssemblyName).pdb" />
   </Target>
@@ -103,7 +117,10 @@
     <ProjectReference Include="..\FC-Revolution.Backend.Abstractions\FC-Revolution.Backend.Abstractions.csproj" />
     <ProjectReference Include="..\FC-Revolution.Backend.Hosting\FC-Revolution.Backend.Hosting.csproj" />
     <ProjectReference Include="..\FC-Revolution.Contracts\FC-Revolution.Contracts.csproj" />
-    <ProjectReference Include="..\FC-Revolution.FC.LegacyAdapters\FC-Revolution.FC.LegacyAdapters.csproj" />
+    <ProjectReference Include="..\FC-Revolution.FC.LegacyAdapters\FC-Revolution.FC.LegacyAdapters.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all"
+                      OutputItemType="LegacyAdapterBuildOutput" />
     <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.Sample.Managed\FC-Revolution.Core.Sample.Managed.csproj"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all"

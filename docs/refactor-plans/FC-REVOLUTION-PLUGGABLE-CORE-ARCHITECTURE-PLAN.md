@@ -66,7 +66,7 @@
 | 状态存档 | `StateSnapshotData` 固定五段状态 | 不能兼容其他系统 |
 | 输入模型 | `NesButton`、两手柄 | 不能泛化到其他设备 |
 | FCR 文档 | `system.fcr`、ROM profile `.fcr` | 尚未形成“核心分发文档族” |
-| 构建/交付 | UI 已改为依赖显式 NES adapter 层，但 adapter 与具体核心仍位于主仓内，build 阶段仍会注入示例核心 | 说明“直接引用核心项目”问题已缓解，但核心尚未完全脱离主程序仓库与主程序构建流程 |
+| 构建/交付 | UI 已去掉对 FC legacy adapter 的编译期依赖，改为 runtime-only adapter 注入；但 adapter 与具体核心仍位于主仓内，build 阶段仍会注入示例核心 | 说明“直接引用核心项目”问题已继续收口，但核心尚未完全脱离主程序仓库与主程序构建流程 |
 
 ## 3. 重构目标架构
 
@@ -1081,7 +1081,7 @@ fc-revolution-core-foo/
 1. `NES` 仍能跑
 2. 宿主不再直接依赖 `NesConsole`
 
-当前进展（截至 `2026-04-09`）：
+当前进展（截至 `2026-04-14`）：
 
 1. `GameWindowViewModel`、`MainWindowViewModel` 与预览生成链路已经统一通过 `IEmulatorCoreSession` / capability resolver 消费核心会话，不再在 UI 侧重复持有 `NesConsole` fallback 逻辑。
 2. `SystemConfigProfile` 与 `MainWindowViewModel` 已新增 `DefaultCoreId` 持久化，主会话、预览会话和 `StartGameSession` 本地启动链路都能把配置的核心 ID 继续传到 `CoreSessionLaunchRequest` / `StartSessionWithCore(...)`。
@@ -1099,12 +1099,13 @@ fc-revolution-core-foo/
 14. `TimelineStoragePaths` 已从 `FC-Revolution.Core.FC/Timeline/Persistence` 下沉到 [FC-Revolution.Storage](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs)，Core 旧 namespace 仅保留 forwarding shim；`FC-Revolution.FC.LegacyAdapters` 里的纯路径 wrapper 已删除，UI 本地 `LegacyTimelineStorageAdapter` 也已直接转到通用 `Storage` helper。这样 timeline 的 ROM hash / branch path / export path / manifest write-time 这层纯存储能力不再挂在 FC core namespace 下。
 15. replay log 的纯文件格式与 snapshot 基准帧读取也已从 FC/NES 边界下沉到 [FrameInputRecord.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/FrameInputRecord.cs)、[ReplayLogWriter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogWriter.cs)、[ReplayLogReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogReader.cs) 与 [StateSnapshotFrameReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/StateSnapshotFrameReader.cs)。`TimelineInputLogWriter` 与 `TimelineVideoExporter.BuildReplayPlan(...)` 已直接使用通用 helper，`NesReplayLogWriter` 这层空壳已删除；当前剩余的 NES 专用部分主要只剩 replay 渲染执行本身。
 16. timeline repository 的 bridge DTO / contract 也已抽成 [TimelineBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/TimelineBridgeContracts.cs)，`LegacyTimelineRepositoryAdapter` 现在实现 `ITimelineRepositoryBridge`，`LegacyTimelineManifestHandle` 实现 `ITimelineManifestHandle`；UI 本地 `GameWindowTimelinePersistenceController`、`GameWindowPreviewNodeFactory` 与 `LegacyTimelineSessionAdapter` 已改成只依赖通用 `TimelinePreviewEntry` / `ITimelineManifestHandle` / `ITimelineRepositoryBridge`。这样 UI 侧已经不再直接吃 `LegacyTimelinePreviewEntry` / `LegacyTimelineManifestHandle` 这类 FC 命名 bridge DTO。
+17. `FC-Revolution.UI` 现已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期依赖：timeline repository、replay frame renderer 与 ROM mapper inspector 分别经由 [LegacyFeatureBridgeLoader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Infrastructure/LegacyFeatureBridgeLoader.cs) 按 [LegacyFeatureBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/LegacyFeatureBridgeContracts.cs) 反射加载 runtime-only adapter；同时 backend HTTP / WebSocket 入口已允许任意非空 `portId` 透传，只在 legacy `player -> p1/p2` 兼容边界继续做 fallback，`StartGameSession`、LAN runtime 和 `SessionLifecycleService` 也已开始用真实 `InputSchema` 生成启动期的 `inputBindingsByPort`，不再无条件退回 `p1/p2`。
 
 当前仍未完成：
 
 1. 宿主虽然已经具备“程序集扫描 + 目录探测 + 配置追加 probe path + 本地 DLL 导入/卸载”的 managed core 最小闭环，并已接入一个 demo 级第二 managed core，但还没有远程下载 / 更新 / 版本管理闭环，也还没有 package 级校验与 registry 元数据。
-2. timeline 的纯存储路径层、replay log 文件格式层、snapshot base-frame 读取层与 bridge contract 层已经通用化，但 UI 仍通过 `LegacyTimelineRepositoryAdapter` 默认实现和 `NesReplayInterop` 渲染执行链依赖 `FC-Revolution.FC.LegacyAdapters`；也就是说，当前剩下的主要是实现注入与 NES 专用 replay 渲染，而不再是 DTO / file-format 层的耦合。
-3. 远控 generic button 写路径虽已在 `BackendContractClient`、HTTP `/buttons` 兼容入口与 WebSocket `button` 边界层优先走 `input` 协议，backend WebSocket/lease internals 也已切到 `portId-first`，但 contracts 仍保留 `RemoteControlPorts` / `p1/p2` 端口命名以及 `SetButtonState` / `/buttons` compatibility shell，尚未升级为真正的系统无关动作协议。
+2. timeline 的纯存储路径层、replay log 文件格式层、snapshot base-frame 读取层与 bridge contract 层已经通用化，UI 对 `FC-Revolution.FC.LegacyAdapters` 的编译期依赖也已移除；但 `LegacyFeatureBridgeLoader` 仍通过硬编码类型名加载 `FC-Revolution.FC.LegacyAdapters`，而 `LegacyTimelineRepositoryAdapter` / `LegacyReplayFrameRenderer` / `LegacyRomMapperInspector` 本身仍是 FC/NES 专用实现。也就是说，当前剩下的主要是实现注入与 NES 专用 replay / mapper 能力，而不再是 DTO / file-format 或项目引用层的耦合。
+3. 远控 generic button 写路径虽已在 `BackendContractClient`、HTTP `/buttons` 兼容入口与 WebSocket `button` 边界层优先走 `input` 协议，backend WebSocket/lease internals 也已切到 `portId-first`，而且任意非空 `portId` 已可透传到 runtime；但 contracts 仍保留 `RemoteControlPorts` / `p1/p2` 端口命名以及 `SetButtonState` / `/buttons` compatibility shell，WebPad 与会话摘要/UI 状态也仍然保留 `Player1/Player2` 双槽位假设，尚未升级为真正的系统无关动作协议。
 4. 主窗口虽然已经有默认核心选择、来源目录管理/重载、本地 DLL 导入/卸载与来源摘要 UI，但还缺远程下载 / 更新 / 版本管理闭环以及更完整的 manifest 展示，当前仍停留在基础挂载能力。
 
 ### Phase 4：调试、时间线、渲染能力下沉为 capability

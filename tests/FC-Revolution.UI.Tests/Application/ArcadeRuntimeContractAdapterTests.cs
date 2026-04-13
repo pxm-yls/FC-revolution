@@ -4,9 +4,11 @@ using Avalonia.Platform;
 using FCRevolution.Backend.Hosting;
 using FCRevolution.Contracts.RemoteControl;
 using FCRevolution.Core.Input;
+using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FCRevolution.Storage;
 using FC_Revolution.UI.AppServices;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -58,6 +60,49 @@ public sealed class ArcadeRuntimeContractAdapterTests
         Assert.Equal(startedSession, sessionService.LastClosedSession);
         Assert.Contains(statuses, text => text.Contains("局域网点播已启动: StartClose", StringComparison.Ordinal));
         Assert.Contains(statuses, text => text.Contains("局域网页端已关闭游戏窗口: StartClose", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_PreservesSchemaPortIds_WhenBuildingInputBindings()
+    {
+        using var host = new GameWindowViewModelTestHost();
+        var startedSession = new ActiveGameSessionItem(
+            Guid.NewGuid(),
+            "CustomPort",
+            host.RomPath,
+            null!,
+            host.ViewModel);
+        var sessionService = new FakeGameSessionService
+        {
+            StartSessionResult = startedSession
+        };
+        var adapter = CreateAdapter(
+            romLibrary:
+            [
+                new RomLibraryItem(
+                    "CustomPort.nes",
+                    host.RomPath,
+                    string.Empty,
+                    hasPreview: false,
+                    fileSizeBytes: 1,
+                    importedAtUtc: DateTime.UtcNow)
+            ],
+            sessionService: sessionService,
+            onStatus: _ => { },
+            inputBindingSchema: CoreInputBindingSchema.Create(new SinglePortInputSchema()),
+            globalInputBindings:
+            [
+                new InputBindingEntry(0, "fire", "Fire", Key.Z, [Key.Z])
+            ]);
+
+        var started = await AwaitWithUiDrain(adapter.StartSessionAsync(new StartSessionRequest(host.RomPath)));
+
+        Assert.NotNull(started);
+        Assert.NotNull(sessionService.LastStartInputBindingsByPort);
+        var bindingsByPort = Assert.Single(sessionService.LastStartInputBindingsByPort);
+        Assert.Equal("pad-west", bindingsByPort.Key);
+        Assert.True(bindingsByPort.Value.TryGetValue("fire", out var fireKey));
+        Assert.Equal(Key.Z, fireKey);
     }
 
     [Fact]
@@ -267,13 +312,17 @@ public sealed class ArcadeRuntimeContractAdapterTests
     private static ArcadeRuntimeContractAdapter CreateAdapter(
         IReadOnlyList<RomLibraryItem> romLibrary,
         IGameSessionService sessionService,
-        Action<string> onStatus)
+        Action<string> onStatus,
+        CoreInputBindingSchema? inputBindingSchema = null,
+        System.Collections.ObjectModel.ObservableCollection<InputBindingEntry>? globalInputBindings = null)
     {
         return new ArcadeRuntimeContractAdapter(
             romLibrary,
             new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
-            new System.Collections.ObjectModel.ObservableCollection<InputBindingEntry>(),
             sessionService,
+            () => InputBindingContractAdapter.BuildActionBindingsFromEntries(
+                globalInputBindings ?? new System.Collections.ObjectModel.ObservableCollection<InputBindingEntry>(),
+                inputBindingSchema ?? CoreInputBindingSchema.CreateFallback()),
             () => GameAspectRatioMode.Native,
             () => MacUpscaleMode.None,
             () => MacUpscaleOutputResolution.Hd1080,
@@ -360,6 +409,7 @@ public sealed class ArcadeRuntimeContractAdapterTests
         public ActiveGameSessionItem? StartSessionResult { get; set; }
         public string? LastStartDisplayName { get; private set; }
         public string? LastStartRomPath { get; private set; }
+        public IReadOnlyDictionary<string, Dictionary<string, Key>>? LastStartInputBindingsByPort { get; private set; }
         public ActiveGameSessionItem? LastClosedSession { get; private set; }
 
         public ActiveGameSessionItem StartSessionWithInputBindings(
@@ -379,6 +429,10 @@ public sealed class ArcadeRuntimeContractAdapterTests
             StartSessionCalled = true;
             LastStartDisplayName = displayName;
             LastStartRomPath = romPath;
+            LastStartInputBindingsByPort = inputBindingsByPort.ToDictionary(
+                pair => pair.Key,
+                pair => new Dictionary<string, Key>(pair.Value, StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
 
             var session = StartSessionResult ?? throw new NotSupportedException();
             Sessions.Add(session);
@@ -427,5 +481,18 @@ public sealed class ArcadeRuntimeContractAdapterTests
 
         public bool IsRemoteOwner(Guid sessionId, string portId, string clientIp, string? clientName = null) => false;
         public bool AnyForRomPath(string romPath) => Sessions.Any(s => string.Equals(s.RomPath, romPath, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class SinglePortInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } =
+        [
+            new("pad-west", "Pad West", 0)
+        ];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } =
+        [
+            new("fire", "Fire", "pad-west", InputValueKind.Digital, CanonicalActionId: "fire", IsBindable: true)
+        ];
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using FCRevolution.FC.LegacyAdapters;
+using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Storage;
 
@@ -9,6 +9,8 @@ namespace FC_Revolution.UI.Infrastructure;
 
 internal static class TimelineVideoExporter
 {
+    private static readonly IReplayFrameRenderer ReplayFrameRenderer = LegacyFeatureBridgeLoader.GetReplayFrameRenderer();
+
     internal readonly record struct ReplayInputRecord(long Frame, byte Player1Mask, byte Player2Mask);
 
     internal readonly record struct ReplayExportPlan(long BaseFrame, ReplayInputRecord[] Records);
@@ -28,7 +30,7 @@ internal static class TimelineVideoExporter
             throw new FileNotFoundException("未找到导出起点快照。", snapshotPath);
 
         var snapshotBytes = File.ReadAllBytes(snapshotPath);
-        var frames = NesReplayInterop.RenderFrameRange(
+        var frames = ReplayFrameRenderer.RenderFrameRange(
             romPath,
             snapshotBytes,
             inputLogPath,

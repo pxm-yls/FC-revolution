@@ -29,7 +29,6 @@ internal sealed class ControlMessageCodec
         }
 
         if (player is { } value &&
-            RemoteControlPorts.IsSupportedPlayer(value) &&
             RemoteControlPorts.TryGetPortId(value, out resolvedPortId))
         {
             return true;

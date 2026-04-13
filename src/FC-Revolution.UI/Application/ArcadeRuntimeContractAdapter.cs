@@ -32,8 +32,8 @@ public sealed class ArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
     public ArcadeRuntimeContractAdapter(
         IReadOnlyList<RomLibraryItem> romLibrary,
         IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverridesByPortAction,
-        ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
+        Func<IReadOnlyDictionary<string, Dictionary<string, Key>>> buildGlobalInputBindingsByPort,
         Func<GameAspectRatioMode> getAspectRatioMode,
         Func<MacUpscaleMode> getUpscaleMode,
         Func<MacUpscaleOutputResolution> getUpscaleOutputResolution,
@@ -50,8 +50,8 @@ public sealed class ArcadeRuntimeContractAdapter : IArcadeRuntimeContractAdapter
         _sessionLifecycleService = new SessionLifecycleService(
             romLibrary,
             romInputOverridesByPortAction,
-            globalInputBindings,
             gameSessionService,
+            buildGlobalInputBindingsByPort,
             getAspectRatioMode,
             getUpscaleMode,
             getUpscaleOutputResolution,

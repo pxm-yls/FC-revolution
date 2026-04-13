@@ -13,8 +13,8 @@ internal sealed class SessionLifecycleService
 {
     private readonly IReadOnlyList<RomLibraryItem> _romLibrary;
     private readonly IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> _romInputOverrides;
-    private readonly ObservableCollection<InputBindingEntry> _globalInputBindings;
     private readonly IGameSessionService _gameSessionService;
+    private readonly Func<IReadOnlyDictionary<string, Dictionary<string, Key>>> _buildGlobalInputBindingsByPort;
     private readonly Func<GameAspectRatioMode> _getAspectRatioMode;
     private readonly Func<MacUpscaleMode> _getUpscaleMode;
     private readonly Func<MacUpscaleOutputResolution> _getUpscaleOutputResolution;
@@ -26,8 +26,8 @@ internal sealed class SessionLifecycleService
     public SessionLifecycleService(
         IReadOnlyList<RomLibraryItem> romLibrary,
         IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
-        ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
+        Func<IReadOnlyDictionary<string, Dictionary<string, Key>>> buildGlobalInputBindingsByPort,
         Func<GameAspectRatioMode> getAspectRatioMode,
         Func<MacUpscaleMode> getUpscaleMode,
         Func<MacUpscaleOutputResolution> getUpscaleOutputResolution,
@@ -38,8 +38,8 @@ internal sealed class SessionLifecycleService
     {
         _romLibrary = romLibrary;
         _romInputOverrides = romInputOverrides;
-        _globalInputBindings = globalInputBindings;
         _gameSessionService = gameSessionService;
+        _buildGlobalInputBindingsByPort = buildGlobalInputBindingsByPort;
         _getAspectRatioMode = getAspectRatioMode;
         _getUpscaleMode = getUpscaleMode;
         _getUpscaleOutputResolution = getUpscaleOutputResolution;
@@ -57,7 +57,7 @@ internal sealed class SessionLifecycleService
 
         var inputMaps = _romInputOverrides.TryGetValue(rom.Path, out var overrideMap)
             ? CloneActionBindings(overrideMap)
-            : InputBindingContractAdapter.BuildActionBindingsFromEntries(_globalInputBindings);
+            : CloneActionBindings(_buildGlobalInputBindingsByPort());
         var session = _gameSessionService.StartSessionWithInputBindings(
             rom.DisplayName,
             rom.Path,

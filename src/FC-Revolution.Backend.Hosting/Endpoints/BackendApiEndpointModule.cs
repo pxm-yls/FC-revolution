@@ -79,9 +79,7 @@ internal static class BackendApiEndpointModule
             }
             else
             {
-                var portId = string.IsNullOrWhiteSpace(httpRequest.Query["portId"])
-                    ? null
-                    : httpRequest.Query["portId"].ToString();
+                var portId = RemoteControlPorts.NormalizePortId(httpRequest.Query["portId"].ToString());
 
                 if (string.IsNullOrWhiteSpace(portId) &&
                     int.TryParse(httpRequest.Query["player"], out var parsedPlayer) &&

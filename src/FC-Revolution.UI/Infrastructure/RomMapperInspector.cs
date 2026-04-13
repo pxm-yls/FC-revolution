@@ -1,4 +1,4 @@
-using FCRevolution.FC.LegacyAdapters;
+using FCRevolution.Emulation.Abstractions;
 
 namespace FC_Revolution.UI.Infrastructure;
 
@@ -9,9 +9,11 @@ internal readonly record struct RomMapperInfo(int Number, string Name, bool IsSu
 
 internal static class RomMapperInspector
 {
+    private static readonly IRomMapperInfoInspector Inspector = LegacyFeatureBridgeLoader.GetRomMapperInfoInspector();
+
     public static RomMapperInfo Inspect(string romPath)
     {
-        var mapper = NesRomInspector.Inspect(romPath);
+        var mapper = Inspector.Inspect(romPath);
         return new RomMapperInfo(mapper.Number, mapper.Name, mapper.IsSupported);
     }
 }

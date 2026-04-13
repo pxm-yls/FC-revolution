@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.AppServices;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -24,6 +25,7 @@ public sealed class MainWindowRuntimeDependencyBundleTests
             romInputOverrides,
             globalInputBindings,
             gameSessionService,
+            CoreInputBindingSchema.CreateFallback(),
             () => GameAspectRatioMode.Native,
             () => MacUpscaleMode.None,
             () => MacUpscaleOutputResolution.Hd1080,

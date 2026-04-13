@@ -407,6 +407,54 @@ public sealed class BackendControlWebSocketTests
             call => Assert.Null(call.Request.Player));
     }
 
+    [Fact]
+    public async Task Control_WebSocket_Accepts_Custom_PortIds()
+    {
+        var bridge = new RecordingRuntimeBridge
+        {
+            ClaimControlResult = true,
+            SetInputStateResult = true
+        };
+
+        await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
+        using var socket = await BackendWebSocketTestHelper.ConnectAsync(host.CreateWebSocketUri("/ws"));
+        using var ready = await BackendWebSocketTestHelper.ReceiveJsonAsync(socket);
+        Assert.Equal("ready", ready.RootElement.GetProperty("type").GetString());
+
+        var sessionId = Guid.NewGuid();
+        await BackendWebSocketTestHelper.SendJsonAsync(socket, new
+        {
+            action = "claim",
+            sessionId = sessionId.ToString(),
+            portId = "pad-west"
+        });
+
+        using var claimed = await BackendWebSocketTestHelper.ReceiveJsonAsync(socket);
+        Assert.Equal("claimed", claimed.RootElement.GetProperty("type").GetString());
+        Assert.Equal("pad-west", claimed.RootElement.GetProperty("portId").GetString());
+
+        await BackendWebSocketTestHelper.SendJsonAsync(socket, new
+        {
+            action = "button",
+            sessionId = sessionId.ToString(),
+            portId = "pad-west",
+            button = "jump",
+            pressed = true
+        });
+
+        await WaitUntilAsync(() => bridge.InputStateCalls.Count == 1);
+
+        var claimCall = Assert.Single(bridge.ClaimCalls);
+        Assert.Equal("pad-west", claimCall.Request.PortId);
+        Assert.Null(claimCall.Request.Player);
+
+        var inputCall = Assert.Single(bridge.InputStateCalls);
+        var action = Assert.Single(inputCall.Request.Actions);
+        Assert.Equal("pad-west", action.PortId);
+        Assert.Equal("jump", action.ActionId);
+        Assert.Equal(1f, action.Value);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMs = 2000)
     {
         var start = DateTime.UtcNow;

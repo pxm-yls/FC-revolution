@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Input;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.AppServices;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -35,6 +36,7 @@ internal sealed class MainWindowRuntimeDependencyBundle
         IReadOnlyDictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
+        CoreInputBindingSchema inputBindingSchema,
         Func<GameAspectRatioMode> getGameAspectRatioMode,
         Func<MacUpscaleMode> getMacUpscaleMode,
         Func<MacUpscaleOutputResolution> getMacUpscaleOutputResolution,
@@ -46,9 +48,9 @@ internal sealed class MainWindowRuntimeDependencyBundle
     {
         var arcadeRuntimeAdapter = new ArcadeRuntimeContractAdapter(
             romLibrary,
-            InputBindingContractAdapter.BuildActionBindingsByRomPath(romInputOverrides),
-            globalInputBindings,
+            InputBindingContractAdapter.BuildActionBindingsByRomPath(romInputOverrides, inputBindingSchema),
             gameSessionService,
+            () => InputBindingContractAdapter.BuildActionBindingsFromEntries(globalInputBindings, inputBindingSchema),
             getGameAspectRatioMode,
             getMacUpscaleMode,
             getMacUpscaleOutputResolution,

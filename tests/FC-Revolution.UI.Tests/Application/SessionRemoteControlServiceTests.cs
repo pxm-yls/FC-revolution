@@ -33,6 +33,23 @@ public sealed class SessionRemoteControlServiceTests
     }
 
     [Fact]
+    public void ClaimControl_ForwardsCustomPortId_WhenProvided()
+    {
+        var gameSession = new FakeGameSessionService
+        {
+            ClaimResult = true
+        };
+        var service = new SessionRemoteControlService(gameSession, _ => { });
+
+        var claimed = service.ClaimControl(
+            Guid.NewGuid(),
+            new ClaimControlRequest(ClientIp: "127.0.0.1", PortId: " pad-west "));
+
+        Assert.True(claimed);
+        Assert.Equal("pad-west", gameSession.LastClaimPortId);
+    }
+
+    [Fact]
     public void ReleaseControl_UsesPortId_WhenProvided()
     {
         var gameSession = new FakeGameSessionService();

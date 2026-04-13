@@ -62,9 +62,10 @@ public sealed class SessionRemoteControlService
 
     private static bool TryResolvePortId(string? portId, int? fallbackPlayer, out string resolvedPortId)
     {
-        if (!string.IsNullOrWhiteSpace(portId))
+        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
+        if (!string.IsNullOrWhiteSpace(normalizedPortId))
         {
-            resolvedPortId = portId.Trim();
+            resolvedPortId = normalizedPortId;
             return true;
         }
 
@@ -77,17 +78,8 @@ public sealed class SessionRemoteControlService
 
     private static bool TryMapCompatibilityPlayer(int? player, out string portId)
     {
-        if (player is 0)
-        {
-            portId = "p1";
+        if (player is { } value && RemoteControlPorts.TryGetPortId(value, out portId))
             return true;
-        }
-
-        if (player is 1)
-        {
-            portId = "p2";
-            return true;
-        }
 
         portId = string.Empty;
         return false;

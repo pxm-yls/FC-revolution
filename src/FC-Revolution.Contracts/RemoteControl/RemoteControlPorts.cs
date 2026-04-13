@@ -45,8 +45,12 @@ public static class RemoteControlPorts
 
     public static string? NormalizePortId(string? portId)
     {
-        if (!TryGetPlayer(portId, out var player))
+        if (string.IsNullOrWhiteSpace(portId))
             return null;
+
+        var trimmedPortId = portId.Trim();
+        if (!TryGetPlayer(trimmedPortId, out var player))
+            return trimmedPortId;
 
         _ = TryGetPortId(player, out var normalizedPortId);
         return normalizedPortId;

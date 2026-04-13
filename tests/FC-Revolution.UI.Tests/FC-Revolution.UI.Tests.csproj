@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\FC-Revolution.FC.LegacyAdapters\FC-Revolution.FC.LegacyAdapters.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.Core\FC-Revolution.Core.FC\Managed\FC-Revolution.Core.Nes.Managed.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.Core\FC-Revolution.Core.Sample.Managed\FC-Revolution.Core.Sample.Managed.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.UI\FC-Revolution.UI.csproj" />

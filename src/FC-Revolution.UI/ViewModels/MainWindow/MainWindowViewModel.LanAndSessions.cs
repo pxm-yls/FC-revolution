@@ -119,7 +119,7 @@ public partial class MainWindowViewModel
                 rom.DisplayName,
                 rom.Path,
                 GameAspectRatioMode,
-                InputBindingContractAdapter.BuildActionBindingsFromPlayerMaps(inputMaps),
+                InputBindingContractAdapter.BuildActionBindingsFromPlayerMaps(inputMaps, _inputBindingSchema),
                 extraInputBindings,
                 SyncLoadedFlags,
                 _macUpscaleMode,

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.ViewModels;
 
 namespace FC_Revolution.UI.Adapters.LegacyTimeline;
@@ -22,7 +22,7 @@ internal sealed class LegacyTimelineSessionAdapter
     private DateTime _manifestWriteTimeUtc;
 
     public LegacyTimelineSessionAdapter(CoreBranchTree branchTree)
-        : this(branchTree, new LegacyTimelineRepositoryAdapter())
+        : this(branchTree, LegacyFeatureBridgeLoader.CreateTimelineRepositoryBridge())
     {
     }
 

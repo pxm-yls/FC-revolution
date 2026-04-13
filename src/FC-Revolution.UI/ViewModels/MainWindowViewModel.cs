@@ -454,6 +454,7 @@ public partial class MainWindowViewModel : ViewModelBase
             _romInputOverrides,
             _globalInputBindings,
             _gameSessionService,
+            _inputBindingSchema,
             () => GameAspectRatioMode,
             () => MacUpscaleMode,
             () => MacUpscaleOutputResolution,

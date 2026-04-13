@@ -253,4 +253,57 @@ public sealed class BackendApiEndpointTests
         Assert.Equal("p2", releaseRequest.PortId);
         Assert.Null(releaseRequest.Player);
     }
+
+    [Fact]
+    public async Task Control_Routes_Accept_Custom_PortIds_Without_Forcing_Legacy_P1_P2()
+    {
+        var bridge = new RecordingRuntimeBridge
+        {
+            ClaimControlResult = true,
+            SetInputStateResult = true
+        };
+
+        await using var host = await BackendHostServiceTestHost.StartAsync(bridge);
+        var sessionId = Guid.NewGuid();
+
+        using var claim = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/claim",
+            new ClaimControlRequest(ClientIp: "127.0.0.1", PortId: " pad-west "));
+        using var heartbeat = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/heartbeat",
+            new RefreshHeartbeatRequest(PortId: " pad-west "));
+        using var button = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/buttons",
+            new
+            {
+                portId = " pad-west ",
+                actionId = "jump",
+                pressed = true
+            });
+        using var release = await host.Client.PostAsJsonAsync(
+            $"api/sessions/{sessionId}/release",
+            new ReleaseControlRequest(Reason: "done", PortId: " pad-west "));
+
+        claim.EnsureSuccessStatusCode();
+        heartbeat.EnsureSuccessStatusCode();
+        button.EnsureSuccessStatusCode();
+        release.EnsureSuccessStatusCode();
+
+        var claimRequest = Assert.Single(bridge.ClaimCalls).Request;
+        Assert.Equal("pad-west", claimRequest.PortId);
+        Assert.Null(claimRequest.Player);
+
+        var heartbeatRequest = Assert.Single(bridge.HeartbeatCalls).Request;
+        Assert.Equal("pad-west", heartbeatRequest.PortId);
+        Assert.Null(heartbeatRequest.Player);
+
+        var inputRequest = Assert.Single(bridge.InputStateCalls).Request;
+        var action = Assert.Single(inputRequest.Actions);
+        Assert.Equal("pad-west", action.PortId);
+        Assert.Equal("jump", action.ActionId);
+
+        var releaseRequest = Assert.Single(bridge.ReleaseCalls).Request;
+        Assert.Equal("pad-west", releaseRequest.PortId);
+        Assert.Null(releaseRequest.Player);
+    }
 }
