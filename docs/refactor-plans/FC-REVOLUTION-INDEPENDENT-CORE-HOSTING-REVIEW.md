@@ -12,6 +12,7 @@
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
 - 当前最大的剩余差距已经从“宿主是否还能启动”转移到“UI 仍保留少量 FC/NES 编译期适配层、共享运行时边界尚未完全抽干、独立核心工具链只起了 CLI 头、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
+- 本轮之后，UI 本地输入、运行时输入和 NES alias 处理已经改为 `InputSchema` 元数据驱动，`NesInputAdapter` 与 NES 位掩码不再是 UI 生产代码的真相来源；剩余输入残留主要集中在远控协议兼容壳与配置命名空间还保留 `p1/p2` / `Player1/Player2` 过渡形态。
 
 ## 1. 当前判断总览
 
@@ -221,8 +222,8 @@
 3. 主窗口构造阶段虽然仍会创建主核心会话，但已能优雅退回 unavailable session，而不是要求必须有 NES bundled core。
 现状见 [MainWindowViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindowViewModel.cs) 中的 `_coreSession = CreateMainCoreSession();`
 
-4. 这一轮之后，`FC-Revolution.UI` 已不再直接引用 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj)，而是改为依赖显式 NES adapter 层 [FC-Revolution.Core.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC.LegacyAdapters/FC-Revolution.Core.FC.LegacyAdapters.csproj)。
-   这说明“UI 直接编译依赖 FC/NES 私有实现”这件事已经被切开，但 legacy timeline / replay / mapper 仍然还是 NES 专用逻辑，只是被收口到了显式 adapter 包后面。
+4. 这一轮之后，`FC-Revolution.UI` 已不再直接引用 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj)，显式 FC 兼容桥也已迁出 `Core.*` 工程树，现位于 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj)。
+   这说明“非核心项目直接编译依赖 `FCRevolution.Core.*` 私有实现”这件事已经继续收口，但 legacy timeline / replay / mapper 仍然还是 FC/NES 专用逻辑，只是被限制在显式 adapter 包后面。
 
 5. 共享运行时已经能承担 package/probe/catalog/session 与最小 smoke test，但图形化 workbench 和外部核心仓库试点还没完成，因此“独立打包”仍主要停留在 managed package 与主仓内验证阶段。
 现状见 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs) 与 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)。
@@ -274,7 +275,7 @@
 
 主要差距有：
 
-1. UI 主会话与默认核心列表已经不再依赖编译期 `NesManagedCoreModule`，`FC-Revolution.UI` 也不再直接引用 `FC-Revolution.Core.FC`；当前剩余的是 [FC-Revolution.Core.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC.LegacyAdapters/FC-Revolution.Core.FC.LegacyAdapters.csproj) 这一显式 NES adapter 层仍留在主仓内。
+1. UI 主会话与默认核心列表已经不再依赖编译期 `NesManagedCoreModule`，`FC-Revolution.UI` 也不再直接引用 `FC-Revolution.Core.FC`；当前剩余的是 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj) 这一显式 FC adapter 层仍留在主仓内。
 2. 目录探测、程序集检查和来源汇总已经大部分收口到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)，但 [MainWindowPreviewGenerationController.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindow/MainWindowPreviewGenerationController.cs) 的 headless 预览驱动仍在 UI。
 3. 轻量 CLI checker 已开始落地，但图形化 `Core Workbench` 仍不存在，外部核心仓库试点也还没有验证独立 build / test / pack / install / run 闭环。
 4. `native-cabi` 目前仍只是 manifest / binary kind 约定，没有真正的 loader、桥接层和 smoke test。
@@ -369,7 +370,7 @@ App startup
 1. `Emulation.Host` 已不再直接 `ProjectReference` NES managed core，`EmulatorCoreHost` 也支持 empty catalog。
 2. bundled NES core 已降级为 bundled package / 发行策略，而不是 Host 架构前提。
 3. UI 主会话链路在零核心场景已能退回 unavailable session。
-4. `FC-Revolution.UI -> FC-Revolution.Core.FC` 的直接项目引用已经移除，但 legacy timeline / replay / mapper 仍通过显式 NES adapter 层接入，因此“完全系统无关的 UI”还没彻底完成。
+4. `FC-Revolution.UI -> FC-Revolution.Core.FC` 的直接项目引用已经移除，`FC-Revolution.UI -> FCRevolution.Core.*` 的显式 FC 兼容桥也已迁出 `Core.*` 工程树；但 legacy timeline / replay / mapper 仍通过显式 FC adapter 层接入，因此“完全系统无关的 UI”还没彻底完成。
 
 ### Phase C：落地独立测试工具与外置核心仓库试点（已启动，未完成）
 
@@ -433,7 +434,7 @@ App startup
 
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
-1. `FC-Revolution.UI` 已改为通过显式 NES adapter 层接入 legacy timeline / replay / mapper，但这些能力本身仍是 NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
+1. `FC-Revolution.UI` 已改为通过显式 FC adapter 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；但这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
 2. headless 预览驱动与旧时间线桥接仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
 3. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
 4. `native-cabi` 路线还只是方案，不是代码能力。

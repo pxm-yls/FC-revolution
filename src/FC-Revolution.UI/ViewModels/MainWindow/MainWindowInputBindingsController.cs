@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Storage;
-using FC_Revolution.UI.Adapters.Nes;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -141,16 +141,23 @@ internal sealed class MainWindowInputBindingsController
     public void LoadRomProfileInputOverride(
         string romPath,
         Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
-        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
+        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
+        CoreInputBindingSchema inputBindingSchema)
     {
         var profile = RomConfigProfile.Load(romPath);
-        var playerMaps = BuildPlayerInputMaps(profile);
+        var playerMaps = BuildPlayerInputMaps(profile, inputBindingSchema);
         if (playerMaps.Count > 0)
             romInputOverrides[romPath] = playerMaps;
 
         if (profile.ExtraInputBindings.Count > 0)
             romExtraInputOverrides[romPath] = profile.ExtraInputBindings.Select(CloneExtraInputBindingProfile).ToList();
     }
+
+    public void LoadRomProfileInputOverride(
+        string romPath,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
+        => LoadRomProfileInputOverride(romPath, romInputOverrides, romExtraInputOverrides, CoreInputBindingSchema.CreateFallback());
 
     public void SaveRomProfileInputOverride(
         string romPath,
@@ -187,23 +194,38 @@ internal sealed class MainWindowInputBindingsController
 
     public GlobalInputBindingViewState BuildGlobalInputBindingViewState(
         SystemConfigProfile? profile,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
     {
         var playerOverrides = profile == null
             ? new Dictionary<int, Dictionary<string, Key>>()
-            : BuildPlayerInputMaps(profile);
+            : BuildPlayerInputMaps(profile, inputBindingSchema);
         var inputBindings = BuildInputBindingEntries(
             playerOverrides,
+            inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);
         var extraBindings = BuildExtraInputBindingEntries(
             profile?.ExtraInputBindings ?? [],
-            configurableKeys);
+            configurableKeys,
+            inputBindingSchema.ExtraInputButtonOptions);
         return new GlobalInputBindingViewState(inputBindings, extraBindings);
     }
+
+    public GlobalInputBindingViewState BuildGlobalInputBindingViewState(
+        SystemConfigProfile? profile,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyList<Key> configurableKeys,
+        InputBindingLayoutProfile inputBindingLayout) =>
+        BuildGlobalInputBindingViewState(
+            profile,
+            CoreInputBindingSchema.CreateFallback(),
+            defaultKeyMaps,
+            configurableKeys,
+            inputBindingLayout);
 
     public RomInputBindingViewState BuildRomInputBindingViewState(
         string? currentRomPath,
@@ -211,6 +233,7 @@ internal sealed class MainWindowInputBindingsController
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
@@ -236,14 +259,36 @@ internal sealed class MainWindowInputBindingsController
 
         var romInputs = BuildInputBindingEntries(
             overrideMap ?? new Dictionary<int, Dictionary<string, Key>>(),
+            inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);
         var romExtra = BuildExtraInputBindingEntries(
             extraOverrideProfiles ?? [],
-            configurableKeys);
+            configurableKeys,
+            inputBindingSchema.ExtraInputButtonOptions);
         return new RomInputBindingViewState(true, romInputs, romExtra);
     }
+
+    public RomInputBindingViewState BuildRomInputBindingViewState(
+        string? currentRomPath,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
+        IEnumerable<InputBindingEntry> globalInputBindings,
+        IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyList<Key> configurableKeys,
+        InputBindingLayoutProfile inputBindingLayout) =>
+        BuildRomInputBindingViewState(
+            currentRomPath,
+            romInputOverrides,
+            romExtraInputOverrides,
+            globalInputBindings,
+            globalExtraInputBindings,
+            CoreInputBindingSchema.CreateFallback(),
+            defaultKeyMaps,
+            configurableKeys,
+            inputBindingLayout);
 
     public Dictionary<int, Dictionary<string, Key>> GetEffectivePlayerInputMaps(
         string? romPath,
@@ -293,7 +338,7 @@ internal sealed class MainWindowInputBindingsController
     public List<ExtraInputBindingProfile> BuildExtraInputBindingProfiles(IEnumerable<ExtraInputBindingEntry> entries) =>
         entries.Select(entry => entry.ToProfile()).ToList();
 
-    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(SystemConfigProfile profile)
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(SystemConfigProfile profile, CoreInputBindingSchema inputBindingSchema)
     {
         var maps = new Dictionary<int, Dictionary<string, Key>>();
 
@@ -305,10 +350,10 @@ internal sealed class MainWindowInputBindingsController
             var map = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in playerMap)
             {
-                if (NesInputAdapter.IsControllerAction(pair.Key) &&
+                if (inputBindingSchema.TryNormalizeActionId(player, pair.Key, out var normalizedActionId) &&
                     Enum.TryParse<Key>(pair.Value, out var key))
                 {
-                    map[pair.Key] = key;
+                    map[normalizedActionId] = key;
                 }
             }
 
@@ -319,7 +364,10 @@ internal sealed class MainWindowInputBindingsController
         return maps;
     }
 
-    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(RomConfigProfile profile)
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(SystemConfigProfile profile) =>
+        BuildPlayerInputMaps(profile, CoreInputBindingSchema.CreateFallback());
+
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(RomConfigProfile profile, CoreInputBindingSchema inputBindingSchema)
     {
         var maps = new Dictionary<int, Dictionary<string, Key>>();
 
@@ -331,10 +379,10 @@ internal sealed class MainWindowInputBindingsController
             var map = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in playerMap)
             {
-                if (NesInputAdapter.IsControllerAction(pair.Key) &&
+                if (inputBindingSchema.TryNormalizeActionId(player, pair.Key, out var normalizedActionId) &&
                     Enum.TryParse<Key>(pair.Value, out var key))
                 {
-                    map[pair.Key] = key;
+                    map[normalizedActionId] = key;
                 }
             }
 
@@ -344,6 +392,9 @@ internal sealed class MainWindowInputBindingsController
 
         return maps;
     }
+
+    public Dictionary<int, Dictionary<string, Key>> BuildPlayerInputMaps(RomConfigProfile profile) =>
+        BuildPlayerInputMaps(profile, CoreInputBindingSchema.CreateFallback());
 
     public ExtraInputBindingProfile CloneExtraInputBindingProfile(ExtraInputBindingProfile profile) => new()
     {
@@ -372,6 +423,7 @@ internal sealed class MainWindowInputBindingsController
 
     private static List<InputBindingEntry> BuildInputBindingEntries(
         IReadOnlyDictionary<int, Dictionary<string, Key>> playerOverrides,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout)
@@ -385,7 +437,7 @@ internal sealed class MainWindowInputBindingsController
                 var selectedKey = playerMap != null && playerMap.TryGetValue(actionId, out var key)
                     ? key
                     : defaultKeyMaps[player][actionId];
-                var entry = new InputBindingEntry(player, actionId, GetActionDisplayName(actionId), selectedKey, configurableKeys);
+                var entry = new InputBindingEntry(player, actionId, GetActionDisplayName(actionId, inputBindingSchema), selectedKey, configurableKeys);
                 entry.ApplyLayout(inputBindingLayout);
                 inputBindings.Add(entry);
             }
@@ -396,8 +448,9 @@ internal sealed class MainWindowInputBindingsController
 
     private static List<ExtraInputBindingEntry> BuildExtraInputBindingEntries(
         IEnumerable<ExtraInputBindingProfile> profiles,
-        IReadOnlyList<Key> configurableKeys) =>
-        profiles.Select(profile => ExtraInputBindingEntry.FromProfile(profile, configurableKeys)).ToList();
+        IReadOnlyList<Key> configurableKeys,
+        IReadOnlyList<ExtraInputButtonOption> buttonOptions) =>
+        profiles.Select(profile => ExtraInputBindingEntry.FromProfile(profile, configurableKeys, buttonOptions)).ToList();
 
     private static Dictionary<string, Key> BuildInputMap(IEnumerable<InputBindingEntry> entries, int player) =>
         entries.Where(entry => entry.Player == player).ToDictionary(entry => entry.ActionId, entry => entry.SelectedKey, StringComparer.OrdinalIgnoreCase);
@@ -411,6 +464,6 @@ internal sealed class MainWindowInputBindingsController
 
     private static string GetPlayerOverrideKey(int player) => player == 0 ? "Player1" : "Player2";
 
-    private static string GetActionDisplayName(string actionId) =>
-        NesInputAdapter.TryGetDisplayName(actionId, out var displayName) ? displayName : actionId;
+    private static string GetActionDisplayName(string actionId, CoreInputBindingSchema inputBindingSchema) =>
+        inputBindingSchema.TryGetDisplayName(actionId, out var displayName) ? displayName : actionId;
 }

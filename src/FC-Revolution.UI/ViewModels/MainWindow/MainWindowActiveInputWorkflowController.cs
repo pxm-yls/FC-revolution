@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -39,6 +40,33 @@ internal sealed class MainWindowActiveInputWorkflowController
         string? activeRomPath,
         IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
+        CoreInputBindingSchema inputBindingSchema)
+    {
+        ArgumentNullException.ThrowIfNull(runtimeController);
+        ArgumentNullException.ThrowIfNull(inputStateController);
+        ArgumentNullException.ThrowIfNull(effectiveKeyMap);
+        ArgumentNullException.ThrowIfNull(effectiveExtraBindings);
+        ArgumentNullException.ThrowIfNull(inputBindingSchema);
+
+        runtimeController.RefreshContext(isRomLoaded, activeRomPath);
+        var applyPlan = runtimeController.BuildApplyPlan(
+            inputStateController,
+            isRomLoaded ? effectiveKeyMap : EmptyKeyMap,
+            isRomLoaded ? effectiveExtraBindings : EmptyExtraBindings,
+            inputBindingSchema);
+
+        return new MainWindowActiveInputRefreshDecision(
+            applyPlan,
+            BuildLegacyMirror(runtimeController));
+    }
+
+    public MainWindowActiveInputRefreshDecision BuildRefreshDecision(
+        MainWindowActiveInputRuntimeController runtimeController,
+        MainWindowInputStateController inputStateController,
+        bool isRomLoaded,
+        string? activeRomPath,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
         byte player1CurrentMask,
         byte player2CurrentMask,
         IReadOnlyList<string> controllerActionIds,
@@ -60,7 +88,6 @@ internal sealed class MainWindowActiveInputWorkflowController
             player2CurrentMask,
             controllerActionIds,
             getInputPortId);
-
         return new MainWindowActiveInputRefreshDecision(
             applyPlan,
             BuildLegacyMirror(runtimeController));
@@ -85,6 +112,35 @@ internal sealed class MainWindowActiveInputWorkflowController
             inputStateWriter,
             updateInputMask);
         return BuildLegacyMirror(runtimeController);
+    }
+
+    public MainWindowActiveInputRefreshResult RefreshActiveInputState(
+        MainWindowActiveInputRuntimeController runtimeController,
+        MainWindowInputStateController inputStateController,
+        bool isRomLoaded,
+        string? activeRomPath,
+        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
+        CoreInputBindingSchema inputBindingSchema,
+        object inputSyncRoot,
+        ICoreInputStateWriter inputStateWriter,
+        Action<int, string, bool> updateInputMask)
+    {
+        var refreshDecision = BuildRefreshDecision(
+            runtimeController,
+            inputStateController,
+            isRomLoaded,
+            activeRomPath,
+            effectiveKeyMap,
+            effectiveExtraBindings,
+            inputBindingSchema);
+        var updatedMirror = ApplyRefreshDecision(
+            runtimeController,
+            refreshDecision,
+            inputSyncRoot,
+            inputStateWriter,
+            updateInputMask);
+        return new MainWindowActiveInputRefreshResult(refreshDecision.LegacyMirror, updatedMirror);
     }
 
     public MainWindowActiveInputRefreshResult RefreshActiveInputState(

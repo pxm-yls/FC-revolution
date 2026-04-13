@@ -1758,7 +1758,6 @@ function startHeartbeat() {
       state.controlSocket.send(JSON.stringify({
         action: 'heartbeat',
         sessionId: state.claimedSessionId,
-        player: state.claimedPlayer != null ? state.claimedPlayer : getPlayer(),
         portId: state.claimedPortId || getPortIdForPlayer(state.claimedPlayer)
       }));
     }
@@ -1826,7 +1825,6 @@ async function ensureSocketClaim() {
       socket.send(JSON.stringify({
         action: 'claim',
         sessionId: claimSessionId,
-        player: getPlayer(),
         portId: getSelectedPortId(),
         clientName: dom.clientName.value.trim() || null
       }));
@@ -1909,7 +1907,6 @@ async function sendButton(button, pressed) {
       state.controlSocket.send(JSON.stringify({
         action: 'input',
         sessionId: sessionId,
-        player: state.claimedPlayer != null ? state.claimedPlayer : getPlayer(),
         portId: portId,
         inputs: [
           {
@@ -1929,15 +1926,13 @@ async function sendButton(button, pressed) {
 async function releaseControl() {
   await releaseAllActiveButtons();
 
-  var releasePlayer = state.claimedPlayer != null ? state.claimedPlayer : getPlayer();
-  var releasePortId = state.claimedPortId || getPortIdForPlayer(releasePlayer);
+  var releasePortId = state.claimedPortId || getSelectedPortId();
   var releaseSessionId = state.claimedSessionId || state.selectedSessionId;
 
   if (state.controlSocket && state.controlSocket.readyState === WebSocket.OPEN) {
     state.controlSocket.send(JSON.stringify({
       action: 'release',
       sessionId: releaseSessionId,
-      player: releasePlayer,
       portId: releasePortId
     }));
     closeSocket();
@@ -1947,7 +1942,7 @@ async function releaseControl() {
   if (releaseSessionId && releasePortId)
     await api('/api/sessions/' + releaseSessionId + '/release', {
       method: 'POST',
-      body: JSON.stringify({ player: releasePlayer, portId: releasePortId })
+      body: JSON.stringify({ portId: releasePortId })
     });
 
   clearClaimedControlState();

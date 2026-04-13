@@ -47,14 +47,14 @@ public sealed class GameSessionService : IGameSessionService
     public void CloseSession(ActiveGameSessionItem session) => _registry.CloseSession(session);
     public void CloseAllSessions() => _registry.CloseAllSessions();
     public ActiveGameSessionItem? FindSession(Guid sessionId) => _registry.FindSession(sessionId);
-    public bool TryAcquireRemoteControl(Guid sessionId, int player, string clientIp, string? clientName = null) =>
-        _registry.TryAcquireRemoteControl(sessionId, player, clientIp, clientName);
-    public void ReleaseRemoteControl(Guid sessionId, int player, string? reason = null) =>
-        _registry.ReleaseRemoteControl(sessionId, player, reason);
-    public void RefreshRemoteHeartbeat(Guid sessionId, int player) => _registry.RefreshRemoteHeartbeat(sessionId, player);
+    public bool TryAcquireRemoteControl(Guid sessionId, string portId, string clientIp, string? clientName = null) =>
+        _registry.TryAcquireRemoteControl(sessionId, portId, clientIp, clientName);
+    public void ReleaseRemoteControl(Guid sessionId, string portId, string? reason = null) =>
+        _registry.ReleaseRemoteControl(sessionId, portId, reason);
+    public void RefreshRemoteHeartbeat(Guid sessionId, string portId) => _registry.RefreshRemoteHeartbeat(sessionId, portId);
     public bool TrySetRemoteInputState(Guid sessionId, string portId, string actionId, float value, string? clientIp = null, string? clientName = null) =>
         _registry.TrySetRemoteInputState(sessionId, portId, actionId, value, clientIp, clientName);
-    public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null) =>
-        _registry.IsRemoteOwner(sessionId, player, clientIp, clientName);
+    public bool IsRemoteOwner(Guid sessionId, string portId, string clientIp, string? clientName = null) =>
+        _registry.IsRemoteOwner(sessionId, portId, clientIp, clientName);
     public bool AnyForRomPath(string romPath) => _registry.AnyForRomPath(romPath);
 }

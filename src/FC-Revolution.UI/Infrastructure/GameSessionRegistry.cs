@@ -174,22 +174,22 @@ public sealed class GameSessionRegistry
     public ActiveGameSessionItem? FindSession(Guid sessionId) =>
         _sessions.FirstOrDefault(session => session.SessionId == sessionId);
 
-    public bool TryAcquireRemoteControl(Guid sessionId, int player, string clientIp, string? clientName = null)
+    public bool TryAcquireRemoteControl(Guid sessionId, string portId, string clientIp, string? clientName = null)
     {
         var session = FindSession(sessionId);
-        return session != null && session.ViewModel.AcquireRemoteControl(player, clientIp, clientName);
+        return session != null && session.ViewModel.AcquireRemoteControl(portId, clientIp, clientName);
     }
 
-    public void ReleaseRemoteControl(Guid sessionId, int player, string? reason = null)
+    public void ReleaseRemoteControl(Guid sessionId, string portId, string? reason = null)
     {
         var session = FindSession(sessionId);
-        session?.ViewModel.ReleaseRemoteControl(player, reason);
+        session?.ViewModel.ReleaseRemoteControl(portId, reason);
     }
 
-    public void RefreshRemoteHeartbeat(Guid sessionId, int player)
+    public void RefreshRemoteHeartbeat(Guid sessionId, string portId)
     {
         var session = FindSession(sessionId);
-        session?.ViewModel.RefreshRemoteHeartbeat(player);
+        session?.ViewModel.RefreshRemoteHeartbeat(portId);
     }
 
     public bool TrySetRemoteInputState(Guid sessionId, string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
@@ -198,10 +198,10 @@ public sealed class GameSessionRegistry
         return session != null && session.ViewModel.SetRemoteInputState(portId, actionId, value, clientIp, clientName);
     }
 
-    public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null)
+    public bool IsRemoteOwner(Guid sessionId, string portId, string clientIp, string? clientName = null)
     {
         var session = FindSession(sessionId);
-        return session != null && session.ViewModel.IsRemoteOwner(player, clientIp, clientName);
+        return session != null && session.ViewModel.IsRemoteOwner(portId, clientIp, clientName);
     }
 
     public bool AnyForRomPath(string romPath) =>

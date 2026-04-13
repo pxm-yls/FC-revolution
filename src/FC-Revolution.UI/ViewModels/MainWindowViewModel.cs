@@ -31,7 +31,6 @@ using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FCRevolution.Storage;
 using FC_Revolution.UI.Adapters.LegacyTimeline;
-using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.AppServices;
 using FC_Revolution.UI.Audio;
 using FC_Revolution.UI.Infrastructure;
@@ -110,9 +109,9 @@ public partial class MainWindowViewModel : ViewModelBase
         Key.Enter, Key.Space, Key.LeftShift, Key.RightShift,
         Key.LeftCtrl, Key.RightCtrl
     ];
-    private static readonly IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> DefaultKeyMaps =
-        NesInputAdapter.GetDefaultKeyMaps();
     private readonly IEmulatorCoreSession _coreSession;
+    private readonly CoreInputBindingSchema _inputBindingSchema;
+    private readonly IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> _defaultKeyMaps;
     private readonly ICoreInputStateWriter _inputStateWriter;
     private readonly ITimeTravelService _timeTravelService;
     private readonly CoreBranchTree _branchTree = new();
@@ -349,6 +348,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _installedCoreManifests = bootstrapManagedCoreCatalog.Manifests;
         _defaultCoreId = NormalizeConfiguredCoreId(bootstrapProfile.DefaultCoreId);
         _coreSession = CreateMainCoreSession();
+        _inputBindingSchema = CoreInputBindingSchema.Create(_coreSession.InputSchema);
+        _defaultKeyMaps = _inputBindingSchema.BuildDefaultKeyMaps(ConfigurableKeys);
         _timeTravelService = CoreSessionCapabilityResolver.ResolveTimeTravelService(_coreSession);
         _inputStateWriter = CoreSessionCapabilityResolver.ResolveInputStateWriter(_coreSession);
         _legacyTimeline = new LegacyTimelineSessionAdapter(_branchTree);
@@ -367,7 +368,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _inputDispatchController = new MainWindowInputDispatchController();
         _inputActionController = new MainWindowInputActionController();
         _inputStateController = new MainWindowInputStateController();
-        _inputOverrideController = new MainWindowInputOverrideController(_inputBindingsController, ConfigurableKeys);
+        _inputOverrideController = new MainWindowInputOverrideController(_inputBindingsController, _inputBindingSchema, ConfigurableKeys);
         _inputLayoutController = new MainWindowInputLayoutController();
         _sessionLifecycleController = new MainWindowSessionLifecycleController(
             (tracked, handler) => tracked.PropertyChanged += handler,
@@ -3178,7 +3179,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void UpdateInputMask(int player, string actionId, bool pressed)
     {
-        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
+        if (!_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
             return;
 
         if (player == 0)

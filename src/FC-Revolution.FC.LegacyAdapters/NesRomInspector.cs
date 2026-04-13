@@ -1,6 +1,6 @@
 using FCRevolution.Core.Mappers;
 
-namespace FCRevolution.Core.FC.LegacyAdapters;
+namespace FCRevolution.FC.LegacyAdapters;
 
 public readonly record struct LegacyMapperInfo(int Number, string Name, bool IsSupported);
 

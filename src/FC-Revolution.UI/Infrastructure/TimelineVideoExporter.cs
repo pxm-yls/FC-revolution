@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using FCRevolution.Core.FC.LegacyAdapters;
+using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Rendering.Abstractions;
 
 namespace FC_Revolution.UI.Infrastructure;

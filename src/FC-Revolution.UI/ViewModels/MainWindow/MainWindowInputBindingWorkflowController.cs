@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -18,6 +19,7 @@ internal sealed class MainWindowInputBindingWorkflowController
     public void BuildAndApplyGlobalInputBindingViewState(
         MainWindowInputBindingsController inputBindingsController,
         SystemConfigProfile? profile,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
@@ -41,6 +43,7 @@ internal sealed class MainWindowInputBindingWorkflowController
 
         var viewState = inputBindingsController.BuildGlobalInputBindingViewState(
             profile,
+            inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);
@@ -53,6 +56,32 @@ internal sealed class MainWindowInputBindingWorkflowController
             globalExtraInputBindingsPlayer1,
             globalExtraInputBindingsPlayer2);
     }
+
+    public void BuildAndApplyGlobalInputBindingViewState(
+        MainWindowInputBindingsController inputBindingsController,
+        SystemConfigProfile? profile,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyList<Key> configurableKeys,
+        InputBindingLayoutProfile inputBindingLayout,
+        ObservableCollection<InputBindingEntry> globalInputBindings,
+        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
+        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer1,
+        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer2,
+        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
+        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2) =>
+        BuildAndApplyGlobalInputBindingViewState(
+            inputBindingsController,
+            profile,
+            CoreInputBindingSchema.CreateFallback(),
+            defaultKeyMaps,
+            configurableKeys,
+            inputBindingLayout,
+            globalInputBindings,
+            globalExtraInputBindings,
+            globalInputBindingsPlayer1,
+            globalInputBindingsPlayer2,
+            globalExtraInputBindingsPlayer1,
+            globalExtraInputBindingsPlayer2);
 
     public void RefreshRomInputBindings(
         MainWindowInputOverrideController inputOverrideController,
@@ -67,6 +96,7 @@ internal sealed class MainWindowInputBindingWorkflowController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
@@ -102,6 +132,7 @@ internal sealed class MainWindowInputBindingWorkflowController
             romExtraInputBindings,
             romExtraInputBindingsPlayer1,
             romExtraInputBindingsPlayer2,
+            inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout,
@@ -109,9 +140,48 @@ internal sealed class MainWindowInputBindingWorkflowController
             notifyRomInputOverrideSummaryChanged);
     }
 
+    public void RefreshRomInputBindings(
+        MainWindowInputOverrideController inputOverrideController,
+        RomLibraryItem? currentRom,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
+        ObservableCollection<InputBindingEntry> globalInputBindings,
+        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
+        ObservableCollection<InputBindingEntry> romInputBindings,
+        ObservableCollection<InputBindingEntry> romInputBindingsPlayer1,
+        ObservableCollection<InputBindingEntry> romInputBindingsPlayer2,
+        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
+        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
+        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyList<Key> configurableKeys,
+        InputBindingLayoutProfile inputBindingLayout,
+        Action<bool> setRomInputOverrideEnabled,
+        Action notifyRomInputOverrideSummaryChanged) =>
+        RefreshRomInputBindings(
+            inputOverrideController,
+            currentRom,
+            romInputOverrides,
+            romExtraInputOverrides,
+            globalInputBindings,
+            globalExtraInputBindings,
+            romInputBindings,
+            romInputBindingsPlayer1,
+            romInputBindingsPlayer2,
+            romExtraInputBindings,
+            romExtraInputBindingsPlayer1,
+            romExtraInputBindingsPlayer2,
+            CoreInputBindingSchema.CreateFallback(),
+            defaultKeyMaps,
+            configurableKeys,
+            inputBindingLayout,
+            setRomInputOverrideEnabled,
+            notifyRomInputOverrideSummaryChanged);
+
     public MainWindowEffectiveInputBindingState BuildEffectiveInputBindingState(
         MainWindowInputBindingsController inputBindingsController,
         MainWindowInputStateController inputStateController,
+        CoreInputBindingSchema inputBindingSchema,
         string? romPath,
         Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
@@ -139,7 +209,7 @@ internal sealed class MainWindowInputBindingWorkflowController
                 romPath,
                 romExtraInputOverrides,
                 globalExtraInputBindings)
-            .Select(inputStateController.ResolveExtraInputBinding)
+            .Select(profile => inputStateController.ResolveExtraInputBinding(profile, inputBindingSchema))
             .Where(static binding => binding != null)
             .Select(static binding => binding!)
             .ToList();
@@ -147,6 +217,26 @@ internal sealed class MainWindowInputBindingWorkflowController
         var handledKeys = inputStateController.BuildEffectiveHandledKeys(keyMap, extraBindings);
         return new MainWindowEffectiveInputBindingState(keyMap, extraBindings, handledKeys);
     }
+
+    public MainWindowEffectiveInputBindingState BuildEffectiveInputBindingState(
+        MainWindowInputBindingsController inputBindingsController,
+        MainWindowInputStateController inputStateController,
+        string? romPath,
+        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
+        IEnumerable<InputBindingEntry> globalInputBindings,
+        IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps) =>
+        BuildEffectiveInputBindingState(
+            inputBindingsController,
+            inputStateController,
+            CoreInputBindingSchema.CreateFallback(),
+            romPath,
+            romInputOverrides,
+            romExtraInputOverrides,
+            globalInputBindings,
+            globalExtraInputBindings,
+            defaultKeyMaps);
 
     private static void ApplyGlobalInputBindingViewState(
         GlobalInputBindingViewState viewState,

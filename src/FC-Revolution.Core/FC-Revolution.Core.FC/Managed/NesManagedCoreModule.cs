@@ -503,22 +503,22 @@ internal sealed class NesManagedCoreSession : IEmulatorCoreSession
             var actions = new List<InputActionDescriptor>();
             foreach (var port in ports)
             {
-                actions.Add(new InputActionDescriptor("a", "A", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("b", "B", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("x", "X (Turbo A)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("y", "Y (Turbo B)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("select", "Select", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("start", "Start", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("up", "Up", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("down", "Down", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("left", "Left", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("right", "Right", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("l1", "L1 (Reserved)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("r1", "R1 (Reserved)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("l2", "L2 (Reserved)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("r2", "R2 (Reserved)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("l3", "L3 (Reserved)", port.PortId, InputValueKind.Digital));
-                actions.Add(new InputActionDescriptor("r3", "R3 (Reserved)", port.PortId, InputValueKind.Digital));
+                actions.Add(new InputActionDescriptor("a", "A", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x01));
+                actions.Add(new InputActionDescriptor("b", "B", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x02));
+                actions.Add(new InputActionDescriptor("x", "X (Turbo A)", port.PortId, InputValueKind.Digital, CanonicalActionId: "a", IsBindable: false, LegacyBitMask: 0x01));
+                actions.Add(new InputActionDescriptor("y", "Y (Turbo B)", port.PortId, InputValueKind.Digital, CanonicalActionId: "b", IsBindable: false, LegacyBitMask: 0x02));
+                actions.Add(new InputActionDescriptor("select", "Select", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x04));
+                actions.Add(new InputActionDescriptor("start", "Start", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x08));
+                actions.Add(new InputActionDescriptor("up", "Up", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x10));
+                actions.Add(new InputActionDescriptor("down", "Down", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x20));
+                actions.Add(new InputActionDescriptor("left", "Left", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x40));
+                actions.Add(new InputActionDescriptor("right", "Right", port.PortId, InputValueKind.Digital, LegacyBitMask: 0x80));
+                actions.Add(new InputActionDescriptor("l1", "L1 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
+                actions.Add(new InputActionDescriptor("r1", "R1 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
+                actions.Add(new InputActionDescriptor("l2", "L2 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
+                actions.Add(new InputActionDescriptor("r2", "R2 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
+                actions.Add(new InputActionDescriptor("l3", "L3 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
+                actions.Add(new InputActionDescriptor("r3", "R3 (Reserved)", port.PortId, InputValueKind.Digital, IsBindable: false));
             }
 
             return actions;

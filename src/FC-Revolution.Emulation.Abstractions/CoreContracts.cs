@@ -108,7 +108,16 @@ public sealed record InputActionDescriptor(
     string ActionId,
     string DisplayName,
     string PortId,
-    InputValueKind ValueKind);
+    InputValueKind ValueKind,
+    string? CanonicalActionId = null,
+    bool IsBindable = true,
+    byte? LegacyBitMask = null)
+{
+    public string? ResolvedCanonicalActionId =>
+        string.IsNullOrWhiteSpace(CanonicalActionId)
+            ? (IsBindable ? ActionId : null)
+            : CanonicalActionId;
+}
 
 public interface IInputSchema
 {

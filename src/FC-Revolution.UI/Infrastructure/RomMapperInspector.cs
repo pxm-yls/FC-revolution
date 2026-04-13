@@ -1,4 +1,4 @@
-using FCRevolution.Core.FC.LegacyAdapters;
+using FCRevolution.FC.LegacyAdapters;
 
 namespace FC_Revolution.UI.Infrastructure;
 

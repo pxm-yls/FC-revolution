@@ -3,7 +3,7 @@ using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
 
-namespace FCRevolution.Core.FC.LegacyAdapters;
+namespace FCRevolution.FC.LegacyAdapters;
 
 public sealed class LegacyTimelineManifestHandle
 {

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using FC_Revolution.UI.Adapters.Nes;
+using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.ViewModels;
 
@@ -20,52 +19,74 @@ internal readonly record struct GameWindowInputStateSnapshot(
 
 internal sealed class GameWindowInputStateController
 {
-    private static readonly IReadOnlyList<string> ControllerActionIds =
-        NesInputAdapter.GetControllerActions()
-            .Select(action => action.ActionId)
-            .ToArray();
+    private readonly CoreInputBindingSchema _inputBindingSchema;
+    private readonly HashSet<string> _player1CombinedActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _player2CombinedActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _player1LocalActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _player2LocalActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _player1RemoteActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _player2RemoteActions = new(StringComparer.OrdinalIgnoreCase);
 
-    private byte _player1CombinedMask;
-    private byte _player2CombinedMask;
-    private byte _player1LocalMask;
-    private byte _player2LocalMask;
-    private byte _player1RemoteMask;
-    private byte _player2RemoteMask;
+    public GameWindowInputStateController(CoreInputBindingSchema inputBindingSchema)
+    {
+        _inputBindingSchema = inputBindingSchema;
+    }
+
+    public GameWindowInputStateController()
+        : this(CoreInputBindingSchema.CreateFallback())
+    {
+    }
 
     public GameWindowInputStateSnapshot Snapshot => new(
-        _player1CombinedMask,
-        _player2CombinedMask,
-        _player1LocalMask,
-        _player2LocalMask,
-        _player1RemoteMask,
-        _player2RemoteMask);
+        GetCombinedMask(0),
+        GetCombinedMask(1),
+        GetLocalMask(0),
+        GetLocalMask(1),
+        GetRemoteMask(0),
+        GetRemoteMask(1));
 
-    public byte GetCombinedMask(int player) => player == 0 ? _player1CombinedMask : _player2CombinedMask;
+    public byte GetCombinedMask(int player) => BuildLegacyMask(player, GetCombinedActions(player));
 
-    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputMaskForPlayer(
+    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputActionsForPlayer(
         int player,
-        byte desiredMask,
+        IReadOnlySet<string> desiredActions,
         bool allowLocalInput)
     {
         if (!IsSupportedPlayer(player))
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var actionId in ControllerActionIds)
+        var localActions = GetLocalActions(player);
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
         {
-            if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
-                continue;
-
-            var currentMask = GetLocalMask(player);
-            var desired = allowLocalInput && (desiredMask & bit) != 0;
-            var current = (currentMask & bit) != 0;
-            if (desired != current)
-                SetLocalMask(player, bit, desired);
+            var desired = allowLocalInput && desiredActions.Contains(actionId);
+            if (desired)
+                localActions.Add(actionId);
+            else
+                localActions.Remove(actionId);
 
             ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         }
 
         return changes;
+    }
+
+    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputMaskForPlayer(
+        int player,
+        byte desiredMask,
+        bool allowLocalInput)
+    {
+        HashSet<string> desiredActions = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
+        {
+            if (_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit) &&
+                (desiredMask & bit) != 0)
+            {
+                desiredActions.Add(actionId);
+            }
+        }
+
+        return ApplyDesiredLocalInputActionsForPlayer(player, desiredActions, allowLocalInput);
     }
 
     public IReadOnlyList<GameWindowInputStateChange> SetRemoteActionState(
@@ -77,11 +98,13 @@ internal sealed class GameWindowInputStateController
         if (!IsSupportedPlayer(player))
             return Array.Empty<GameWindowInputStateChange>();
 
-        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
-            return Array.Empty<GameWindowInputStateChange>();
-
         List<GameWindowInputStateChange> changes = [];
-        SetRemoteMask(player, bit, pressed);
+        var remoteActions = GetRemoteActions(player);
+        if (pressed)
+            remoteActions.Add(actionId);
+        else
+            remoteActions.Remove(actionId);
+
         ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         return changes;
     }
@@ -92,14 +115,10 @@ internal sealed class GameWindowInputStateController
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var actionId in ControllerActionIds)
-        {
-            if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
-                continue;
-
-            SetRemoteMask(player, bit, pressed: false);
+        var remoteActions = GetRemoteActions(player);
+        remoteActions.Clear();
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
             ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
-        }
 
         return changes;
     }
@@ -110,7 +129,7 @@ internal sealed class GameWindowInputStateController
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var actionId in ControllerActionIds)
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
             ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
         return changes;
     }
@@ -121,49 +140,43 @@ internal sealed class GameWindowInputStateController
         bool allowLocalInput,
         List<GameWindowInputStateChange> changes)
     {
-        if (!NesInputAdapter.TryGetBitMask(actionId, out var bit))
-            return;
-
-        var localMask = GetLocalMask(player);
-        var remoteMask = GetRemoteMask(player);
-        var effectiveLocalMask = allowLocalInput ? localMask : (byte)0;
-        var desired = ((effectiveLocalMask | remoteMask) & bit) != 0;
-        var currentMask = GetCombinedMask(player);
-        var current = (currentMask & bit) != 0;
+        var localActions = GetLocalActions(player);
+        var remoteActions = GetRemoteActions(player);
+        var combinedActions = GetCombinedActions(player);
+        var desired = (allowLocalInput && localActions.Contains(actionId)) || remoteActions.Contains(actionId);
+        var current = combinedActions.Contains(actionId);
         if (desired == current)
             return;
 
-        SetCombinedMask(player, bit, desired);
+        if (desired)
+            combinedActions.Add(actionId);
+        else
+            combinedActions.Remove(actionId);
+
         changes.Add(new GameWindowInputStateChange(player, actionId, desired));
     }
 
     private static bool IsSupportedPlayer(int player) => player is 0 or 1;
 
-    private byte GetLocalMask(int player) => player == 0 ? _player1LocalMask : _player2LocalMask;
+    private byte GetLocalMask(int player) => BuildLegacyMask(player, GetLocalActions(player));
 
-    private byte GetRemoteMask(int player) => player == 0 ? _player1RemoteMask : _player2RemoteMask;
+    private byte GetRemoteMask(int player) => BuildLegacyMask(player, GetRemoteActions(player));
 
-    private void SetLocalMask(int player, byte bit, bool pressed)
+    private byte BuildLegacyMask(int player, IEnumerable<string> actionIds)
     {
-        if (player == 0)
-            _player1LocalMask = pressed ? (byte)(_player1LocalMask | bit) : (byte)(_player1LocalMask & ~bit);
-        else
-            _player2LocalMask = pressed ? (byte)(_player2LocalMask | bit) : (byte)(_player2LocalMask & ~bit);
+        byte mask = 0;
+        foreach (var actionId in actionIds)
+        {
+            if (_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
+                mask |= bit;
+        }
+
+        return mask;
     }
 
-    private void SetRemoteMask(int player, byte bit, bool pressed)
-    {
-        if (player == 0)
-            _player1RemoteMask = pressed ? (byte)(_player1RemoteMask | bit) : (byte)(_player1RemoteMask & ~bit);
-        else
-            _player2RemoteMask = pressed ? (byte)(_player2RemoteMask | bit) : (byte)(_player2RemoteMask & ~bit);
-    }
+    private HashSet<string> GetCombinedActions(int player) => player == 0 ? _player1CombinedActions : _player2CombinedActions;
 
-    private void SetCombinedMask(int player, byte bit, bool pressed)
-    {
-        if (player == 0)
-            _player1CombinedMask = pressed ? (byte)(_player1CombinedMask | bit) : (byte)(_player1CombinedMask & ~bit);
-        else
-            _player2CombinedMask = pressed ? (byte)(_player2CombinedMask | bit) : (byte)(_player2CombinedMask & ~bit);
-    }
+    private HashSet<string> GetLocalActions(int player) => player == 0 ? _player1LocalActions : _player2LocalActions;
+
+    private HashSet<string> GetRemoteActions(int player) => player == 0 ? _player1RemoteActions : _player2RemoteActions;
 }

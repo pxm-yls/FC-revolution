@@ -16,30 +16,30 @@ public sealed class SessionRemoteControlService
 
     public bool ClaimControl(Guid sessionId, ClaimControlRequest request)
     {
-        if (!TryResolvePlayer(request.PortId, request.Player, out var player))
+        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
             return false;
 
-        var claimed = _gameSessionService.TryAcquireRemoteControl(sessionId, player, request.ClientIp, request.ClientName);
+        var claimed = _gameSessionService.TryAcquireRemoteControl(sessionId, portId, request.ClientIp, request.ClientName);
         if (claimed)
-            _reportStatus($"已分配远程控制: {sessionId} / {GetPlayerLabel(player)}");
+            _reportStatus($"已分配远程控制: {sessionId} / {GetPortLabel(portId)}");
         return claimed;
     }
 
     public void ReleaseControl(Guid sessionId, ReleaseControlRequest request)
     {
-        if (!TryResolvePlayer(request.PortId, request.Player, out var player))
+        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
             return;
 
-        _gameSessionService.ReleaseRemoteControl(sessionId, player, request.Reason);
-        _reportStatus($"已释放远程控制: {sessionId} / {GetPlayerLabel(player)}");
+        _gameSessionService.ReleaseRemoteControl(sessionId, portId, request.Reason);
+        _reportStatus($"已释放远程控制: {sessionId} / {GetPortLabel(portId)}");
     }
 
     public void RefreshHeartbeat(Guid sessionId, RefreshHeartbeatRequest request)
     {
-        if (!TryResolvePlayer(request.PortId, request.Player, out var player))
+        if (!TryResolvePortId(request.PortId, request.Player, out var portId))
             return;
 
-        _gameSessionService.RefreshRemoteHeartbeat(sessionId, player);
+        _gameSessionService.RefreshRemoteHeartbeat(sessionId, portId);
     }
 
     public bool SetInputState(Guid sessionId, SetInputStateRequest request)
@@ -64,53 +64,39 @@ public sealed class SessionRemoteControlService
     {
         if (!string.IsNullOrWhiteSpace(portId))
         {
-            var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-            if (normalizedPortId != null)
-            {
-                resolvedPortId = normalizedPortId;
-                return true;
-            }
-
-            resolvedPortId = string.Empty;
-            return false;
+            resolvedPortId = portId.Trim();
+            return true;
         }
 
-        if (fallbackPlayer is { } value && RemoteControlPorts.TryGetPortId(value, out resolvedPortId))
+        if (TryMapCompatibilityPlayer(fallbackPlayer, out resolvedPortId))
             return true;
 
         resolvedPortId = string.Empty;
         return false;
     }
 
-    private static bool TryResolvePlayer(string? portId, int? fallbackPlayer, out int player)
+    private static bool TryMapCompatibilityPlayer(int? player, out string portId)
     {
-        if (!string.IsNullOrWhiteSpace(portId))
+        if (player is 0)
         {
-            var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-            if (normalizedPortId != null)
-            {
-                player = normalizedPortId == RemoteControlPorts.Player1 ? 0 : 1;
-                return true;
-            }
-
-            player = default;
-            return false;
-        }
-
-        if (fallbackPlayer is { } value && RemoteControlPorts.IsSupportedPlayer(value))
-        {
-            player = value;
+            portId = "p1";
             return true;
         }
 
-        player = default;
+        if (player is 1)
+        {
+            portId = "p2";
+            return true;
+        }
+
+        portId = string.Empty;
         return false;
     }
 
-    private static string GetPlayerLabel(int player) => player switch
+    private static string GetPortLabel(string portId) => portId switch
     {
-        0 => "1P",
-        1 => "2P",
-        _ => $"P{player + 1}"
+        "p1" => "1P",
+        "p2" => "2P",
+        _ => portId
     };
 }

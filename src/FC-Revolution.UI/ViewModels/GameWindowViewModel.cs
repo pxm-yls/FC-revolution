@@ -31,7 +31,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
 
     private readonly IEmulatorCoreSession _coreSession;
     private readonly GameWindowFramePresenterController _framePresenter;
-    private readonly GameWindowInputStateController _inputState = new();
+    private readonly CoreInputBindingSchema _inputBindingSchema;
+    private readonly GameWindowInputStateController _inputState;
     private readonly GameWindowRemoteControlWorkflowController _remoteControlWorkflow =
         new(RemoteControlStateController);
     private readonly GameWindowRemoteControlRuntimeController _remoteControlRuntime =
@@ -133,6 +134,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         double initialVolume = 15.0)
     {
         _coreSession = coreSession;
+        _inputBindingSchema = CoreInputBindingSchema.Create(coreSession.InputSchema);
+        _inputState = new GameWindowInputStateController(_inputBindingSchema);
         _timeTravelService = CoreSessionCapabilityResolver.ResolveTimeTravelService(coreSession);
         var inputStateWriter = CoreSessionCapabilityResolver.ResolveInputStateWriter(coreSession);
         _sessionRuntime = new GameWindowSessionRuntimeController(
@@ -247,8 +250,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             () => _audio.Dispose(),
             () => _coreSession.Dispose(),
             () => _framePresenter.Dispose());
-        _keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputBindingsByPort);
-        _extraInputBindings = GameWindowInputBindingResolver.ResolveExtraInputBindings(extraInputBindings);
+        _keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputBindingsByPort, _inputBindingSchema);
+        _extraInputBindings = GameWindowInputBindingResolver.ResolveExtraInputBindings(extraInputBindings, _inputBindingSchema);
         _statusText = $"正在启动 {displayName}";
         ScreenBitmap = _framePresenter.CurrentBitmap;
         ApplyShortcutBindings(ShortcutCatalog.BuildDefaultGestureMap());

@@ -1,7 +1,7 @@
 using FCRevolution.Core.Replay;
 using FCRevolution.Core.State;
 
-namespace FCRevolution.Core.FC.LegacyAdapters;
+namespace FCRevolution.FC.LegacyAdapters;
 
 public readonly record struct LegacyReplayInputRecord(long Frame, byte Player1Mask, byte Player2Mask);
 

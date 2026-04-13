@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Avalonia.Input;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -10,14 +11,24 @@ namespace FC_Revolution.UI.ViewModels;
 internal sealed class MainWindowInputOverrideController
 {
     private readonly MainWindowInputBindingsController _inputBindingsController;
+    private readonly CoreInputBindingSchema _inputBindingSchema;
     private readonly IReadOnlyList<Key> _configurableKeys;
 
     public MainWindowInputOverrideController(
         MainWindowInputBindingsController inputBindingsController,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyList<Key> configurableKeys)
     {
         _inputBindingsController = inputBindingsController;
+        _inputBindingSchema = inputBindingSchema;
         _configurableKeys = configurableKeys;
+    }
+
+    public MainWindowInputOverrideController(
+        MainWindowInputBindingsController inputBindingsController,
+        IReadOnlyList<Key> configurableKeys)
+        : this(inputBindingsController, CoreInputBindingSchema.CreateFallback(), configurableKeys)
+    {
     }
 
     public void ApplyGlobalInputBindings(
@@ -116,7 +127,8 @@ internal sealed class MainWindowInputOverrideController
         globalExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultTurbo(
             player,
             GetSuggestedExtraKey(globalInputBindings, globalExtraInputBindings),
-            _configurableKeys));
+            _configurableKeys,
+            _inputBindingSchema.ExtraInputButtonOptions));
         RefreshExtraBindingViews(globalExtraInputBindings, globalExtraInputBindingsPlayer1, globalExtraInputBindingsPlayer2);
         saveSystemConfig();
         refreshRomInputBindings();
@@ -139,7 +151,8 @@ internal sealed class MainWindowInputOverrideController
         globalExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultCombo(
             player,
             GetSuggestedExtraKey(globalInputBindings, globalExtraInputBindings),
-            _configurableKeys));
+            _configurableKeys,
+            _inputBindingSchema.ExtraInputButtonOptions));
         RefreshExtraBindingViews(globalExtraInputBindings, globalExtraInputBindingsPlayer1, globalExtraInputBindingsPlayer2);
         saveSystemConfig();
         refreshRomInputBindings();
@@ -202,7 +215,8 @@ internal sealed class MainWindowInputOverrideController
         romExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultTurbo(
             player,
             GetSuggestedExtraKey(romInputBindings, romExtraInputBindings),
-            _configurableKeys));
+            _configurableKeys,
+            _inputBindingSchema.ExtraInputButtonOptions));
         RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
         PersistCurrentRomInputBindings(
             currentRom,
@@ -251,7 +265,8 @@ internal sealed class MainWindowInputOverrideController
         romExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultCombo(
             player,
             GetSuggestedExtraKey(romInputBindings, romExtraInputBindings),
-            _configurableKeys));
+            _configurableKeys,
+            _inputBindingSchema.ExtraInputButtonOptions));
         RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
         PersistCurrentRomInputBindings(
             currentRom,
@@ -507,7 +522,7 @@ internal sealed class MainWindowInputOverrideController
         Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
-        _inputBindingsController.LoadRomProfileInputOverride(romPath, romInputOverrides, romExtraInputOverrides);
+        _inputBindingsController.LoadRomProfileInputOverride(romPath, romInputOverrides, romExtraInputOverrides, _inputBindingSchema);
     }
 
     public void SaveRomProfileInputOverride(
@@ -554,6 +569,7 @@ internal sealed class MainWindowInputOverrideController
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
+        CoreInputBindingSchema inputBindingSchema,
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
@@ -580,6 +596,7 @@ internal sealed class MainWindowInputOverrideController
             romExtraInputOverrides,
             globalInputBindings,
             globalExtraInputBindings,
+            inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);

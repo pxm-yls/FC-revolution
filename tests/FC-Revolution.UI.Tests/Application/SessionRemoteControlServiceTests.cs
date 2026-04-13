@@ -27,7 +27,7 @@ public sealed class SessionRemoteControlServiceTests
 
         Assert.True(claimed);
         Assert.Equal(sessionId, gameSession.LastClaimSessionId);
-        Assert.Equal(1, gameSession.LastClaimPlayer);
+        Assert.Equal("p2", gameSession.LastClaimPortId);
         Assert.Equal("127.0.0.1", gameSession.LastClaimClientIp);
         Assert.Equal("ipad", gameSession.LastClaimClientName);
     }
@@ -44,7 +44,7 @@ public sealed class SessionRemoteControlServiceTests
             new ReleaseControlRequest(Reason: "done", PortId: "p2"));
 
         Assert.Equal(sessionId, gameSession.LastReleaseSessionId);
-        Assert.Equal(1, gameSession.LastReleasePlayer);
+        Assert.Equal("p2", gameSession.LastReleasePortId);
         Assert.Equal("done", gameSession.LastReleaseReason);
     }
 
@@ -60,7 +60,7 @@ public sealed class SessionRemoteControlServiceTests
             new RefreshHeartbeatRequest(PortId: "p2"));
 
         Assert.Equal(sessionId, gameSession.LastHeartbeatSessionId);
-        Assert.Equal(1, gameSession.LastHeartbeatPlayer);
+        Assert.Equal("p2", gameSession.LastHeartbeatPortId);
     }
 
     [Fact]
@@ -94,13 +94,30 @@ public sealed class SessionRemoteControlServiceTests
     }
 
     [Fact]
-    public void SetInputState_ReturnsFalse_ForUnknownPort()
+    public void SetInputState_ForwardsCustomPortId_ToSessionLayer()
     {
         var gameSession = new FakeGameSessionService();
         var service = new SessionRemoteControlService(gameSession, _ => { });
         var request = new SetInputStateRequest(
         [
-            new InputActionValueDto("p3", "gamepad", "a", 1f)
+            new InputActionValueDto("pad-west", "gamepad", "a", 1f)
+        ]);
+
+        var applied = service.SetInputState(Guid.NewGuid(), request);
+
+        Assert.True(applied);
+        var call = Assert.Single(gameSession.SetInputCalls);
+        Assert.Equal("pad-west", call.PortId);
+    }
+
+    [Fact]
+    public void SetInputState_ReturnsFalse_ForBlankPort()
+    {
+        var gameSession = new FakeGameSessionService();
+        var service = new SessionRemoteControlService(gameSession, _ => { });
+        var request = new SetInputStateRequest(
+        [
+            new InputActionValueDto("  ", "gamepad", "a", 1f)
         ]);
 
         var applied = service.SetInputState(Guid.NewGuid(), request);
@@ -177,14 +194,14 @@ public sealed class SessionRemoteControlServiceTests
         public Queue<bool> TrySetResults { get; } = [];
         public bool ClaimResult { get; set; }
         public Guid? LastClaimSessionId { get; private set; }
-        public int LastClaimPlayer { get; private set; } = -1;
+        public string? LastClaimPortId { get; private set; }
         public string? LastClaimClientIp { get; private set; }
         public string? LastClaimClientName { get; private set; }
         public Guid? LastReleaseSessionId { get; private set; }
-        public int LastReleasePlayer { get; private set; } = -1;
+        public string? LastReleasePortId { get; private set; }
         public string? LastReleaseReason { get; private set; }
         public Guid? LastHeartbeatSessionId { get; private set; }
-        public int LastHeartbeatPlayer { get; private set; } = -1;
+        public string? LastHeartbeatPortId { get; private set; }
 
         public ActiveGameSessionItem StartSessionWithInputBindings(
             string displayName,
@@ -203,26 +220,26 @@ public sealed class SessionRemoteControlServiceTests
         public void CloseSession(ActiveGameSessionItem session) => throw new NotSupportedException();
         public void CloseAllSessions() => throw new NotSupportedException();
         public ActiveGameSessionItem? FindSession(Guid sessionId) => throw new NotSupportedException();
-        public bool TryAcquireRemoteControl(Guid sessionId, int player, string clientIp, string? clientName = null)
+        public bool TryAcquireRemoteControl(Guid sessionId, string portId, string clientIp, string? clientName = null)
         {
             LastClaimSessionId = sessionId;
-            LastClaimPlayer = player;
+            LastClaimPortId = portId;
             LastClaimClientIp = clientIp;
             LastClaimClientName = clientName;
             return ClaimResult;
         }
 
-        public void ReleaseRemoteControl(Guid sessionId, int player, string? reason = null)
+        public void ReleaseRemoteControl(Guid sessionId, string portId, string? reason = null)
         {
             LastReleaseSessionId = sessionId;
-            LastReleasePlayer = player;
+            LastReleasePortId = portId;
             LastReleaseReason = reason;
         }
 
-        public void RefreshRemoteHeartbeat(Guid sessionId, int player)
+        public void RefreshRemoteHeartbeat(Guid sessionId, string portId)
         {
             LastHeartbeatSessionId = sessionId;
-            LastHeartbeatPlayer = player;
+            LastHeartbeatPortId = portId;
         }
 
         public bool TrySetRemoteInputState(Guid sessionId, string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
@@ -233,7 +250,7 @@ public sealed class SessionRemoteControlServiceTests
             return true;
         }
 
-        public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null) => throw new NotSupportedException();
+        public bool IsRemoteOwner(Guid sessionId, string portId, string clientIp, string? clientName = null) => throw new NotSupportedException();
         public bool AnyForRomPath(string romPath) => throw new NotSupportedException();
     }
 

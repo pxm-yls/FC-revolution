@@ -5,7 +5,6 @@ using System.Linq;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using FC_Revolution.UI.Adapters.Nes;
 
 namespace FC_Revolution.UI.Models;
 
@@ -62,11 +61,6 @@ public sealed partial class ExtraInputButtonPickerItem : ObservableObject
 
 public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptureBinding
 {
-    private static readonly IReadOnlyList<ExtraInputButtonOption> SharedButtonOptions =
-        NesInputAdapter.GetControllerActions()
-            .Select(action => new ExtraInputButtonOption(action.ActionId, action.DisplayName))
-            .ToArray();
-
     // 连发键使用的单个 FC 按钮
     [ObservableProperty]
     private ExtraInputButtonOption _primaryButtonOption;
@@ -83,6 +77,7 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         ExtraInputBindingKind kind,
         Key selectedKey,
         IReadOnlyList<Key> availableKeys,
+        IReadOnlyList<ExtraInputButtonOption> buttonOptions,
         ExtraInputButtonOption? primaryButton = null,
         IReadOnlyList<ExtraInputButtonOption>? comboButtons = null,
         int turboHz = 10)
@@ -90,15 +85,15 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         Player = player;
         Kind = kind;
         AvailableKeys = availableKeys;
-        ButtonOptions = SharedButtonOptions;
+        ButtonOptions = NormalizeButtonOptions(buttonOptions);
         _selectedKey = selectedKey;
-        _primaryButtonOption = primaryButton ?? SharedButtonOptions[0];
+        _primaryButtonOption = primaryButton ?? ButtonOptions[0];
         _turboHz = Math.Clamp(turboHz, 1, 30);
 
         if (kind == ExtraInputBindingKind.Combo)
         {
-            var buttons = comboButtons?.Distinct().Take(SharedButtonOptions.Count).ToList()
-                ?? [SharedButtonOptions[0], SharedButtonOptions[1]];
+            var buttons = comboButtons?.Distinct().Take(ButtonOptions.Count).ToList()
+                ?? GetDefaultComboButtons(ButtonOptions);
             _comboButtonList.AddRange(buttons);
             RebuildComboChips();
         }
@@ -215,7 +210,7 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     private void RebuildButtonPickerItems()
     {
         _buttonPickerItems.Clear();
-        foreach (var option in SharedButtonOptions)
+        foreach (var option in ButtonOptions)
         {
             var captured = option;
             _buttonPickerItems.Add(new ExtraInputButtonPickerItem(
@@ -271,13 +266,43 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         TurboHz = TurboHz
     };
 
-    public static ExtraInputBindingEntry CreateDefaultTurbo(int player, Key key, IReadOnlyList<Key> availableKeys) =>
-        new(player, ExtraInputBindingKind.Turbo, key, availableKeys, SharedButtonOptions[0], turboHz: 10);
+    public static ExtraInputBindingEntry CreateDefaultTurbo(
+        int player,
+        Key key,
+        IReadOnlyList<Key> availableKeys,
+        IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
+    {
+        var normalizedButtonOptions = NormalizeButtonOptions(buttonOptions ?? Array.Empty<ExtraInputButtonOption>());
+        return new ExtraInputBindingEntry(
+            player,
+            ExtraInputBindingKind.Turbo,
+            key,
+            availableKeys,
+            normalizedButtonOptions,
+            normalizedButtonOptions[0],
+            turboHz: 10);
+    }
 
-    public static ExtraInputBindingEntry CreateDefaultCombo(int player, Key key, IReadOnlyList<Key> availableKeys) =>
-        new(player, ExtraInputBindingKind.Combo, key, availableKeys, null, [SharedButtonOptions[0], SharedButtonOptions[1]]);
+    public static ExtraInputBindingEntry CreateDefaultCombo(
+        int player,
+        Key key,
+        IReadOnlyList<Key> availableKeys,
+        IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
+    {
+        var normalizedButtonOptions = NormalizeButtonOptions(buttonOptions ?? Array.Empty<ExtraInputButtonOption>());
+        return new ExtraInputBindingEntry(
+            player,
+            ExtraInputBindingKind.Combo,
+            key,
+            availableKeys,
+            normalizedButtonOptions,
+            comboButtons: GetDefaultComboButtons(normalizedButtonOptions));
+    }
 
-    public static ExtraInputBindingEntry FromProfile(ExtraInputBindingProfile profile, IReadOnlyList<Key> availableKeys)
+    public static ExtraInputBindingEntry FromProfile(
+        ExtraInputBindingProfile profile,
+        IReadOnlyList<Key> availableKeys,
+        IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
     {
         var kind = Enum.TryParse<ExtraInputBindingKind>(profile.Kind, out var parsedKind)
             ? parsedKind
@@ -285,9 +310,10 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         var key = Enum.TryParse<Key>(profile.Key, out var parsedKey) && availableKeys.Contains(parsedKey)
             ? parsedKey
             : availableKeys.FirstOrDefault();
+        var normalizedButtonOptions = NormalizeButtonOptions(buttonOptions ?? Array.Empty<ExtraInputButtonOption>());
 
         var buttons = (profile.Buttons ?? [])
-            .Select(ParseButton)
+            .Select(value => ParseButton(value, normalizedButtonOptions))
             .Where(b => b != null)
             .Select(b => b!)
             .Distinct()
@@ -295,23 +321,23 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
 
         if (kind == ExtraInputBindingKind.Turbo)
         {
-            var primary = buttons.Count > 0 ? buttons[0] : SharedButtonOptions[0];
+            var primary = buttons.Count > 0 ? buttons[0] : normalizedButtonOptions[0];
             return new ExtraInputBindingEntry(player: profile.Player, kind: kind, selectedKey: key,
-                availableKeys: availableKeys, primaryButton: primary, turboHz: Math.Clamp(profile.TurboHz <= 0 ? 10 : profile.TurboHz, 1, 30));
+                availableKeys: availableKeys, buttonOptions: normalizedButtonOptions, primaryButton: primary, turboHz: Math.Clamp(profile.TurboHz <= 0 ? 10 : profile.TurboHz, 1, 30));
         }
         else
         {
             return new ExtraInputBindingEntry(player: profile.Player, kind: kind, selectedKey: key,
-                availableKeys: availableKeys, comboButtons: buttons);
+                availableKeys: availableKeys, buttonOptions: normalizedButtonOptions, comboButtons: buttons);
         }
     }
 
     public ExtraInputBindingEntry Clone()
     {
         if (Kind == ExtraInputBindingKind.Turbo)
-            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, PrimaryButtonOption, turboHz: TurboHz);
+            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, ButtonOptions, PrimaryButtonOption, turboHz: TurboHz);
         else
-            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, comboButtons: [.. _comboButtonList]);
+            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, ButtonOptions, comboButtons: [.. _comboButtonList]);
     }
 
     partial void OnSelectedKeyChanged(Key value) => OnPropertyChanged(nameof(SelectedKeyDisplay));
@@ -326,13 +352,33 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         SyncButtonPickerSelection();
     }
 
-    private static ExtraInputButtonOption? ParseButton(string? value)
+    private static ExtraInputButtonOption? ParseButton(string? value, IReadOnlyList<ExtraInputButtonOption> buttonOptions)
     {
         if (string.IsNullOrWhiteSpace(value))
             return null;
 
-        return SharedButtonOptions.FirstOrDefault(option =>
+        return buttonOptions.FirstOrDefault(option =>
             string.Equals(option.ActionId, value.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IReadOnlyList<ExtraInputButtonOption> NormalizeButtonOptions(IReadOnlyList<ExtraInputButtonOption> buttonOptions)
+    {
+        if (buttonOptions.Count > 0)
+            return buttonOptions;
+
+        return
+        [
+            new ExtraInputButtonOption("a", "A"),
+            new ExtraInputButtonOption("b", "B")
+        ];
+    }
+
+    private static List<ExtraInputButtonOption> GetDefaultComboButtons(IReadOnlyList<ExtraInputButtonOption> buttonOptions)
+    {
+        if (buttonOptions.Count == 1)
+            return [buttonOptions[0]];
+
+        return [buttonOptions[0], buttonOptions[1]];
     }
 
     private static string FormatKey(Key key) => key switch

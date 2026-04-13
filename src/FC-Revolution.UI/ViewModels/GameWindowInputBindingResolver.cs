@@ -2,8 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Contracts.RemoteControl;
-using FC_Revolution.UI.Adapters.Nes;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -18,18 +17,21 @@ internal sealed record GameWindowResolvedExtraInputBinding(
 internal static class GameWindowInputBindingResolver
 {
     public static Dictionary<Key, (int Player, string ActionId)> BuildKeyMap(
-        IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort)
+        IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
+        CoreInputBindingSchema inputBindingSchema)
     {
+        ArgumentNullException.ThrowIfNull(inputBindingsByPort);
+        ArgumentNullException.ThrowIfNull(inputBindingSchema);
+
         var map = new Dictionary<Key, (int Player, string ActionId)>();
         foreach (var (portId, bindings) in inputBindingsByPort)
         {
-            var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-            if (normalizedPortId == null || !RemoteControlPorts.TryGetPlayer(normalizedPortId, out var player))
+            if (!inputBindingSchema.TryResolvePort(portId, out var player, out _))
                 continue;
 
             foreach (var (actionId, key) in bindings)
             {
-                if (!NesInputAdapter.TryNormalizeControllerAction(actionId, out var normalizedActionId))
+                if (!inputBindingSchema.TryNormalizeActionId(player, actionId, out var normalizedActionId))
                     continue;
 
                 map[key] = (player, normalizedActionId);
@@ -39,9 +41,16 @@ internal static class GameWindowInputBindingResolver
         return map;
     }
 
+    public static Dictionary<Key, (int Player, string ActionId)> BuildKeyMap(
+        IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort) =>
+        BuildKeyMap(inputBindingsByPort, CoreInputBindingSchema.CreateFallback());
+
     public static IReadOnlyList<GameWindowResolvedExtraInputBinding> ResolveExtraInputBindings(
-        IReadOnlyList<ExtraInputBindingProfile>? profiles)
+        IReadOnlyList<ExtraInputBindingProfile>? profiles,
+        CoreInputBindingSchema inputBindingSchema)
     {
+        ArgumentNullException.ThrowIfNull(inputBindingSchema);
+
         return (profiles ?? Array.Empty<ExtraInputBindingProfile>())
             .Select(profile =>
             {
@@ -52,12 +61,12 @@ internal static class GameWindowInputBindingResolver
                     ? parsedKind
                     : ExtraInputBindingKind.Turbo;
                 var actionIds = (profile.Buttons ?? [])
-                    .Select(actionId => NesInputAdapter.TryNormalizeControllerAction(actionId, out var normalizedActionId)
+                    .Select(actionId => inputBindingSchema.TryNormalizeActionId(profile.Player, actionId, out var normalizedActionId)
                         ? normalizedActionId
                         : null)
                     .Where(static actionId => actionId != null)
                     .Select(static actionId => actionId!)
-                    .Distinct()
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 if (actionIds.Count == 0 || (kind == ExtraInputBindingKind.Combo && actionIds.Count < 2))
                     return null;
@@ -73,6 +82,10 @@ internal static class GameWindowInputBindingResolver
             .Select(binding => binding!)
             .ToList();
     }
+
+    public static IReadOnlyList<GameWindowResolvedExtraInputBinding> ResolveExtraInputBindings(
+        IReadOnlyList<ExtraInputBindingProfile>? profiles) =>
+        ResolveExtraInputBindings(profiles, CoreInputBindingSchema.CreateFallback());
 
     public static HashSet<Key> BuildHandledKeys(
         IReadOnlyDictionary<Key, (int Player, string ActionId)> keyMap,

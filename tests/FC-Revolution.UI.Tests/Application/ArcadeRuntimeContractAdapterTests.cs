@@ -155,14 +155,14 @@ public sealed class ArcadeRuntimeContractAdapterTests
 
         Assert.True(claimed);
         Assert.Equal(sessionId, sessionService.LastClaimSessionId);
-        Assert.Equal(1, sessionService.LastClaimPlayer);
+        Assert.Equal("p2", sessionService.LastClaimPortId);
         Assert.Equal("192.168.0.10", sessionService.LastClaimClientIp);
         Assert.Equal("pad", sessionService.LastClaimClientName);
         Assert.Equal(sessionId, sessionService.LastReleaseSessionId);
-        Assert.Equal(1, sessionService.LastReleasePlayer);
+        Assert.Equal("p2", sessionService.LastReleasePortId);
         Assert.Equal("done", sessionService.LastReleaseReason);
         Assert.Equal(sessionId, sessionService.LastHeartbeatSessionId);
-        Assert.Equal(1, sessionService.LastHeartbeatPlayer);
+        Assert.Equal("p2", sessionService.LastHeartbeatPortId);
         Assert.Contains(statuses, text => text.Contains("已分配远程控制", StringComparison.Ordinal));
         Assert.Contains(statuses, text => text.Contains("已释放远程控制", StringComparison.Ordinal));
     }
@@ -344,14 +344,14 @@ public sealed class ArcadeRuntimeContractAdapterTests
         public bool StartSessionCalled { get; private set; }
         public bool ClaimResult { get; set; } = true;
         public Guid? LastClaimSessionId { get; private set; }
-        public int LastClaimPlayer { get; private set; } = -1;
+        public string? LastClaimPortId { get; private set; }
         public string? LastClaimClientIp { get; private set; }
         public string? LastClaimClientName { get; private set; }
         public Guid? LastReleaseSessionId { get; private set; }
-        public int LastReleasePlayer { get; private set; } = -1;
+        public string? LastReleasePortId { get; private set; }
         public string? LastReleaseReason { get; private set; }
         public Guid? LastHeartbeatSessionId { get; private set; }
-        public int LastHeartbeatPlayer { get; private set; } = -1;
+        public string? LastHeartbeatPortId { get; private set; }
         public bool SetInputResult { get; set; }
         public Guid? LastSetInputSessionId { get; private set; }
         public string? LastSetInputPortId { get; private set; }
@@ -394,26 +394,26 @@ public sealed class ArcadeRuntimeContractAdapterTests
         public void CloseAllSessions() => Sessions.Clear();
         public ActiveGameSessionItem? FindSession(Guid sessionId) => Sessions.FirstOrDefault(s => s.SessionId == sessionId);
 
-        public bool TryAcquireRemoteControl(Guid sessionId, int player, string clientIp, string? clientName = null)
+        public bool TryAcquireRemoteControl(Guid sessionId, string portId, string clientIp, string? clientName = null)
         {
             LastClaimSessionId = sessionId;
-            LastClaimPlayer = player;
+            LastClaimPortId = portId;
             LastClaimClientIp = clientIp;
             LastClaimClientName = clientName;
             return ClaimResult;
         }
 
-        public void ReleaseRemoteControl(Guid sessionId, int player, string? reason = null)
+        public void ReleaseRemoteControl(Guid sessionId, string portId, string? reason = null)
         {
             LastReleaseSessionId = sessionId;
-            LastReleasePlayer = player;
+            LastReleasePortId = portId;
             LastReleaseReason = reason;
         }
 
-        public void RefreshRemoteHeartbeat(Guid sessionId, int player)
+        public void RefreshRemoteHeartbeat(Guid sessionId, string portId)
         {
             LastHeartbeatSessionId = sessionId;
-            LastHeartbeatPlayer = player;
+            LastHeartbeatPortId = portId;
         }
 
         public bool TrySetRemoteInputState(Guid sessionId, string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
@@ -425,7 +425,7 @@ public sealed class ArcadeRuntimeContractAdapterTests
             return SetInputResult;
         }
 
-        public bool IsRemoteOwner(Guid sessionId, int player, string clientIp, string? clientName = null) => false;
+        public bool IsRemoteOwner(Guid sessionId, string portId, string clientIp, string? clientName = null) => false;
         public bool AnyForRomPath(string romPath) => Sessions.Any(s => string.Equals(s.RomPath, romPath, StringComparison.OrdinalIgnoreCase));
     }
 }

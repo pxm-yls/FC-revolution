@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Contracts.RemoteControl;
-using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
@@ -112,6 +110,10 @@ public sealed partial class GameWindowViewModel
         return true;
     }
 
+    public bool AcquireRemoteControl(string portId, string clientIp, string? clientName = null) =>
+        _inputBindingSchema.TryGetPlayer(portId, out var player) &&
+        AcquireRemoteControl(player, clientIp, clientName);
+
     public void ReleaseRemoteControl(int player, string? reason = null)
     {
         if (!_remoteControlRuntime.TryRelease(player, out var hadRemoteControl, out var viewState))
@@ -123,6 +125,12 @@ public sealed partial class GameWindowViewModel
             _remoteControlWorkflow.BuildReleaseDecision(player, hadRemoteControl, reason));
     }
 
+    public void ReleaseRemoteControl(string portId, string? reason = null)
+    {
+        if (_inputBindingSchema.TryGetPlayer(portId, out var player))
+            ReleaseRemoteControl(player, reason);
+    }
+
     public void RefreshRemoteHeartbeat(int player)
     {
         var refreshed = _remoteControlRuntime.TryRefreshHeartbeat(player, DateTime.UtcNow, out var viewState);
@@ -132,12 +140,17 @@ public sealed partial class GameWindowViewModel
             _remoteControlWorkflow.BuildHeartbeatDecision(refreshed));
     }
 
+    public void RefreshRemoteHeartbeat(string portId)
+    {
+        if (_inputBindingSchema.TryGetPlayer(portId, out var player))
+            RefreshRemoteHeartbeat(player);
+    }
+
     public bool SetRemoteInputState(string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
     {
-        var normalizedPortId = RemoteControlPorts.NormalizePortId(portId);
-        if (normalizedPortId == null ||
+        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
             string.IsNullOrWhiteSpace(actionId) ||
-            !RemoteControlPorts.TryGetPlayer(normalizedPortId, out var player))
+            !_inputBindingSchema.IsSupportedInputAction(normalizedPortId, actionId.Trim()))
         {
             return false;
         }
@@ -150,27 +163,6 @@ public sealed partial class GameWindowViewModel
             DateTime.UtcNow,
             out var viewState);
 
-        if (UsesNesRemoteInputBridge() &&
-            NesInputAdapter.TryMapRemoteCompatibilityAction(normalizedActionId, out var mappedActionId, out var isReserved))
-        {
-            ApplyRemoteControlWorkflowDecision(
-                player,
-                viewState,
-                _remoteControlWorkflow.BuildButtonStateDecision(authorized),
-                isReserved ? null : mappedActionId,
-                value >= 0.5f);
-            return authorized;
-        }
-
-        if (!IsSupportedInputAction(normalizedPortId, normalizedActionId))
-        {
-            ApplyRemoteControlWorkflowDecision(
-                player,
-                viewState,
-                _remoteControlWorkflow.BuildButtonStateDecision(authorized));
-            return false;
-        }
-
         ApplyRemoteControlWorkflowDecision(
             player,
             viewState,
@@ -178,12 +170,21 @@ public sealed partial class GameWindowViewModel
         if (!authorized)
             return false;
 
-        _sessionRuntime.SetInputState(normalizedPortId, normalizedActionId, value);
+        if (_inputBindingSchema.TryNormalizeActionId(player, normalizedActionId, out var canonicalActionId))
+        {
+            SetActionState(player, canonicalActionId, value >= 0.5f);
+            return true;
+        }
+
         return true;
     }
 
     public bool IsRemoteOwner(int player, string clientIp, string? clientName = null) =>
         _remoteControlRuntime.IsRemoteOwner(player, clientIp, clientName);
+
+    public bool IsRemoteOwner(string portId, string clientIp, string? clientName = null) =>
+        _inputBindingSchema.TryGetPlayer(portId, out var player) &&
+        IsRemoteOwner(player, clientIp, clientName);
 
     public void ClearRemoteButtons(int player)
     {
@@ -207,26 +208,23 @@ public sealed partial class GameWindowViewModel
 
     private void RefreshLocalInputState()
     {
-        var desiredMasks = BuildDesiredLocalInputMasks();
-        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputMaskForPlayer(
+        var desiredActions = BuildDesiredLocalInputActions();
+        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputActionsForPlayer(
             0,
-            desiredMasks.Player1Mask,
+            desiredActions.Player1Actions,
             CanAcceptLocalInput(0)));
-        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputMaskForPlayer(
+        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputActionsForPlayer(
             1,
-            desiredMasks.Player2Mask,
+            desiredActions.Player2Actions,
             CanAcceptLocalInput(1)));
     }
 
-    private (byte Player1Mask, byte Player2Mask) BuildDesiredLocalInputMasks()
-    {
-        var desiredMasks = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
+    private GameWindowDesiredLocalInputActions BuildDesiredLocalInputActions() =>
+        GameWindowLocalInputProjectionController.BuildDesiredLocalInputActions(
             _pressedKeys,
             _keyMap,
             _extraInputBindings,
             _turboTickCounters);
-        return (desiredMasks.Player1Mask, desiredMasks.Player2Mask);
-    }
 
     private void ApplyCombinedStateForPlayer(int player)
     {
@@ -240,7 +238,7 @@ public sealed partial class GameWindowViewModel
         foreach (var change in changes)
         {
             _sessionRuntime.SetInputState(
-                GetInputPortId(change.Player),
+                _inputBindingSchema.GetPortId(change.Player),
                 change.ActionId,
                 change.Pressed ? 1f : 0f);
         }
@@ -339,14 +337,4 @@ public sealed partial class GameWindowViewModel
 
     private HashSet<Key> GetHandledKeys() =>
         GameWindowInputBindingResolver.BuildHandledKeys(_keyMap, _extraInputBindings);
-
-    private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
-
-    private bool UsesNesRemoteInputBridge() =>
-        string.Equals(_coreSession.RuntimeInfo.SystemId, "nes", StringComparison.OrdinalIgnoreCase);
-
-    private bool IsSupportedInputAction(string portId, string actionId) =>
-        _coreSession.InputSchema.Actions.Any(action =>
-            string.Equals(action.PortId, portId, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(action.ActionId, actionId, StringComparison.OrdinalIgnoreCase));
 }

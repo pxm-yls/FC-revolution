@@ -1,5 +1,7 @@
 using Avalonia.Input;
 using FCRevolution.Core.Input;
+using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -27,6 +29,27 @@ public sealed class GameWindowInputBindingResolverTests
 
         Assert.Equal((1, NesInputTestAdapter.ActionId(NesButton.Start)), keyMap[Key.Z]);
         Assert.Equal((0, NesInputTestAdapter.ActionId(NesButton.B)), keyMap[Key.X]);
+    }
+
+    [Fact]
+    public void BuildKeyMap_UsesSchemaPortDescriptors_InsteadOfHardcodedP1P2()
+    {
+        var keyMap = GameWindowInputBindingResolver.BuildKeyMap(
+            new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["pad-west"] = new(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["fire"] = Key.Z
+                },
+                ["pad-east"] = new(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["jump"] = Key.X
+                }
+            },
+            CoreInputBindingSchema.Create(new CustomInputSchema()));
+
+        Assert.Equal((0, "fire"), keyMap[Key.Z]);
+        Assert.Equal((1, "jump"), keyMap[Key.X]);
     }
 
     [Fact]
@@ -95,5 +118,20 @@ public sealed class GameWindowInputBindingResolverTests
         Assert.Contains(Key.Z, handledKeys);
         Assert.Contains(Key.Q, handledKeys);
         Assert.Equal(2, handledKeys.Count);
+    }
+
+    private sealed class CustomInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } =
+        [
+            new("pad-west", "West Pad", 0),
+            new("pad-east", "East Pad", 1)
+        ];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } =
+        [
+            new("fire", "Fire", "pad-west", InputValueKind.Digital),
+            new("jump", "Jump", "pad-east", InputValueKind.Digital)
+        ];
     }
 }

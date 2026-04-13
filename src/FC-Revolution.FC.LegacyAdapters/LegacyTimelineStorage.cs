@@ -1,6 +1,6 @@
 using FCRevolution.Core.Timeline.Persistence;
 
-namespace FCRevolution.Core.FC.LegacyAdapters;
+namespace FCRevolution.FC.LegacyAdapters;
 
 public static class LegacyTimelineStorage
 {

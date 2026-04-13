@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
 using FCRevolution.Storage;
-using FC_Revolution.UI.Adapters.Nes;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -308,7 +306,8 @@ public partial class MainWindowViewModel
         _inputBindingWorkflowController.BuildAndApplyGlobalInputBindingViewState(
             _inputBindingsController,
             profile: null,
-            defaultKeyMaps: DefaultKeyMaps,
+            inputBindingSchema: _inputBindingSchema,
+            defaultKeyMaps: _defaultKeyMaps,
             configurableKeys: ConfigurableKeys,
             inputBindingLayout: _inputBindingLayout,
             globalInputBindings: _globalInputBindings,
@@ -334,7 +333,8 @@ public partial class MainWindowViewModel
             _romExtraInputBindings,
             _romExtraInputBindingsPlayer1,
             _romExtraInputBindingsPlayer2,
-            DefaultKeyMaps,
+            _inputBindingSchema,
+            _defaultKeyMaps,
             ConfigurableKeys,
             _inputBindingLayout,
             enabled => IsRomInputOverrideEnabled = enabled,
@@ -375,7 +375,8 @@ public partial class MainWindowViewModel
         _inputBindingWorkflowController.BuildAndApplyGlobalInputBindingViewState(
             _inputBindingsController,
             profile,
-            DefaultKeyMaps,
+            _inputBindingSchema,
+            _defaultKeyMaps,
             ConfigurableKeys,
             _inputBindingLayout,
             _globalInputBindings,
@@ -391,7 +392,7 @@ public partial class MainWindowViewModel
             romPath,
             _romInputOverrides,
             _globalInputBindings,
-            DefaultKeyMaps);
+            _defaultKeyMaps);
 
     private List<ExtraInputBindingProfile> GetEffectiveExtraInputBindingProfiles(string? romPath = null)
         => _inputBindingsController.GetEffectiveExtraInputBindingProfiles(
@@ -403,12 +404,13 @@ public partial class MainWindowViewModel
         => _inputBindingWorkflowController.BuildEffectiveInputBindingState(
             _inputBindingsController,
             _inputStateController,
+            _inputBindingSchema,
             romPath,
             _romInputOverrides,
             _romExtraInputOverrides,
             _globalInputBindings,
             _globalExtraInputBindings,
-            DefaultKeyMaps);
+            _defaultKeyMaps);
 
     private string? GetActiveInputRomPath()
         => _activeInputWorkflowController.GetActiveInputRomPath(IsRomLoaded, _romPath, CurrentRom);
@@ -424,10 +426,7 @@ public partial class MainWindowViewModel
             activeRomPath,
             effectiveInputBindingState.EffectiveKeyMap,
             effectiveInputBindingState.EffectiveExtraBindings,
-            _player1InputMask,
-            _player2InputMask,
-            GetControllerActionIds(),
-            GetInputPortId,
+            _inputBindingSchema,
             _romLock,
             _inputStateWriter,
             UpdateInputMask);
@@ -447,11 +446,6 @@ public partial class MainWindowViewModel
         if (decision.ShouldRefreshActiveInputState)
             RefreshActiveInputState();
     }
-
-    private static IReadOnlyList<string> GetControllerActionIds() =>
-        NesInputAdapter.GetControllerActions().Select(action => action.ActionId).ToArray();
-
-    private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
 
     public void OnKeyDown(Key key) => OnKeyDown(key, KeyModifiers.None);
 

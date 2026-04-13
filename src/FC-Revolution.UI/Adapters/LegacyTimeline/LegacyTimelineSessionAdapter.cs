@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.Core.FC.LegacyAdapters;
+using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
