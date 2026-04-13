@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using FCRevolution.Core.Timeline.Persistence;
+using FCRevolution.Core.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -14,9 +14,9 @@ internal readonly record struct LegacyTimelineSessionReloadState(
 
 internal sealed class LegacyTimelineSessionAdapter
 {
-    private readonly TimelineRepository _timelineRepository = new();
+    private readonly LegacyTimelineRepositoryAdapter _timelineRepository = new();
     private readonly CoreBranchTree _branchTree;
-    private TimelineManifest? _timelineManifest;
+    private LegacyTimelineManifestHandle? _timelineManifest;
     private string? _displayName;
     private string? _romPath;
     private DateTime _manifestWriteTimeUtc;
@@ -55,9 +55,9 @@ internal sealed class LegacyTimelineSessionAdapter
             _branchTree,
             RomId,
             displayName,
-            romPath,
             previewWidth,
-            previewHeight);
+            previewHeight,
+            romPath);
         _timelineManifest = loadState.Manifest;
         CurrentBranchId = loadState.CurrentBranchId;
         _manifestWriteTimeUtc = loadState.ManifestWriteTimeUtc;
@@ -87,12 +87,11 @@ internal sealed class LegacyTimelineSessionAdapter
         if (!TryRequireTimeline(out var timelineManifest))
             return;
 
-        _ = _timelineRepository.UpsertQuickSaveSnapshot(
+        _timelineRepository.PersistQuickSaveSnapshot(
             timelineManifest,
             CurrentBranchId,
             frame,
             timestampSeconds);
-        _timelineRepository.Save(timelineManifest);
         UpdateManifestWriteTimeUtc();
     }
 
@@ -101,9 +100,7 @@ internal sealed class LegacyTimelineSessionAdapter
         if (!TryRequireTimeline(out var timelineManifest))
             return;
 
-        timelineManifest.CurrentBranchId = CurrentBranchId;
-        _ = _timelineRepository.GetQuickSaveSnapshot(timelineManifest, CurrentBranchId);
-        _timelineRepository.Save(timelineManifest);
+        _timelineRepository.SyncCurrentSnapshotFromManifest(timelineManifest, CurrentBranchId);
         UpdateManifestWriteTimeUtc();
     }
 
@@ -251,7 +248,7 @@ internal sealed class LegacyTimelineSessionAdapter
         return new LegacyTimelineSessionReloadState(reloadState.Value.PreviewNodes);
     }
 
-    private bool TryRequireTimeline(out TimelineManifest timelineManifest)
+    private bool TryRequireTimeline(out LegacyTimelineManifestHandle timelineManifest)
     {
         if (_timelineManifest is not null)
         {
@@ -263,7 +260,7 @@ internal sealed class LegacyTimelineSessionAdapter
         return false;
     }
 
-    private bool TryRequireTimeline(out TimelineManifest timelineManifest, out string romId)
+    private bool TryRequireTimeline(out LegacyTimelineManifestHandle timelineManifest, out string romId)
     {
         if (_timelineManifest is not null && RomId is not null)
         {

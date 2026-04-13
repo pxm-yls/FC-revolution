@@ -70,10 +70,10 @@ internal static class GameWindowRewindPlaybackController
 
         var previewFrames = new List<uint[]>(rewindFrames.Count);
         foreach (var snapshot in rewindFrames)
-            previewFrames.Add(expandThumbnail(CoreTimelineModelBridge.ReadThumbnail(snapshot)));
+            previewFrames.Add(expandThumbnail(snapshot.Thumbnail));
 
         uint[]? finalPreviewFrame = null;
-        var lastThumbnail = CoreTimelineModelBridge.ReadThumbnail(rewindFrames[^1]);
+        var lastThumbnail = rewindFrames[^1].Thumbnail;
         if (lastThumbnail.Length > 0)
             finalPreviewFrame = expandThumbnail(lastThumbnail);
 

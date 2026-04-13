@@ -183,10 +183,10 @@ internal sealed class BranchGalleryCanvasProjectionController
         return new BranchPreviewNode
         {
             Id = Guid.NewGuid(),
-            Frame = CoreTimelineModelBridge.ReadFrame(snapshot),
-            TimestampSeconds = CoreTimelineModelBridge.ReadTimestampSeconds(snapshot),
+            Frame = snapshot.Frame,
+            TimestampSeconds = snapshot.TimestampSeconds,
             Title = node.Title,
-            Bitmap = ThumbnailItem.CreateBitmap(CoreTimelineModelBridge.ReadThumbnail(snapshot), 256, 240)
+            Bitmap = ThumbnailItem.CreateBitmap(snapshot.Thumbnail, 256, 240)
         };
     }
 

@@ -22,7 +22,7 @@ internal static class GameWindowRewindSequencePlanner
             if (snapshot == null)
                 continue;
 
-            var snapshotFrame = CoreTimelineModelBridge.ReadFrame(snapshot);
+            var snapshotFrame = snapshot.Frame;
             if (snapshotFrame == lastAdded)
                 continue;
 

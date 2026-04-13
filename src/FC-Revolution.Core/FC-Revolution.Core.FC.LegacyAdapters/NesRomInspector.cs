@@ -1,19 +1,19 @@
-using System.IO;
 using FCRevolution.Core.Mappers;
-using FC_Revolution.UI.Infrastructure;
 
-namespace FC_Revolution.UI.Adapters.Nes;
+namespace FCRevolution.Core.FC.LegacyAdapters;
 
-internal static class NesRomMapperInspector
+public readonly record struct LegacyMapperInfo(int Number, string Name, bool IsSupported);
+
+public static class NesRomInspector
 {
-    public static RomMapperInfo Inspect(string romPath)
+    public static LegacyMapperInfo Inspect(string romPath)
     {
         var headerBytes = new byte[16];
         using var stream = File.OpenRead(romPath);
         stream.ReadExactly(headerBytes);
         var header = new InesHeader(headerBytes);
         var isSupported = MapperFactory.RegisteredMappers.TryGetValue(header.MapperNumber, out var mapperName);
-        return new RomMapperInfo(
+        return new LegacyMapperInfo(
             header.MapperNumber,
             isSupported ? mapperName! : "未支持/未知核心",
             isSupported);

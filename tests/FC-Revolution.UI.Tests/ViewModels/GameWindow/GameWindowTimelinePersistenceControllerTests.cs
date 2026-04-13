@@ -1,7 +1,6 @@
 using System.IO;
 using System.Linq;
-using FCRevolution.Core.Timeline;
-using FCRevolution.Core.Timeline.Persistence;
+using FCRevolution.Core.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.ViewModels;
@@ -14,27 +13,32 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void BuildPreviewNodes_ProjectsPersistedEntries_ToPreviewNodes()
     {
-        var record = new TimelineSnapshotRecord
-        {
-            SnapshotId = Guid.NewGuid(),
-            Frame = 128,
-            TimestampSeconds = 3.2,
-            Name = "节点A"
-        };
-        var snapshot = new FrameSnapshot
-        {
-            Frame = 128,
-            Timestamp = 3.2,
-            Thumbnail = new uint[64 * 60]
-        };
+        var entry = new LegacyTimelinePreviewEntry(
+            SnapshotId: Guid.NewGuid(),
+            BranchId: Guid.NewGuid(),
+            Frame: 128,
+            TimestampSeconds: 3.2,
+            CreatedAtUtc: DateTime.UtcNow,
+            Name: "节点A",
+            Snapshot: new CoreTimelineSnapshot
+            {
+                Frame = 128,
+                TimestampSeconds = 3.2,
+                Thumbnail = new uint[64 * 60],
+                State = new CoreStateBlob
+                {
+                    Format = "test/snapshot",
+                    Data = []
+                }
+            });
 
         var nodes = GameWindowTimelinePersistenceController.BuildPreviewNodes(
-            [(record, snapshot)],
+            [entry],
             previewWidth: 256,
             previewHeight: 240);
 
         var node = Assert.Single(nodes);
-        Assert.Equal(record.SnapshotId, node.Id);
+        Assert.Equal(entry.SnapshotId, node.Id);
         Assert.Equal(128, node.Frame);
         Assert.Equal(3.2, node.TimestampSeconds);
         Assert.Equal("节点A", node.Title);
@@ -143,12 +147,12 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryPersistPreviewNode_SavesPreviewNode_AndReturnsProjectedNode()
     {
-        var repository = new TimelineRepository();
+        var repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-preview-{Guid.NewGuid():N}";
 
         try
         {
-            var manifest = repository.LoadOrCreate(romId, "Preview Persist Rom");
+            var manifest = repository.LoadTimelineState(new CoreBranchTree(), romId, "Preview Persist Rom", "/tmp/preview-persist.nes").Manifest;
             var snapshot = CreateCoreTimelineSnapshot(frame: 180);
             var node = CreateBranchCanvasNode(
                 "Boss Preview",
@@ -181,7 +185,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
 
             var loaded = repository.LoadPreviewNodes(manifest);
             var restored = Assert.Single(loaded);
-            Assert.Equal("Boss Preview", restored.Record.Name);
+            Assert.Equal("Boss Preview", restored.Name);
             Assert.Equal(180, restored.Snapshot.Frame);
         }
         finally
@@ -193,31 +197,31 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void LoadTimelineState_LoadsManifestBranchTree_AndPreviewNodes()
     {
-        var repository = new TimelineRepository();
+        var repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-reload-{Guid.NewGuid():N}";
         var romPath = "/tmp/reload-test-rom.nes";
 
         try
         {
-            var manifest = repository.LoadOrCreate(romId, "Reload Rom");
-            var branchPoint = new BranchPoint
+            var manifest = repository.LoadTimelineState(new CoreBranchTree(), romId, "Reload Rom", romPath).Manifest;
+            var branchPoint = new CoreBranchPoint
             {
                 Id = Guid.NewGuid(),
                 Name = "Reload Branch",
                 RomPath = romPath,
                 Frame = 240,
-                Timestamp = 4.0,
-                Snapshot = MakeFrameSnapshot(240),
+                TimestampSeconds = 4.0,
+                Snapshot = CreateCoreTimelineSnapshot(240),
                 CreatedAt = DateTime.UtcNow
             };
-            repository.SaveBranchPoint(manifest, romId, branchPoint, parentBranchId: null);
+            repository.PersistBranchPoint(manifest, romId, branchPoint, parentBranchId: null, romPath);
             repository.SavePreviewNode(
                 manifest,
                 romId,
                 branchPoint.Id,
                 Guid.NewGuid(),
                 "Reload Preview",
-                MakeFrameSnapshot(245));
+                CreateCoreTimelineSnapshot(245));
 
             var tree = new CoreBranchTree();
             var loadState = GameWindowTimelinePersistenceController.LoadTimelineState(
@@ -225,9 +229,9 @@ public sealed class GameWindowTimelinePersistenceControllerTests
                 tree,
                 romId,
                 "Reload Rom",
-                romPath,
                 previewWidth: 256,
-                previewHeight: 240);
+                previewHeight: 240,
+                romPath);
 
             Assert.Equal(manifest.CurrentBranchId, loadState.CurrentBranchId);
             Assert.True(loadState.ManifestWriteTimeUtc > DateTime.MinValue);
@@ -248,13 +252,13 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryReloadTimelineState_WhenManifestWriteTimeIsNotNewer_ReturnsNull()
     {
-        var repository = new TimelineRepository();
+        var repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-nosync-{Guid.NewGuid():N}";
         var romPath = "/tmp/no-sync-rom.nes";
 
         try
         {
-            _ = repository.LoadOrCreate(romId, "No Sync Rom");
+            _ = repository.LoadTimelineState(new CoreBranchTree(), romId, "No Sync Rom", romPath);
             var knownWriteTimeUtc = GameWindowTimelinePersistenceController.ReadManifestWriteTimeUtc(romId);
 
             var tree = new CoreBranchTree();
@@ -280,32 +284,32 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryReloadTimelineState_WhenManifestWriteTimeIsNewer_ReloadsTimelineState()
     {
-        var repository = new TimelineRepository();
+        var repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-resync-{Guid.NewGuid():N}";
         var romPath = "/tmp/resync-test-rom.nes";
 
         try
         {
-            var manifest = repository.LoadOrCreate(romId, "Resync Rom");
+            var manifest = repository.LoadTimelineState(new CoreBranchTree(), romId, "Resync Rom", romPath).Manifest;
             var knownWriteTimeUtc = GameWindowTimelinePersistenceController.ReadManifestWriteTimeUtc(romId);
-            var branchPoint = new BranchPoint
+            var branchPoint = new CoreBranchPoint
             {
                 Id = Guid.NewGuid(),
                 Name = "Resync Branch",
                 RomPath = romPath,
                 Frame = 300,
-                Timestamp = 5.0,
-                Snapshot = MakeFrameSnapshot(300),
+                TimestampSeconds = 5.0,
+                Snapshot = CreateCoreTimelineSnapshot(300),
                 CreatedAt = DateTime.UtcNow
             };
-            repository.SaveBranchPoint(manifest, romId, branchPoint, parentBranchId: null);
+            repository.PersistBranchPoint(manifest, romId, branchPoint, parentBranchId: null, romPath);
             repository.SavePreviewNode(
                 manifest,
                 romId,
                 branchPoint.Id,
                 Guid.NewGuid(),
                 "Resync Preview",
-                MakeFrameSnapshot(305));
+                CreateCoreTimelineSnapshot(305));
 
             var tree = new CoreBranchTree();
             var reloadState = GameWindowTimelinePersistenceController.TryReloadTimelineState(
@@ -362,28 +366,6 @@ public sealed class GameWindowTimelinePersistenceControllerTests
                 Data = []
             }
         };
-
-    private static FrameSnapshot MakeFrameSnapshot(long frame) => new()
-    {
-        Frame = frame,
-        Timestamp = frame / 60.0,
-        CpuState = [(byte)(frame & 0xFF), 1, 2, 3],
-        PpuState = CreatePpuState(),
-        RamState = [7, 8, 9, 10],
-        CartState = [],
-        ApuState = [11, 12],
-        Thumbnail = Enumerable.Repeat((uint)frame, 64 * 60).ToArray(),
-    };
-
-    private static byte[] CreatePpuState()
-    {
-        const int frameBufferOffset = 2362;
-        var state = new byte[frameBufferOffset + (256 * 240 * sizeof(uint))];
-        for (var i = 0; i < 256 * 240; i++)
-            BitConverter.GetBytes((uint)(0xFF000000 | (uint)i)).CopyTo(state, frameBufferOffset + i * sizeof(uint));
-
-        return state;
-    }
 
     private static void DeleteRomDirectory(string romId)
     {

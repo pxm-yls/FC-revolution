@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using FCRevolution.Core.Timeline;
-using FCRevolution.Core.Timeline.Persistence;
+using FCRevolution.Core.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -21,7 +19,7 @@ internal readonly record struct GameWindowPersistPreviewNodeResult(
     DateTime ManifestWriteTimeUtc);
 
 internal readonly record struct GameWindowTimelineReloadState(
-    TimelineManifest Manifest,
+    LegacyTimelineManifestHandle Manifest,
     Guid CurrentBranchId,
     IReadOnlyList<BranchPreviewNode> PreviewNodes,
     DateTime ManifestWriteTimeUtc);
@@ -29,27 +27,25 @@ internal readonly record struct GameWindowTimelineReloadState(
 internal static class GameWindowTimelinePersistenceController
 {
     public static GameWindowTimelineReloadState LoadTimelineState(
-        TimelineRepository timelineRepository,
+        LegacyTimelineRepositoryAdapter timelineRepository,
         CoreBranchTree branchTree,
         string romId,
         string displayName,
-        string romPath,
         int previewWidth,
-        int previewHeight)
+        int previewHeight,
+        string romPath)
     {
-        var manifest = timelineRepository.LoadOrCreate(romId, displayName);
-        PopulateCoreBranchTree(timelineRepository, branchTree, manifest, romId, romPath);
-        var previewNodes = LoadPreviewNodes(timelineRepository, manifest, previewWidth, previewHeight);
+        var loadState = timelineRepository.LoadTimelineState(branchTree, romId, displayName, romPath);
         return new GameWindowTimelineReloadState(
-            manifest,
-            manifest.CurrentBranchId,
-            previewNodes,
-            ReadManifestWriteTimeUtc(romId));
+            loadState.Manifest,
+            loadState.CurrentBranchId,
+            BuildPreviewNodes(loadState.PreviewNodes, previewWidth, previewHeight),
+            loadState.ManifestWriteTimeUtc);
     }
 
     public static IReadOnlyList<BranchPreviewNode> LoadPreviewNodes(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         int previewWidth,
         int previewHeight)
     {
@@ -58,59 +54,54 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static IReadOnlyList<BranchPreviewNode> BuildPreviewNodes(
-        IReadOnlyList<(TimelineSnapshotRecord Record, FrameSnapshot Snapshot)> previewEntries,
+        IReadOnlyList<LegacyTimelinePreviewEntry> previewEntries,
         int previewWidth,
         int previewHeight)
     {
         return previewEntries
-            .Select(entry => GameWindowPreviewNodeFactory.Create(
-                entry.Record,
-                CoreTimelineModelBridge.ToCoreTimelineSnapshot(entry.Snapshot),
-                previewWidth,
-                previewHeight))
+            .Select(entry => GameWindowPreviewNodeFactory.Create(entry, previewWidth, previewHeight))
             .ToList();
     }
 
     public static void PersistBranchPoint(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         string romId,
         CoreBranchPoint branchPoint,
         Guid? parentBranchId,
         string romPath)
     {
-        timelineRepository.SaveBranchPoint(
+        timelineRepository.PersistBranchPoint(
             timelineManifest,
             romId,
-            CoreTimelineModelBridge.ToLegacyBranchPoint(branchPoint, romPath),
-            parentBranchId);
+            branchPoint,
+            parentBranchId,
+            romPath);
     }
 
     public static void DeleteBranchPoint(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         string romId,
         Guid branchId)
     {
-        timelineRepository.DeleteBranch(timelineManifest, romId, branchId);
+        timelineRepository.DeleteBranchPoint(timelineManifest, romId, branchId);
     }
 
     public static void RenameBranchPoint(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         CoreBranchPoint branchPoint)
     {
-        timelineRepository.RenameBranch(timelineManifest, branchPoint.Id, branchPoint.Name);
+        timelineRepository.RenameBranchPoint(timelineManifest, branchPoint);
     }
 
     public static Guid ActivateBranch(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         Guid branchId)
     {
-        timelineManifest.CurrentBranchId = branchId;
-        timelineRepository.Save(timelineManifest);
-        return branchId;
+        return timelineRepository.ActivateBranch(timelineManifest, branchId);
     }
 
     public static GameWindowPersistPreviewNodePlan BuildPersistPreviewNodePlan(
@@ -123,12 +114,14 @@ internal static class GameWindowTimelinePersistenceController
     {
         var snapshot = branchPointSnapshot ?? getNearestSnapshot(frame);
         if (snapshot is null)
+        {
             return new GameWindowPersistPreviewNodePlan(
                 ShouldPersist: false,
                 Snapshot: null,
                 BranchId: Guid.Empty,
                 PreviewNodeId: Guid.Empty,
                 Title: string.Empty);
+        }
 
         return new GameWindowPersistPreviewNodePlan(
             ShouldPersist: true,
@@ -139,8 +132,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static GameWindowPersistPreviewNodeResult? TryPersistPreviewNode(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         string romId,
         Guid currentBranchId,
         BranchCanvasNode node,
@@ -158,23 +151,22 @@ internal static class GameWindowTimelinePersistenceController
         if (!plan.ShouldPersist || plan.Snapshot is null)
             return null;
 
-        var legacySnapshot = CoreTimelineModelBridge.ToLegacyFrameSnapshot(plan.Snapshot);
-        var record = timelineRepository.SavePreviewNode(
+        var previewEntry = timelineRepository.SavePreviewNode(
             timelineManifest,
             romId,
             plan.BranchId,
             plan.PreviewNodeId,
             plan.Title,
-            legacySnapshot);
-        var previewNode = GameWindowPreviewNodeFactory.Create(record, plan.Snapshot, previewWidth, previewHeight);
+            plan.Snapshot);
+        var previewNode = GameWindowPreviewNodeFactory.Create(previewEntry, previewWidth, previewHeight);
         return new GameWindowPersistPreviewNodeResult(
             previewNode,
             ReadManifestWriteTimeUtc(romId));
     }
 
     public static DateTime DeletePreviewNode(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         string romId,
         Guid previewNodeId)
     {
@@ -183,8 +175,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static DateTime RenamePreviewNode(
-        TimelineRepository timelineRepository,
-        TimelineManifest timelineManifest,
+        LegacyTimelineRepositoryAdapter timelineRepository,
+        LegacyTimelineManifestHandle timelineManifest,
         string romId,
         Guid previewNodeId,
         string title)
@@ -203,7 +195,7 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static GameWindowTimelineReloadState? TryReloadTimelineState(
-        TimelineRepository timelineRepository,
+        LegacyTimelineRepositoryAdapter timelineRepository,
         CoreBranchTree branchTree,
         DateTime knownWriteTimeUtc,
         string romId,
@@ -212,34 +204,20 @@ internal static class GameWindowTimelinePersistenceController
         int previewWidth,
         int previewHeight)
     {
-        var syncResult = BuildManifestSyncResult(knownWriteTimeUtc, romId);
-        if (!syncResult.ShouldSyncManifest)
-            return null;
-
-        return LoadTimelineState(
-            timelineRepository,
+        var loadState = timelineRepository.TryReloadTimelineState(
             branchTree,
+            knownWriteTimeUtc,
             romId,
             displayName,
-            romPath,
-            previewWidth,
-            previewHeight);
-    }
+            romPath);
+        if (loadState is null)
+            return null;
 
-    public static void PopulateCoreBranchTree(
-        TimelineRepository timelineRepository,
-        CoreBranchTree branchTree,
-        TimelineManifest timelineManifest,
-        string romId,
-        string? romPath)
-    {
-        ArgumentNullException.ThrowIfNull(timelineRepository);
-        ArgumentNullException.ThrowIfNull(branchTree);
-        ArgumentNullException.ThrowIfNull(timelineManifest);
-
-        var legacyBranchTree = new BranchTree();
-        timelineRepository.PopulateBranchTree(legacyBranchTree, timelineManifest, romId, romPath);
-        branchTree.ReplaceRoots(legacyBranchTree.Roots.Select(CoreTimelineModelBridge.ToCoreBranchPoint));
+        return new GameWindowTimelineReloadState(
+            loadState.Manifest,
+            loadState.CurrentBranchId,
+            BuildPreviewNodes(loadState.PreviewNodes, previewWidth, previewHeight),
+            loadState.ManifestWriteTimeUtc);
     }
 
     public static DateTime ReadManifestWriteTimeUtc(string romId)

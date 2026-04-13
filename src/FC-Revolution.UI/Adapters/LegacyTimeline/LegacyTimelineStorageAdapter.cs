@@ -1,35 +1,30 @@
 using System;
-using System.IO;
-using FCRevolution.Core.Timeline.Persistence;
+using FCRevolution.Core.FC.LegacyAdapters;
 
 namespace FC_Revolution.UI.Adapters.LegacyTimeline;
 
 internal static class LegacyTimelineStorageAdapter
 {
-    public static string ComputeRomId(string romPath) => TimelineStoragePaths.ComputeRomId(romPath);
+    public static string ComputeRomId(string romPath) => LegacyTimelineStorage.ComputeRomId(romPath);
 
-    public static Guid GetStableMainBranchId(string romId) => TimelineStoragePaths.GetStableMainBranchId(romId);
+    public static Guid GetStableMainBranchId(string romId) => LegacyTimelineStorage.GetStableMainBranchId(romId);
 
     public static void EnsureBranchDirectory(string romId, Guid branchId) =>
-        TimelineStoragePaths.EnsureBranchDirectory(romId, branchId);
+        LegacyTimelineStorage.EnsureBranchDirectory(romId, branchId);
 
     public static string GetQuickSavePath(string romId, Guid branchId) =>
-        TimelineStoragePaths.GetQuickSavePath(romId, branchId);
+        LegacyTimelineStorage.GetQuickSavePath(romId, branchId);
 
     public static string GetInputLogPath(string romId, Guid branchId) =>
-        TimelineStoragePaths.GetInputLogPath(romId, branchId);
+        LegacyTimelineStorage.GetInputLogPath(romId, branchId);
 
     public static string GetExportPath(string romId, Guid branchId, long startFrame, long endFrame) =>
-        TimelineStoragePaths.GetExportPath(romId, branchId, startFrame, endFrame);
+        LegacyTimelineStorage.GetExportPath(romId, branchId, startFrame, endFrame);
 
     public static string GetBranchSnapshotPath(string romId, Guid branchId) =>
-        TimelineStoragePaths.GetBranchSnapshotPath(romId, branchId);
+        LegacyTimelineStorage.GetBranchSnapshotPath(romId, branchId);
 
-    public static string GetRomDirectory(string romId) => TimelineStoragePaths.GetRomDirectory(romId);
+    public static string GetRomDirectory(string romId) => LegacyTimelineStorage.GetRomDirectory(romId);
 
-    public static DateTime ReadManifestWriteTimeUtc(string romId)
-    {
-        var manifestPath = TimelineStoragePaths.GetManifestPath(romId);
-        return File.Exists(manifestPath) ? File.GetLastWriteTimeUtc(manifestPath) : DateTime.MinValue;
-    }
+    public static DateTime ReadManifestWriteTimeUtc(string romId) => LegacyTimelineStorage.ReadManifestWriteTimeUtc(romId);
 }

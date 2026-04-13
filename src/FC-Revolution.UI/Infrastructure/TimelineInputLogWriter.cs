@@ -1,11 +1,11 @@
 using System;
-using FC_Revolution.UI.Adapters.Nes;
+using FCRevolution.Core.FC.LegacyAdapters;
 
 namespace FC_Revolution.UI.Infrastructure;
 
 internal sealed class TimelineInputLogWriter : IDisposable
 {
-    private readonly NesTimelineInputLogWriter _writer = new();
+    private readonly NesReplayLogWriter _writer = new();
 
     public bool IsOpen => _writer.IsOpen;
 
