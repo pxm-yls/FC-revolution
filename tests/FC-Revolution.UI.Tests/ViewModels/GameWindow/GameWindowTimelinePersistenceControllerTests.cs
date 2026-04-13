@@ -1,7 +1,7 @@
 using System.IO;
 using System.Linq;
-using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
+using FCRevolution.FC.LegacyAdapters;
 using FC_Revolution.UI.Adapters.LegacyTimeline;
 using FC_Revolution.UI.ViewModels;
 
@@ -13,7 +13,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void BuildPreviewNodes_ProjectsPersistedEntries_ToPreviewNodes()
     {
-        var entry = new LegacyTimelinePreviewEntry(
+        var entry = new TimelinePreviewEntry(
             SnapshotId: Guid.NewGuid(),
             BranchId: Guid.NewGuid(),
             Frame: 128,
@@ -147,7 +147,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryPersistPreviewNode_SavesPreviewNode_AndReturnsProjectedNode()
     {
-        var repository = new LegacyTimelineRepositoryAdapter();
+        ITimelineRepositoryBridge repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-preview-{Guid.NewGuid():N}";
 
         try
@@ -197,7 +197,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void LoadTimelineState_LoadsManifestBranchTree_AndPreviewNodes()
     {
-        var repository = new LegacyTimelineRepositoryAdapter();
+        ITimelineRepositoryBridge repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-reload-{Guid.NewGuid():N}";
         var romPath = "/tmp/reload-test-rom.nes";
 
@@ -252,7 +252,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryReloadTimelineState_WhenManifestWriteTimeIsNotNewer_ReturnsNull()
     {
-        var repository = new LegacyTimelineRepositoryAdapter();
+        ITimelineRepositoryBridge repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-nosync-{Guid.NewGuid():N}";
         var romPath = "/tmp/no-sync-rom.nes";
 
@@ -284,7 +284,7 @@ public sealed class GameWindowTimelinePersistenceControllerTests
     [Fact]
     public void TryReloadTimelineState_WhenManifestWriteTimeIsNewer_ReloadsTimelineState()
     {
-        var repository = new LegacyTimelineRepositoryAdapter();
+        ITimelineRepositoryBridge repository = new LegacyTimelineRepositoryAdapter();
         var romId = $"ui-resync-{Guid.NewGuid():N}";
         var romPath = "/tmp/resync-test-rom.nes";
 

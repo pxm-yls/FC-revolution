@@ -1,4 +1,3 @@
-using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Adapters.LegacyTimeline;
 
@@ -21,7 +20,7 @@ public sealed class GameWindowPreviewNodeFactoryTests
                 Data = []
             }
         };
-        var entry = new LegacyTimelinePreviewEntry(
+        var entry = new TimelinePreviewEntry(
             SnapshotId: Guid.NewGuid(),
             BranchId: Guid.NewGuid(),
             Frame: 321,
@@ -44,7 +43,7 @@ public sealed class GameWindowPreviewNodeFactoryTests
     [Fact]
     public void Create_UsesFallbackTitle_WhenRecordNameMissing()
     {
-        var entry = new LegacyTimelinePreviewEntry(
+        var entry = new TimelinePreviewEntry(
             SnapshotId: Guid.NewGuid(),
             BranchId: Guid.NewGuid(),
             Frame: 42,

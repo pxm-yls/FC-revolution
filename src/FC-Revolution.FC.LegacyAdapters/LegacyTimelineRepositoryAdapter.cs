@@ -6,7 +6,7 @@ using StorageTimelineStoragePaths = FCRevolution.Storage.TimelineStoragePaths;
 
 namespace FCRevolution.FC.LegacyAdapters;
 
-public sealed class LegacyTimelineManifestHandle
+public sealed class LegacyTimelineManifestHandle : ITimelineManifestHandle
 {
     internal LegacyTimelineManifestHandle(TimelineManifest manifest)
     {
@@ -28,27 +28,12 @@ public sealed class LegacyTimelineManifestHandle
     }
 }
 
-public sealed record LegacyTimelinePreviewEntry(
-    Guid SnapshotId,
-    Guid BranchId,
-    long Frame,
-    double TimestampSeconds,
-    DateTime CreatedAtUtc,
-    string? Name,
-    CoreTimelineSnapshot Snapshot);
-
-public sealed record LegacyTimelineLoadState(
-    LegacyTimelineManifestHandle Manifest,
-    Guid CurrentBranchId,
-    IReadOnlyList<LegacyTimelinePreviewEntry> PreviewNodes,
-    DateTime ManifestWriteTimeUtc);
-
-public sealed class LegacyTimelineRepositoryAdapter
+public sealed class LegacyTimelineRepositoryAdapter : ITimelineRepositoryBridge
 {
     private const string DefaultSnapshotFormat = "nes/fcrs";
     private readonly TimelineRepository _repository = new();
 
-    public LegacyTimelineLoadState LoadTimelineState(
+    public TimelineLoadState LoadTimelineState(
         CoreBranchTree branchTree,
         string romId,
         string displayName,
@@ -59,14 +44,14 @@ public sealed class LegacyTimelineRepositoryAdapter
         var manifest = new LegacyTimelineManifestHandle(_repository.LoadOrCreate(romId, displayName));
         PopulateCoreBranchTree(branchTree, manifest, romId, romPath);
         var previewNodes = LoadPreviewNodes(manifest);
-        return new LegacyTimelineLoadState(
+        return new TimelineLoadState(
             manifest,
             manifest.CurrentBranchId,
             previewNodes,
             StorageTimelineStoragePaths.ReadManifestWriteTimeUtc(romId));
     }
 
-    public LegacyTimelineLoadState? TryReloadTimelineState(
+    public TimelineLoadState? TryReloadTimelineState(
         CoreBranchTree branchTree,
         DateTime knownWriteTimeUtc,
         string romId,
@@ -79,38 +64,41 @@ public sealed class LegacyTimelineRepositoryAdapter
         return LoadTimelineState(branchTree, romId, displayName, romPath);
     }
 
-    public IReadOnlyList<LegacyTimelinePreviewEntry> LoadPreviewNodes(LegacyTimelineManifestHandle manifest)
+    public IReadOnlyList<TimelinePreviewEntry> LoadPreviewNodes(ITimelineManifestHandle manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
+        var legacyManifest = RequireManifestHandle(manifest);
 
-        return _repository.LoadPreviewNodes(manifest.Manifest)
+        return _repository.LoadPreviewNodes(legacyManifest.Manifest)
             .Select(entry => CreatePreviewEntry(entry.Record, ToCoreTimelineSnapshot(entry.Snapshot)))
             .ToList();
     }
 
     public void PersistQuickSaveSnapshot(
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         Guid branchId,
         long frame,
         double timestampSeconds)
     {
         ArgumentNullException.ThrowIfNull(manifest);
+        var legacyManifest = RequireManifestHandle(manifest);
 
-        _ = _repository.UpsertQuickSaveSnapshot(manifest.Manifest, branchId, frame, timestampSeconds);
-        _repository.Save(manifest.Manifest);
+        _ = _repository.UpsertQuickSaveSnapshot(legacyManifest.Manifest, branchId, frame, timestampSeconds);
+        _repository.Save(legacyManifest.Manifest);
     }
 
-    public void SyncCurrentSnapshotFromManifest(LegacyTimelineManifestHandle manifest, Guid currentBranchId)
+    public void SyncCurrentSnapshotFromManifest(ITimelineManifestHandle manifest, Guid currentBranchId)
     {
         ArgumentNullException.ThrowIfNull(manifest);
+        var legacyManifest = RequireManifestHandle(manifest);
 
-        manifest.CurrentBranchId = currentBranchId;
-        _ = _repository.GetQuickSaveSnapshot(manifest.Manifest, currentBranchId);
-        _repository.Save(manifest.Manifest);
+        legacyManifest.CurrentBranchId = currentBranchId;
+        _ = _repository.GetQuickSaveSnapshot(legacyManifest.Manifest, currentBranchId);
+        _repository.Save(legacyManifest.Manifest);
     }
 
     public void PersistBranchPoint(
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         string romId,
         CoreBranchPoint branchPoint,
         Guid? parentBranchId,
@@ -118,42 +106,44 @@ public sealed class LegacyTimelineRepositoryAdapter
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(branchPoint);
+        var legacyManifest = RequireManifestHandle(manifest);
 
         _repository.SaveBranchPoint(
-            manifest.Manifest,
+            legacyManifest.Manifest,
             romId,
             ToLegacyBranchPoint(branchPoint, romPath),
             parentBranchId);
     }
 
     public void DeleteBranchPoint(
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         string romId,
         Guid branchId)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        _repository.DeleteBranch(manifest.Manifest, romId, branchId);
+        _repository.DeleteBranch(RequireManifestHandle(manifest).Manifest, romId, branchId);
     }
 
-    public void RenameBranchPoint(LegacyTimelineManifestHandle manifest, CoreBranchPoint branchPoint)
+    public void RenameBranchPoint(ITimelineManifestHandle manifest, CoreBranchPoint branchPoint)
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(branchPoint);
 
-        _repository.RenameBranch(manifest.Manifest, branchPoint.Id, branchPoint.Name);
+        _repository.RenameBranch(RequireManifestHandle(manifest).Manifest, branchPoint.Id, branchPoint.Name);
     }
 
-    public Guid ActivateBranch(LegacyTimelineManifestHandle manifest, Guid branchId)
+    public Guid ActivateBranch(ITimelineManifestHandle manifest, Guid branchId)
     {
         ArgumentNullException.ThrowIfNull(manifest);
+        var legacyManifest = RequireManifestHandle(manifest);
 
-        manifest.CurrentBranchId = branchId;
-        _repository.Save(manifest.Manifest);
+        legacyManifest.CurrentBranchId = branchId;
+        _repository.Save(legacyManifest.Manifest);
         return branchId;
     }
 
-    public LegacyTimelinePreviewEntry SavePreviewNode(
-        LegacyTimelineManifestHandle manifest,
+    public TimelinePreviewEntry SavePreviewNode(
+        ITimelineManifestHandle manifest,
         string romId,
         Guid branchId,
         Guid previewNodeId,
@@ -162,10 +152,11 @@ public sealed class LegacyTimelineRepositoryAdapter
     {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(snapshot);
+        var legacyManifest = RequireManifestHandle(manifest);
 
         var legacySnapshot = ToLegacyFrameSnapshot(snapshot);
         var record = _repository.SavePreviewNode(
-            manifest.Manifest,
+            legacyManifest.Manifest,
             romId,
             branchId,
             previewNodeId,
@@ -175,42 +166,43 @@ public sealed class LegacyTimelineRepositoryAdapter
     }
 
     public void DeletePreviewNode(
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         string romId,
         Guid previewNodeId)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        _repository.DeletePreviewNode(manifest.Manifest, romId, previewNodeId);
+        _repository.DeletePreviewNode(RequireManifestHandle(manifest).Manifest, romId, previewNodeId);
     }
 
     public void RenamePreviewNode(
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         Guid previewNodeId,
         string title)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        _repository.RenamePreviewNode(manifest.Manifest, previewNodeId, title);
+        _repository.RenamePreviewNode(RequireManifestHandle(manifest).Manifest, previewNodeId, title);
     }
 
     public void PopulateCoreBranchTree(
         CoreBranchTree branchTree,
-        LegacyTimelineManifestHandle manifest,
+        ITimelineManifestHandle manifest,
         string romId,
         string? romPath)
     {
         ArgumentNullException.ThrowIfNull(branchTree);
         ArgumentNullException.ThrowIfNull(manifest);
+        var legacyManifest = RequireManifestHandle(manifest);
 
         var legacyBranchTree = new BranchTree();
-        _repository.PopulateBranchTree(legacyBranchTree, manifest.Manifest, romId, romPath);
+        _repository.PopulateBranchTree(legacyBranchTree, legacyManifest.Manifest, romId, romPath);
         branchTree.ReplaceRoots(legacyBranchTree.Roots.Select(ToCoreBranchPoint));
     }
 
-    private static LegacyTimelinePreviewEntry CreatePreviewEntry(
+    private static TimelinePreviewEntry CreatePreviewEntry(
         TimelineSnapshotRecord record,
         CoreTimelineSnapshot snapshot)
     {
-        return new LegacyTimelinePreviewEntry(
+        return new TimelinePreviewEntry(
             record.SnapshotId,
             record.BranchId,
             record.Frame,
@@ -218,6 +210,14 @@ public sealed class LegacyTimelineRepositoryAdapter
             record.CreatedAtUtc,
             record.Name,
             snapshot);
+    }
+
+    private static LegacyTimelineManifestHandle RequireManifestHandle(ITimelineManifestHandle manifest)
+    {
+        if (manifest is LegacyTimelineManifestHandle legacyManifest)
+            return legacyManifest;
+
+        throw new InvalidOperationException($"Unsupported timeline manifest handle type: {manifest.GetType().FullName}");
     }
 
     private static CoreTimelineSnapshot ToCoreTimelineSnapshot(FrameSnapshot snapshot)

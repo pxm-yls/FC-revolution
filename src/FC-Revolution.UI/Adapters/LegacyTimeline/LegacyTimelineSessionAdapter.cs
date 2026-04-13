@@ -14,16 +14,22 @@ internal readonly record struct LegacyTimelineSessionReloadState(
 
 internal sealed class LegacyTimelineSessionAdapter
 {
-    private readonly LegacyTimelineRepositoryAdapter _timelineRepository = new();
+    private readonly ITimelineRepositoryBridge _timelineRepository;
     private readonly CoreBranchTree _branchTree;
-    private LegacyTimelineManifestHandle? _timelineManifest;
+    private ITimelineManifestHandle? _timelineManifest;
     private string? _displayName;
     private string? _romPath;
     private DateTime _manifestWriteTimeUtc;
 
     public LegacyTimelineSessionAdapter(CoreBranchTree branchTree)
+        : this(branchTree, new LegacyTimelineRepositoryAdapter())
+    {
+    }
+
+    internal LegacyTimelineSessionAdapter(CoreBranchTree branchTree, ITimelineRepositoryBridge timelineRepository)
     {
         _branchTree = branchTree;
+        _timelineRepository = timelineRepository;
     }
 
     public string? RomId { get; private set; }
@@ -248,7 +254,7 @@ internal sealed class LegacyTimelineSessionAdapter
         return new LegacyTimelineSessionReloadState(reloadState.Value.PreviewNodes);
     }
 
-    private bool TryRequireTimeline(out LegacyTimelineManifestHandle timelineManifest)
+    private bool TryRequireTimeline(out ITimelineManifestHandle timelineManifest)
     {
         if (_timelineManifest is not null)
         {
@@ -260,7 +266,7 @@ internal sealed class LegacyTimelineSessionAdapter
         return false;
     }
 
-    private bool TryRequireTimeline(out LegacyTimelineManifestHandle timelineManifest, out string romId)
+    private bool TryRequireTimeline(out ITimelineManifestHandle timelineManifest, out string romId)
     {
         if (_timelineManifest is not null && RomId is not null)
         {

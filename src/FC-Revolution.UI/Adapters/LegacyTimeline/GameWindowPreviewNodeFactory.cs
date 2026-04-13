@@ -1,4 +1,3 @@
-using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -7,7 +6,7 @@ namespace FC_Revolution.UI.Adapters.LegacyTimeline;
 internal static class GameWindowPreviewNodeFactory
 {
     public static BranchPreviewNode Create(
-        LegacyTimelinePreviewEntry previewEntry,
+        TimelinePreviewEntry previewEntry,
         int previewWidth,
         int previewHeight)
     {

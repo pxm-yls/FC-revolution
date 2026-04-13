@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.ViewModels;
 
@@ -19,7 +18,7 @@ internal readonly record struct GameWindowPersistPreviewNodeResult(
     DateTime ManifestWriteTimeUtc);
 
 internal readonly record struct GameWindowTimelineReloadState(
-    LegacyTimelineManifestHandle Manifest,
+    ITimelineManifestHandle Manifest,
     Guid CurrentBranchId,
     IReadOnlyList<BranchPreviewNode> PreviewNodes,
     DateTime ManifestWriteTimeUtc);
@@ -27,7 +26,7 @@ internal readonly record struct GameWindowTimelineReloadState(
 internal static class GameWindowTimelinePersistenceController
 {
     public static GameWindowTimelineReloadState LoadTimelineState(
-        LegacyTimelineRepositoryAdapter timelineRepository,
+        ITimelineRepositoryBridge timelineRepository,
         CoreBranchTree branchTree,
         string romId,
         string displayName,
@@ -44,8 +43,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static IReadOnlyList<BranchPreviewNode> LoadPreviewNodes(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         int previewWidth,
         int previewHeight)
     {
@@ -54,7 +53,7 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static IReadOnlyList<BranchPreviewNode> BuildPreviewNodes(
-        IReadOnlyList<LegacyTimelinePreviewEntry> previewEntries,
+        IReadOnlyList<TimelinePreviewEntry> previewEntries,
         int previewWidth,
         int previewHeight)
     {
@@ -64,8 +63,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static void PersistBranchPoint(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         string romId,
         CoreBranchPoint branchPoint,
         Guid? parentBranchId,
@@ -80,8 +79,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static void DeleteBranchPoint(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         string romId,
         Guid branchId)
     {
@@ -89,16 +88,16 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static void RenameBranchPoint(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         CoreBranchPoint branchPoint)
     {
         timelineRepository.RenameBranchPoint(timelineManifest, branchPoint);
     }
 
     public static Guid ActivateBranch(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         Guid branchId)
     {
         return timelineRepository.ActivateBranch(timelineManifest, branchId);
@@ -132,8 +131,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static GameWindowPersistPreviewNodeResult? TryPersistPreviewNode(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         string romId,
         Guid currentBranchId,
         BranchCanvasNode node,
@@ -165,8 +164,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static DateTime DeletePreviewNode(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         string romId,
         Guid previewNodeId)
     {
@@ -175,8 +174,8 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static DateTime RenamePreviewNode(
-        LegacyTimelineRepositoryAdapter timelineRepository,
-        LegacyTimelineManifestHandle timelineManifest,
+        ITimelineRepositoryBridge timelineRepository,
+        ITimelineManifestHandle timelineManifest,
         string romId,
         Guid previewNodeId,
         string title)
@@ -195,7 +194,7 @@ internal static class GameWindowTimelinePersistenceController
     }
 
     public static GameWindowTimelineReloadState? TryReloadTimelineState(
-        LegacyTimelineRepositoryAdapter timelineRepository,
+        ITimelineRepositoryBridge timelineRepository,
         CoreBranchTree branchTree,
         DateTime knownWriteTimeUtc,
         string romId,
