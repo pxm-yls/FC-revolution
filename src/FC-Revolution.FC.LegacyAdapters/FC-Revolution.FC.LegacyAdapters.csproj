@@ -10,5 +10,6 @@
   <ItemGroup>
     <ProjectReference Include="..\FC-Revolution.Core\FC-Revolution.Core.FC\FC-Revolution.Core.csproj" />
     <ProjectReference Include="..\FC-Revolution.Emulation.Abstractions\FC-Revolution.Emulation.Abstractions.csproj" />
+    <ProjectReference Include="..\FC-Revolution.Storage\FC-Revolution.Storage.csproj" />
   </ItemGroup>
 </Project>

@@ -2,6 +2,7 @@ using FCRevolution.Core.State;
 using FCRevolution.Core.Timeline;
 using FCRevolution.Core.Timeline.Persistence;
 using FCRevolution.Emulation.Abstractions;
+using StorageTimelineStoragePaths = FCRevolution.Storage.TimelineStoragePaths;
 
 namespace FCRevolution.FC.LegacyAdapters;
 
@@ -62,7 +63,7 @@ public sealed class LegacyTimelineRepositoryAdapter
             manifest,
             manifest.CurrentBranchId,
             previewNodes,
-            LegacyTimelineStorage.ReadManifestWriteTimeUtc(romId));
+            StorageTimelineStoragePaths.ReadManifestWriteTimeUtc(romId));
     }
 
     public LegacyTimelineLoadState? TryReloadTimelineState(
@@ -72,7 +73,7 @@ public sealed class LegacyTimelineRepositoryAdapter
         string displayName,
         string romPath)
     {
-        if (LegacyTimelineStorage.ReadManifestWriteTimeUtc(romId) <= knownWriteTimeUtc)
+        if (StorageTimelineStoragePaths.ReadManifestWriteTimeUtc(romId) <= knownWriteTimeUtc)
             return null;
 
         return LoadTimelineState(branchTree, romId, displayName, romPath);
