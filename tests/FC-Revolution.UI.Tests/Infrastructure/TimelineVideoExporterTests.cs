@@ -1,6 +1,5 @@
-using FCRevolution.Core.Replay;
-using FCRevolution.Core.State;
-using FCRevolution.Core.Timeline.Persistence;
+using System.Buffers.Binary;
+using FCRevolution.Storage;
 using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.Tests;
@@ -26,16 +25,7 @@ public sealed class TimelineVideoExporterTests
                 writer.Flush();
             }
 
-            var snapshotBytes = StateSnapshotSerializer.Serialize(new StateSnapshotData
-            {
-                Frame = 120,
-                Timestamp = 2.0,
-                CpuState = [1],
-                PpuState = [2],
-                RamState = [3],
-                CartState = [4],
-                ApuState = [5],
-            }, includeThumbnail: false);
+            var snapshotBytes = CreateSnapshotBytes(frame: 120);
 
             var plan = TimelineVideoExporter.BuildReplayPlan(snapshotBytes, inputLogPath, 122, 124);
 
@@ -78,5 +68,15 @@ public sealed class TimelineVideoExporterTests
             if (File.Exists(inputLogPath))
                 File.Delete(inputLogPath);
         }
+    }
+
+    private static byte[] CreateSnapshotBytes(long frame)
+    {
+        var bytes = new byte[14];
+        "FCRS"u8.CopyTo(bytes);
+        bytes[4] = 1;
+        bytes[5] = 0;
+        BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(6, 8), frame);
+        return bytes;
     }
 }

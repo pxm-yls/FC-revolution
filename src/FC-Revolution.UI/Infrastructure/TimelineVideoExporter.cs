@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using FCRevolution.FC.LegacyAdapters;
 using FCRevolution.Rendering.Abstractions;
+using FCRevolution.Storage;
 
 namespace FC_Revolution.UI.Infrastructure;
 
@@ -47,11 +48,18 @@ internal static class TimelineVideoExporter
 
     internal static ReplayExportPlan BuildReplayPlan(byte[] snapshotBytes, string inputLogPath, long startFrame, long endFrame)
     {
-        var plan = NesReplayInterop.BuildReplayPlan(snapshotBytes, inputLogPath, startFrame, endFrame);
+        if (endFrame < startFrame)
+            throw new ArgumentOutOfRangeException(nameof(endFrame), "结束帧不能早于起始帧。");
+
+        var baseFrame = StateSnapshotFrameReader.HasHeader(snapshotBytes)
+            ? StateSnapshotFrameReader.ReadFrame(snapshotBytes)
+            : startFrame;
+        var records = ReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame)
+            .Select(record => new ReplayInputRecord(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask))
+            .ToArray();
+
         return new ReplayExportPlan(
-            plan.BaseFrame,
-            plan.Records
-                .Select(record => new ReplayInputRecord(record.Frame, record.Player1Mask, record.Player2Mask))
-                .ToArray());
+            baseFrame,
+            records);
     }
 }

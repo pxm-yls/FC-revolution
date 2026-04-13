@@ -223,8 +223,8 @@
 现状见 [MainWindowViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/ViewModels/MainWindowViewModel.cs) 中的 `_coreSession = CreateMainCoreSession();`
 
 4. 这一轮之后，`FC-Revolution.UI` 已不再直接引用 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj)，显式 FC 兼容桥也已迁出 `Core.*` 工程树，现位于 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj)。
-   另外，timeline storage path 已迁到 [TimelineStoragePaths.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs) 通用层，UI 与 legacy adapter 的纯路径读写不再经过 FC core namespace。
-   这说明“非核心项目直接编译依赖 `FCRevolution.Core.*` 私有实现”这件事已经继续收口，但 legacy timeline repository / replay / mapper 仍然还是 FC/NES 专用逻辑，只是被限制在显式 adapter 包后面。
+   另外，timeline storage path 已迁到 [TimelineStoragePaths.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs) 通用层，replay log 文件格式与快照基准帧读取也已迁到 [ReplayLogWriter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogWriter.cs)、[ReplayLogReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogReader.cs) 与 [StateSnapshotFrameReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/StateSnapshotFrameReader.cs)。
+   这说明“非核心项目直接编译依赖 `FCRevolution.Core.*` 私有实现”这件事已经继续收口，但 legacy timeline repository、replay 渲染与 mapper 仍然还是 FC/NES 专用逻辑，只是被限制在显式 adapter 包后面。
 
 5. 共享运行时已经能承担 package/probe/catalog/session 与最小 smoke test，但图形化 workbench 和外部核心仓库试点还没完成，因此“独立打包”仍主要停留在 managed package 与主仓内验证阶段。
 现状见 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs) 与 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)。
@@ -232,7 +232,7 @@
 这几件事叠加起来意味着：
 
 - 运行时启动模型已经基本摆脱“NES 是必需基础设施”的前提
-- 但旧时间线、mapper 与 replay 工具链仍没有摆脱 FC/NES 私有实现，只是已经被收口到显式 adapter 层
+- 但旧时间线 repository、mapper 与 replay 渲染链路仍没有摆脱 FC/NES 私有实现，只是已经被收口到显式 adapter 层
 
 ### 5.3 对你这个想法的优化建议
 
@@ -356,7 +356,7 @@ App startup
 1. package/probe/catalog/inspection/session 创建已经集中到 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
 2. 最小 smoke test 驱动已经沉到 [CoreSessionSmokeTester.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreSessionSmokeTester.cs)，并由 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs) 复用。
 3. headless preview driver 也已沉到 [CorePreviewFrameCaptureService.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CorePreviewFrameCaptureService.cs)，而 timeline storage path 也已沉到 [TimelineStoragePaths.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs) 通用层。
-4. 但 preview 编码/legacy 预览文件处理与 legacy timeline repository / replay / mapper 适配还在 UI 或显式 FC adapter，因此这一阶段还不能算完成。
+4. 但 preview 编码/legacy 预览文件处理与 legacy timeline repository / replay 渲染 / mapper 适配还在 UI 或显式 FC adapter，因此这一阶段还不能算完成。
 
 ### Phase B：消除编译时核心依赖并支持零核心启动（大部完成）
 
@@ -436,7 +436,7 @@ App startup
 
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
-1. `FC-Revolution.UI` 已改为通过显式 FC adapter 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path 已下沉到 [TimelineStoragePaths.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs) 通用层，但 repository / replay / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
+1. `FC-Revolution.UI` 已改为通过显式 FC adapter 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path、replay log 文件格式和 snapshot base-frame 读取已下沉到 `Storage` 通用层，但 repository / replay 渲染 / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
 2. 旧时间线桥接、preview 编码与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
 3. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
 4. `native-cabi` 路线还只是方案，不是代码能力。

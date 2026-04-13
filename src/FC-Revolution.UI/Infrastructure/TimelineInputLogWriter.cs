@@ -1,11 +1,11 @@
 using System;
-using FCRevolution.FC.LegacyAdapters;
+using FCRevolution.Storage;
 
 namespace FC_Revolution.UI.Infrastructure;
 
 internal sealed class TimelineInputLogWriter : IDisposable
 {
-    private readonly NesReplayLogWriter _writer = new();
+    private readonly ReplayLogWriter _writer = new();
 
     public bool IsOpen => _writer.IsOpen;
 
@@ -14,7 +14,7 @@ internal sealed class TimelineInputLogWriter : IDisposable
     public void Close() => _writer.Close();
 
     public void Append(long frame, byte player1Mask, byte player2Mask) =>
-        _writer.Append(frame, player1Mask, player2Mask);
+        _writer.Append(new FrameInputRecord(frame, player1Mask, player2Mask));
 
     public void Dispose() => _writer.Dispose();
 }

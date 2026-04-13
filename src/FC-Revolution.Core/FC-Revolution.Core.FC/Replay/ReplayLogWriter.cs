@@ -1,57 +1,25 @@
-using System.Buffers.Binary;
+using StorageFrameInputRecord = FCRevolution.Storage.FrameInputRecord;
+using StorageReplayLogWriter = FCRevolution.Storage.ReplayLogWriter;
 
 namespace FCRevolution.Core.Replay;
 
 /// <summary>Appends compact per-frame input records to a branch-local replay log.</summary>
 public sealed class ReplayLogWriter : IDisposable
 {
-    private static ReadOnlySpan<byte> Magic => "FCRL"u8;
-    private const byte CurrentVersion = 1;
+    private readonly StorageReplayLogWriter _writer = new();
 
-    private FileStream? _stream;
+    public string? Path => _writer.Path;
 
-    public string? Path { get; private set; }
+    public bool IsOpen => _writer.IsOpen;
 
-    public bool IsOpen => _stream != null;
+    public void Open(string path, bool resetFile) => _writer.Open(path, resetFile);
 
-    public void Open(string path, bool resetFile)
-    {
-        Close();
+    public void Append(FrameInputRecord record) =>
+        _writer.Append(new StorageFrameInputRecord(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask));
 
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
-        var mode = resetFile || !File.Exists(path) ? FileMode.Create : FileMode.Append;
-        _stream = new FileStream(path, mode, FileAccess.Write, FileShare.Read);
-        Path = path;
+    public void Flush() => _writer.Flush();
 
-        if (_stream.Length == 0)
-        {
-            _stream.Write(Magic);
-            _stream.WriteByte(CurrentVersion);
-            _stream.Flush();
-        }
-    }
+    public void Close() => _writer.Close();
 
-    public void Append(FrameInputRecord record)
-    {
-        if (_stream == null)
-            return;
-
-        Span<byte> buffer = stackalloc byte[10];
-        BinaryPrimitives.WriteInt64LittleEndian(buffer[..8], record.Frame);
-        buffer[8] = record.Player1ButtonsMask;
-        buffer[9] = record.Player2ButtonsMask;
-        _stream.Write(buffer);
-    }
-
-    public void Flush() => _stream?.Flush();
-
-    public void Close()
-    {
-        _stream?.Flush();
-        _stream?.Dispose();
-        _stream = null;
-        Path = null;
-    }
-
-    public void Dispose() => Close();
+    public void Dispose() => _writer.Dispose();
 }
