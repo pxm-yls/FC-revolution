@@ -523,7 +523,10 @@ internal sealed class MainWindowInputBindingsController
         IReadOnlyDictionary<string, Dictionary<string, string>> portInputOverrides,
         CoreInputBindingSchema inputBindingSchema)
     {
-        var primaryPortId = inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId ?? "p1";
+        var primaryPortId = inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId;
+        if (string.IsNullOrWhiteSpace(primaryPortId))
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         return portInputOverrides.TryGetValue(primaryPortId, out var primaryPortOverrides)
             ? new Dictionary<string, string>(primaryPortOverrides, StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

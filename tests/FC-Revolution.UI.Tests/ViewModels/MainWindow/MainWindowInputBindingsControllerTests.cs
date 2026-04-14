@@ -260,6 +260,40 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(Key.X, maps["pad-east"]["jump"]);
     }
 
+    [Fact]
+    public void SaveRomProfileInputOverride_WithSchemaWithoutPorts_DoesNotSynthesizeLegacyPrimaryPort()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var romPath = Path.GetTempFileName();
+
+        try
+        {
+            controller.SaveRomProfileInputOverride(
+                romPath,
+                new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["pad-west"] = new(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["fire"] = Key.Z
+                    }
+                },
+                new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
+                CoreInputBindingSchema.Create(new EmptyInputSchema()));
+
+            var profile = RomConfigProfile.Load(romPath);
+            Assert.Empty(profile.PlayerInputOverrides);
+            Assert.Empty(profile.InputOverrides);
+        }
+        finally
+        {
+            var profilePath = RomConfigProfile.GetProfilePath(romPath);
+            if (File.Exists(romPath))
+                File.Delete(romPath);
+            if (File.Exists(profilePath))
+                File.Delete(profilePath);
+        }
+    }
+
     private static InputBindingEntry CreateInputBinding(string portId, string actionId, string actionName, Key key) =>
         new(portId, GetPortLabel(portId), actionId, actionName, key, TestConfigurableKeys);
 
@@ -294,5 +328,12 @@ public sealed class MainWindowInputBindingsControllerTests
             new("fire", "Fire", "pad-west", InputValueKind.Digital),
             new("jump", "Jump", "pad-east", InputValueKind.Digital)
         ];
+    }
+
+    private sealed class EmptyInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } = [];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } = [];
     }
 }
