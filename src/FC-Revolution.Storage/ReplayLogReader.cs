@@ -1,4 +1,6 @@
 using System.Buffers.Binary;
+using System.Collections.ObjectModel;
+using System.Text;
 
 namespace FCRevolution.Storage;
 
@@ -6,9 +8,9 @@ namespace FCRevolution.Storage;
 public static class ReplayLogReader
 {
     private static ReadOnlySpan<byte> Magic => "FCRL"u8;
-    private const byte CurrentVersion = 1;
     private const int HeaderSize = 5;
-    private const int RecordSize = 10;
+    private const byte LegacyVersion = 1;
+    private const byte CurrentVersion = 2;
 
     public static List<FrameInputRecord> ReadAll(string path)
     {
@@ -31,10 +33,10 @@ public static class ReplayLogReader
 
     public static List<FrameInputRecord> ReadAll(Stream stream)
     {
-        ValidateHeader(stream);
+        var header = ReadHeader(stream);
 
         var records = new List<FrameInputRecord>();
-        foreach (var record in EnumerateRecords(stream))
+        foreach (var record in EnumerateRecords(stream, header))
             records.Add(record);
 
         return records;
@@ -42,8 +44,8 @@ public static class ReplayLogReader
 
     public static IEnumerable<FrameInputRecord> ReadRange(Stream stream, long startExclusiveFrame, long endInclusiveFrame)
     {
-        ValidateHeader(stream);
-        foreach (var record in EnumerateRecords(stream))
+        var header = ReadHeader(stream);
+        foreach (var record in EnumerateRecords(stream, header))
         {
             if (record.Frame <= startExclusiveFrame)
                 continue;
@@ -54,7 +56,7 @@ public static class ReplayLogReader
         }
     }
 
-    private static void ValidateHeader(Stream stream)
+    internal static ReplayLogHeader ReadHeader(Stream stream)
     {
         Span<byte> header = stackalloc byte[HeaderSize];
         if (stream.Read(header) != HeaderSize)
@@ -63,25 +65,62 @@ public static class ReplayLogReader
         if (!header[..4].SequenceEqual(Magic))
             throw new InvalidDataException("Replay log magic mismatch.");
 
-        if (header[4] != CurrentVersion)
-            throw new InvalidDataException($"Unsupported replay log version: {header[4]}.");
+        return header[4] switch
+        {
+            LegacyVersion => new ReplayLogHeader(LegacyVersion, ["p1", "p2"]),
+            CurrentVersion => ReadCurrentHeader(stream),
+            _ => throw new InvalidDataException($"Unsupported replay log version: {header[4]}.")
+        };
     }
 
-    private static IEnumerable<FrameInputRecord> EnumerateRecords(Stream stream)
+    private static ReplayLogHeader ReadCurrentHeader(Stream stream)
     {
-        var buffer = new byte[RecordSize];
+        var portCount = stream.ReadByte();
+        if (portCount < 0)
+            throw new InvalidDataException("Replay log header is incomplete.");
+
+        var portIds = new List<string>(portCount);
+        for (var index = 0; index < portCount; index++)
+        {
+            var length = stream.ReadByte();
+            if (length <= 0)
+                throw new InvalidDataException("Replay log port metadata is incomplete.");
+
+            var portBytes = new byte[length];
+            if (stream.Read(portBytes, 0, length) != length)
+                throw new InvalidDataException("Replay log port metadata is incomplete.");
+
+            var portId = Encoding.UTF8.GetString(portBytes).Trim();
+            if (string.IsNullOrWhiteSpace(portId))
+                throw new InvalidDataException("Replay log contains an empty port id.");
+
+            portIds.Add(portId);
+        }
+
+        return new ReplayLogHeader(CurrentVersion, portIds);
+    }
+
+    private static IEnumerable<FrameInputRecord> EnumerateRecords(Stream stream, ReplayLogHeader header)
+    {
+        var recordSize = 8 + header.PortIds.Count;
+        var buffer = new byte[recordSize];
         while (true)
         {
-            var read = stream.Read(buffer, 0, RecordSize);
+            var read = stream.Read(buffer, 0, recordSize);
             if (read == 0)
                 yield break;
-            if (read != RecordSize)
+            if (read != recordSize)
                 throw new InvalidDataException("Replay log record is truncated.");
+
+            var buttonsByPort = new Dictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < header.PortIds.Count; index++)
+                buttonsByPort[header.PortIds[index]] = buffer[8 + index];
 
             yield return new FrameInputRecord(
                 BinaryPrimitives.ReadInt64LittleEndian(buffer.AsSpan(0, 8)),
-                buffer[8],
-                buffer[9]);
+                new ReadOnlyDictionary<string, byte>(buttonsByPort));
         }
     }
+
+    internal sealed record ReplayLogHeader(byte Version, IReadOnlyList<string> PortIds);
 }

@@ -51,7 +51,7 @@ internal sealed class GameWindowViewModelTestHost : IDisposable
         });
     }
 
-    internal byte ReadCombinedInputMask(int player) => ViewModel.GetCombinedInputMask(player);
+    internal byte ReadCombinedInputMask(string portId) => ViewModel.GetCombinedInputMask(portId);
 
     internal static uint[] CreateSolidFrame(uint pixel)
     {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FCRevolution.Storage;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -32,13 +33,17 @@ internal sealed class MainWindowLibraryCatalogController
 
     public MainWindowLibraryCatalogSnapshot CaptureCatalogSnapshot(
         string romDirectory,
+        IReadOnlyList<string> supportedFilePatterns,
         Func<string, string> resolvePreviewPlaybackPath,
         bool isInitialStartupRefresh,
         Action<int>? onRomFilesScanned = null,
         Action<int, int, string>? onRomProcessing = null,
         Action<string>? onRomDiscovered = null)
     {
-        var romFiles = Directory.EnumerateFiles(romDirectory, "*.nes", SearchOption.AllDirectories).ToList();
+        var romFiles = CoreMediaFilePatternCatalog.EnumerateFiles(
+            romDirectory,
+            CoreMediaFilePatternCatalog.ResolvePatterns(supportedFilePatterns),
+            SearchOption.AllDirectories);
         onRomFilesScanned?.Invoke(romFiles.Count);
 
         var romItems = new List<RomLibraryItem>(romFiles.Count);
@@ -136,13 +141,14 @@ internal sealed class MainWindowLibraryCatalogController
     public MainWindowLibraryEmptyState BuildEmptyLibraryState(
         string romDirectory,
         int totalRomCount,
-        string librarySearchText)
+        string librarySearchText,
+        string supportedFilePatternSummary)
     {
         if (totalRomCount == 0)
         {
             return new MainWindowLibraryEmptyState(
                 "没有可展示的 ROM",
-                $"把 `.nes` 文件放到 `{romDirectory}` 后点击刷新",
+                $"把 {supportedFilePatternSummary} 文件放到 `{romDirectory}` 后点击刷新",
                 "等待生成预览",
                 "未发现 ROM");
         }

@@ -7,7 +7,10 @@ public interface IRomResourceImportService
 {
     ImportedRomResource ImportRom(string sourcePath);
 
-    IReadOnlyList<ImportedRomResource> ImportRomDirectory(string directoryPath, bool recursive = true);
+    IReadOnlyList<ImportedRomResource> ImportRomDirectory(
+        string directoryPath,
+        bool recursive = true,
+        IReadOnlyList<string>? supportedFilePatterns = null);
 
     ImportedRomResource ImportPreviewVideo(string romPath, string sourcePath);
 

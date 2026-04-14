@@ -112,7 +112,8 @@ public sealed class MainWindowInputLayoutControllerTests
 
     private static InputBindingEntry CreateInputBinding(NesButton button) =>
         new(
-            player: 0,
+            portId: "p1",
+            portLabel: "1P",
             actionId: NesInputTestAdapter.ActionId(button),
             actionName: button.ToString(),
             selectedKey: Key.Z,

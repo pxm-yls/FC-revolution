@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -10,6 +11,7 @@ namespace FC_Revolution.UI.Tests;
 
 public sealed class MainWindowInputOverrideControllerTests
 {
+    private static readonly CoreInputBindingSchema InputSchema = CoreInputBindingSchema.CreateFallback();
     private static readonly IReadOnlyList<Key> ConfigurableKeys =
     [
         Key.Z, Key.X, Key.A, Key.S, Key.Q, Key.W, Key.I, Key.K, Key.Enter, Key.Space
@@ -23,14 +25,14 @@ public sealed class MainWindowInputOverrideControllerTests
         var rom = CreateRom("Contra", "/tmp/contra.nes");
         var globalInput = new List<InputBindingEntry>
         {
-            CreateInputBinding(0, NesButton.A, Key.Z),
-            CreateInputBinding(1, NesButton.B, Key.I)
+            CreateInputBinding("p1", "a", "A", Key.Z),
+            CreateInputBinding("p2", "b", "B", Key.I)
         };
         var globalExtra = new List<ExtraInputBindingEntry>
         {
-            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys)
+            ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.Q, ConfigurableKeys)
         };
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var saveCalls = 0;
         var refreshCalls = 0;
@@ -75,50 +77,49 @@ public sealed class MainWindowInputOverrideControllerTests
     {
         var inputBindingsController = new MainWindowInputBindingsController();
         var controller = new MainWindowInputOverrideController(inputBindingsController, ConfigurableKeys);
-        var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
+        var globalInput = new List<InputBindingEntry> { CreateInputBinding("p1", "a", "A", Key.Z) };
         var globalExtra = new ObservableCollection<ExtraInputBindingEntry>();
-        var globalExtraP1 = new ObservableCollection<ExtraInputBindingEntry>();
-        var globalExtraP2 = new ObservableCollection<ExtraInputBindingEntry>();
+        var globalPortGroups = new ObservableCollection<InputBindingPortGroup>();
         var saveCalls = 0;
         var refreshRomCalls = 0;
         var refreshActiveCalls = 0;
         string? status = null;
 
         controller.AddGlobalTurboBinding(
-            "1",
+            "p2",
             globalInput,
             globalExtra,
-            globalExtraP1,
-            globalExtraP2,
+            globalPortGroups,
             () => saveCalls++,
             () => refreshRomCalls++,
             () => refreshActiveCalls++,
             text => status = text);
 
         Assert.Single(globalExtra);
-        Assert.Single(globalExtraP2);
+        Assert.Equal("p2", globalExtra[0].PortId);
+        Assert.Single(globalPortGroups.Single(group => group.PortId == "p2").ExtraBindings);
+        Assert.Empty(globalPortGroups.Single(group => group.PortId == "p1").ExtraBindings);
         Assert.Equal(1, saveCalls);
         Assert.Equal(1, refreshRomCalls);
         Assert.Equal(1, refreshActiveCalls);
-        Assert.Equal("已新增 2P 连发键", status);
+        Assert.Equal($"已新增 {InputSchema.GetPortDisplayName("p2")} 连发键", status);
 
         controller.RemoveGlobalExtraBinding(
             globalExtra[0],
+            globalInput,
             globalExtra,
-            globalExtraP1,
-            globalExtraP2,
+            globalPortGroups,
             () => saveCalls++,
             () => refreshRomCalls++,
             () => refreshActiveCalls++,
             text => status = text);
 
         Assert.Empty(globalExtra);
-        Assert.Empty(globalExtraP1);
-        Assert.Empty(globalExtraP2);
+        Assert.All(globalPortGroups, group => Assert.Empty(group.ExtraBindings));
         Assert.Equal(2, saveCalls);
         Assert.Equal(2, refreshRomCalls);
         Assert.Equal(2, refreshActiveCalls);
-        Assert.Equal("已删除 2P 连发", status);
+        Assert.Equal($"已删除 {InputSchema.GetPortDisplayName("p2")} 连发", status);
     }
 
     [Fact]
@@ -127,13 +128,12 @@ public sealed class MainWindowInputOverrideControllerTests
         var inputBindingsController = new MainWindowInputBindingsController();
         var controller = new MainWindowInputOverrideController(inputBindingsController, ConfigurableKeys);
         var rom = CreateRom("MegaMan", "/tmp/megaman.nes");
-        var romInputBindings = new ObservableCollection<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
+        var romInputBindings = new ObservableCollection<InputBindingEntry> { CreateInputBinding("p1", "a", "A", Key.Z) };
         var romExtraBindings = new ObservableCollection<ExtraInputBindingEntry>();
-        var romExtraP1 = new ObservableCollection<ExtraInputBindingEntry>();
-        var romExtraP2 = new ObservableCollection<ExtraInputBindingEntry>();
-        var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.B, Key.X) };
+        var romInputPortGroups = new ObservableCollection<InputBindingPortGroup>();
+        var globalInput = new List<InputBindingEntry> { CreateInputBinding("p1", "b", "B", Key.X) };
         var globalExtra = new List<ExtraInputBindingEntry>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
         var saveCalls = 0;
         var refreshCalls = 0;
@@ -141,13 +141,12 @@ public sealed class MainWindowInputOverrideControllerTests
         string? status = null;
 
         controller.AddRomComboBinding(
-            playerToken: null,
+            portId: null,
             currentRom: rom,
             isRomInputOverrideEnabled: false,
             romInputBindings,
             romExtraBindings,
-            romExtraP1,
-            romExtraP2,
+            romInputPortGroups,
             romInputOverrides,
             romExtraOverrides,
             globalInput,
@@ -160,8 +159,9 @@ public sealed class MainWindowInputOverrideControllerTests
         Assert.True(romInputOverrides.ContainsKey(rom.Path));
         Assert.True(romExtraOverrides.ContainsKey(rom.Path));
         Assert.Single(romExtraBindings);
-        Assert.Single(romExtraP1);
-        Assert.Equal("已新增 1P 组合键", status);
+        Assert.Equal("p1", romExtraBindings[0].PortId);
+        Assert.Single(romInputPortGroups.Single(group => group.PortId == "p1").ExtraBindings);
+        Assert.Equal($"已新增 {InputSchema.GetPortDisplayName("p1")} 组合键", status);
         Assert.True(saveCalls >= 2);
         Assert.True(refreshCalls >= 2);
         Assert.True(refreshActiveCalls >= 1);
@@ -173,12 +173,12 @@ public sealed class MainWindowInputOverrideControllerTests
         var inputBindingsController = new MainWindowInputBindingsController();
         var controller = new MainWindowInputOverrideController(inputBindingsController, ConfigurableKeys);
         var rom = CreateRom("NinjaGaiden", "/tmp/ng.nes");
-        var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
+        var globalInput = new List<InputBindingEntry> { CreateInputBinding("p1", "a", "A", Key.Z) };
         var globalExtra = new List<ExtraInputBindingEntry>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
-        var romInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.B, Key.X) };
-        var romExtra = new List<ExtraInputBindingEntry> { ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys) };
+        var romInput = new List<InputBindingEntry> { CreateInputBinding("p1", "b", "B", Key.X) };
+        var romExtra = new List<ExtraInputBindingEntry> { ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.Q, ConfigurableKeys) };
         var saveCalls = 0;
         var refreshCalls = 0;
         var refreshActiveCalls = 0;
@@ -236,14 +236,14 @@ public sealed class MainWindowInputOverrideControllerTests
     {
         var inputBindingsController = new MainWindowInputBindingsController();
         var controller = new MainWindowInputOverrideController(inputBindingsController, ConfigurableKeys);
-        var globalEntry = ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys);
-        var romEntry = ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.W, ConfigurableKeys);
+        var globalEntry = ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.Q, ConfigurableKeys);
+        var romEntry = ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.W, ConfigurableKeys);
         var rom = CreateRom("Castlevania", "/tmp/cv.nes");
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var romExtraOverrides = new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase);
-        var globalInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.A, Key.Z) };
+        var globalInput = new List<InputBindingEntry> { CreateInputBinding("p1", "a", "A", Key.Z) };
         var globalExtra = new List<ExtraInputBindingEntry>();
-        var romInput = new List<InputBindingEntry> { CreateInputBinding(0, NesButton.B, Key.X) };
+        var romInput = new List<InputBindingEntry> { CreateInputBinding("p1", "b", "B", Key.X) };
         var romExtra = new List<ExtraInputBindingEntry> { romEntry };
         var saveCalls = 0;
         var refreshCalls = 0;
@@ -276,8 +276,11 @@ public sealed class MainWindowInputOverrideControllerTests
         Assert.Null(status);
     }
 
-    private static InputBindingEntry CreateInputBinding(int player, NesButton button, Key key) =>
-        new(player, NesInputTestAdapter.ActionId(button), button.ToString(), key, ConfigurableKeys);
+    private static InputBindingEntry CreateInputBinding(string portId, string actionId, string actionName, Key key) =>
+        new(portId, GetPortLabel(portId), actionId, actionName, key, ConfigurableKeys);
+
+    private static string GetPortLabel(string portId) =>
+        string.Equals(portId, "p2", StringComparison.OrdinalIgnoreCase) ? "2P" : "1P";
 
     private static RomLibraryItem CreateRom(string name, string path) =>
         new(

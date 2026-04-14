@@ -95,14 +95,14 @@ public sealed partial class GameWindowViewModel
 
     public bool AcquireRemoteControl(string portId, string clientIp, string? clientName = null)
     {
-        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
+        if (!_inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId) ||
             !_remoteControlRuntime.TryAcquire(normalizedPortId, clientIp, clientName, DateTime.UtcNow, out var viewState))
         {
             return false;
         }
 
         ApplyRemoteControlWorkflowDecision(
-            player,
+            normalizedPortId,
             viewState,
             _remoteControlWorkflow.BuildAcquireDecision(
                 acquired: true,
@@ -113,33 +113,33 @@ public sealed partial class GameWindowViewModel
 
     public void ReleaseRemoteControl(string portId, string? reason = null)
     {
-        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
+        if (!_inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId) ||
             !_remoteControlRuntime.TryRelease(normalizedPortId, out var hadRemoteControl, out var viewState))
         {
             return;
         }
 
         ApplyRemoteControlWorkflowDecision(
-            player,
+            normalizedPortId,
             viewState,
             _remoteControlWorkflow.BuildReleaseDecision(normalizedPortId, hadRemoteControl, reason));
     }
 
     public void RefreshRemoteHeartbeat(string portId)
     {
-        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId))
+        if (!_inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId))
             return;
 
         var refreshed = _remoteControlRuntime.TryRefreshHeartbeat(normalizedPortId, DateTime.UtcNow, out var viewState);
         ApplyRemoteControlWorkflowDecision(
-            player,
+            normalizedPortId,
             viewState,
             _remoteControlWorkflow.BuildHeartbeatDecision(refreshed));
     }
 
     public bool SetRemoteInputState(string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
     {
-        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
+        if (!_inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId) ||
             string.IsNullOrWhiteSpace(actionId) ||
             !_inputBindingSchema.IsSupportedInputAction(normalizedPortId, actionId.Trim()))
         {
@@ -155,15 +155,15 @@ public sealed partial class GameWindowViewModel
             out var viewState);
 
         ApplyRemoteControlWorkflowDecision(
-            player,
+            normalizedPortId,
             viewState,
             _remoteControlWorkflow.BuildButtonStateDecision(authorized));
         if (!authorized)
             return false;
 
-        if (_inputBindingSchema.TryNormalizeActionId(player, normalizedActionId, out var canonicalActionId))
+        if (_inputBindingSchema.TryNormalizeActionId(normalizedPortId, normalizedActionId, out var canonicalActionId))
         {
-            SetActionState(player, canonicalActionId, value >= 0.5f);
+            SetActionState(normalizedPortId, canonicalActionId, value >= 0.5f);
             return true;
         }
 
@@ -174,37 +174,36 @@ public sealed partial class GameWindowViewModel
         _inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId) &&
         _remoteControlRuntime.IsRemoteOwner(normalizedPortId, clientIp, clientName);
 
-    public void ClearRemoteButtons(int player)
+    public void ClearRemoteButtons(string portId)
     {
-        if (player is not 0 and not 1)
+        if (!_inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId))
             return;
 
-        ApplyInputStateChanges(_inputState.ClearRemoteButtons(player, CanAcceptLocalInput(player)));
+        ApplyInputStateChanges(_inputState.ClearRemoteButtons(normalizedPortId, CanAcceptLocalInput(normalizedPortId)));
     }
 
-    private bool CanAcceptLocalInput(int player) =>
-        _remoteControlRuntime.GetPortControlSource(_inputBindingSchema.GetPortId(player)) == GamePlayerControlSource.Local;
+    private bool CanAcceptLocalInput(string portId) =>
+        _remoteControlRuntime.GetPortControlSource(portId) == GamePlayerControlSource.Local;
 
-    private void SetActionState(int player, string actionId, bool pressed)
+    private void SetActionState(string portId, string actionId, bool pressed)
     {
         ApplyInputStateChanges(_inputState.SetRemoteActionState(
-            player,
+            portId,
             actionId,
             pressed,
-            CanAcceptLocalInput(player)));
+            CanAcceptLocalInput(portId)));
     }
 
     private void RefreshLocalInputState()
     {
         var desiredActions = BuildDesiredLocalInputActions();
-        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputActionsForPlayer(
-            0,
-            desiredActions.Player1Actions,
-            CanAcceptLocalInput(0)));
-        ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputActionsForPlayer(
-            1,
-            desiredActions.Player2Actions,
-            CanAcceptLocalInput(1)));
+        foreach (var port in _inputBindingSchema.GetSupportedPorts())
+        {
+            ApplyInputStateChanges(_inputState.ApplyDesiredLocalInputActions(
+                port.PortId,
+                desiredActions.GetActions(port.PortId),
+                CanAcceptLocalInput(port.PortId)));
+        }
     }
 
     private GameWindowDesiredLocalInputActions BuildDesiredLocalInputActions() =>
@@ -212,13 +211,14 @@ public sealed partial class GameWindowViewModel
             _pressedKeys,
             _keyMap,
             _extraInputBindings,
-            _turboTickCounters);
+            _turboTickCounters,
+            _inputBindingSchema);
 
-    private void ApplyCombinedStateForPlayer(int player)
+    private void ApplyCombinedState(string portId)
     {
-        ApplyInputStateChanges(_inputState.RebuildCombinedStateForPlayer(
-            player,
-            CanAcceptLocalInput(player)));
+        ApplyInputStateChanges(_inputState.RebuildCombinedState(
+            portId,
+            CanAcceptLocalInput(portId)));
     }
 
     private void ApplyInputStateChanges(IReadOnlyList<GameWindowInputStateChange> changes)
@@ -226,7 +226,7 @@ public sealed partial class GameWindowViewModel
         foreach (var change in changes)
         {
             _sessionRuntime.SetInputState(
-                _inputBindingSchema.GetPortId(change.Player),
+                change.PortId,
                 change.ActionId,
                 change.Pressed ? 1f : 0f);
         }
@@ -289,23 +289,23 @@ public sealed partial class GameWindowViewModel
     }
 
     private void ApplyRemoteControlWorkflowDecision(
-        int player,
+        string portId,
         GameWindowRemoteControlRuntimeViewState viewState,
         GameWindowRemoteControlWorkflowDecision decision,
         string? actionId = null,
         bool pressed = false)
     {
         if (decision.ShouldClearRemoteButtons)
-            ClearRemoteButtons(player);
+            ClearRemoteButtons(portId);
 
         if (decision.ShouldApplyViewState)
             ApplyRemoteControlViewState(viewState);
 
         if (decision.ShouldApplyRequestedRemoteButtonState && !string.IsNullOrWhiteSpace(actionId))
-            SetActionState(player, actionId, pressed);
+            SetActionState(portId, actionId, pressed);
 
         if (decision.ShouldRebuildCombinedState)
-            ApplyCombinedStateForPlayer(player);
+            ApplyCombinedState(portId);
 
         if (decision.ShouldRefreshLocalInput)
             RefreshLocalInputState();
@@ -320,7 +320,7 @@ public sealed partial class GameWindowViewModel
         RemoteControlPortsVersion++;
     }
 
-    internal byte GetCombinedInputMask(int player) => _inputState.GetCombinedMask(player);
+    internal byte GetCombinedInputMask(string portId) => _inputState.GetCombinedMask(portId);
 
     private HashSet<Key> GetHandledKeys() =>
         GameWindowInputBindingResolver.BuildHandledKeys(_keyMap, _extraInputBindings);

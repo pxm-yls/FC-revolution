@@ -93,7 +93,7 @@ public sealed class ArcadeRuntimeContractAdapterTests
             inputBindingSchema: CoreInputBindingSchema.Create(new SinglePortInputSchema()),
             globalInputBindings:
             [
-                new InputBindingEntry(0, "fire", "Fire", Key.Z, [Key.Z])
+                new InputBindingEntry("pad-west", "Arcade", "fire", "Fire", Key.Z, [Key.Z])
             ]);
 
         var started = await AwaitWithUiDrain(adapter.StartSessionAsync(new StartSessionRequest(host.RomPath)));

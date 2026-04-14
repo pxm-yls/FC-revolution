@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
 using FCRevolution.Core.Input;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -17,36 +18,32 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
     ];
 
     [Fact]
-    public void BuildAndApplyGlobalInputBindingViewState_ProjectsBindingsAndPlayerViews()
+    public void BuildAndApplyGlobalInputBindingViewState_ProjectsBindingsAndPortViews()
     {
         var workflowController = new MainWindowInputBindingWorkflowController();
         var bindingsController = new MainWindowInputBindingsController();
         var globalInputBindings = new ObservableCollection<InputBindingEntry>();
         var globalExtraInputBindings = new ObservableCollection<ExtraInputBindingEntry>();
-        var globalInputBindingsPlayer1 = new ObservableCollection<InputBindingEntry>();
-        var globalInputBindingsPlayer2 = new ObservableCollection<InputBindingEntry>();
-        var globalExtraInputBindingsPlayer1 = new ObservableCollection<ExtraInputBindingEntry>();
-        var globalExtraInputBindingsPlayer2 = new ObservableCollection<ExtraInputBindingEntry>();
+        var globalInputPortGroups = new ObservableCollection<InputBindingPortGroup>();
 
         workflowController.BuildAndApplyGlobalInputBindingViewState(
             bindingsController,
             profile: null,
+            CoreInputBindingSchema.CreateFallback(),
             BuildDefaultKeyMaps(),
             ConfigurableKeys,
             InputBindingLayoutProfile.CreateDefault(),
             globalInputBindings,
             globalExtraInputBindings,
-            globalInputBindingsPlayer1,
-            globalInputBindingsPlayer2,
-            globalExtraInputBindingsPlayer1,
-            globalExtraInputBindingsPlayer2);
+            globalInputPortGroups);
 
         Assert.Equal(4, globalInputBindings.Count);
         Assert.Empty(globalExtraInputBindings);
-        Assert.Equal(2, globalInputBindingsPlayer1.Count);
-        Assert.Equal(2, globalInputBindingsPlayer2.Count);
-        Assert.Empty(globalExtraInputBindingsPlayer1);
-        Assert.Empty(globalExtraInputBindingsPlayer2);
+        Assert.Equal(2, globalInputPortGroups.Count);
+        Assert.Equal(2, globalInputPortGroups.Single(group => group.PortId == "p1").InputBindings.Count);
+        Assert.Equal(2, globalInputPortGroups.Single(group => group.PortId == "p2").InputBindings.Count);
+        Assert.Empty(globalInputPortGroups.Single(group => group.PortId == "p1").ExtraBindings);
+        Assert.Empty(globalInputPortGroups.Single(group => group.PortId == "p2").ExtraBindings);
     }
 
     [Fact]
@@ -55,23 +52,24 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         var workflowController = new MainWindowInputBindingWorkflowController();
         var bindingsController = new MainWindowInputBindingsController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         const string romPath = "/tmp/contra.nes";
         var globalInputBindings = new List<InputBindingEntry>
         {
-            CreateInputBinding(0, NesButton.A, Key.Z),
-            CreateInputBinding(0, NesButton.B, Key.X),
-            CreateInputBinding(1, NesButton.A, Key.I),
-            CreateInputBinding(1, NesButton.B, Key.K)
+            CreateInputBinding("p1", NesButton.A, Key.Z),
+            CreateInputBinding("p1", NesButton.B, Key.X),
+            CreateInputBinding("p2", NesButton.A, Key.I),
+            CreateInputBinding("p2", NesButton.B, Key.K)
         };
         var globalExtraBindings = new List<ExtraInputBindingEntry>
         {
-            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.W, ConfigurableKeys)
+            ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.W, ConfigurableKeys)
         };
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase)
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase)
         {
-            [romPath] = new Dictionary<int, Dictionary<string, Key>>
+            [romPath] = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
             {
-                [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
+                ["p1"] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
                 {
                     [NesInputTestAdapter.ActionId(NesButton.A)] = Key.F9
                 }
@@ -83,7 +81,7 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
             [
                 new ExtraInputBindingProfile
                 {
-                    Player = 0,
+                    PortId = "p1",
                     Kind = nameof(ExtraInputBindingKind.Turbo),
                     Key = nameof(Key.Q),
                     Buttons = [NesInputTestAdapter.ActionId(NesButton.A)]
@@ -94,6 +92,7 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         var state = workflowController.BuildEffectiveInputBindingState(
             bindingsController,
             inputStateController,
+            inputBindingSchema,
             romPath,
             romInputOverrides,
             romExtraOverrides,
@@ -101,13 +100,25 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
             globalExtraBindings,
             BuildDefaultKeyMaps());
 
-        Assert.Equal((0, NesInputTestAdapter.ActionId(NesButton.A)), state.EffectiveKeyMap[Key.F9]);
-        Assert.Equal((0, NesInputTestAdapter.ActionId(NesButton.B)), state.EffectiveKeyMap[Key.X]);
-        Assert.Equal((1, NesInputTestAdapter.ActionId(NesButton.A)), state.EffectiveKeyMap[Key.I]);
-        Assert.Equal((1, NesInputTestAdapter.ActionId(NesButton.B)), state.EffectiveKeyMap[Key.K]);
+        var romPrimaryBinding = state.EffectiveKeyMap[Key.F9];
+        Assert.Equal("p1", romPrimaryBinding.PortId);
+        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), romPrimaryBinding.ActionId);
+
+        var globalPrimaryBinding = state.EffectiveKeyMap[Key.X];
+        Assert.Equal("p1", globalPrimaryBinding.PortId);
+        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), globalPrimaryBinding.ActionId);
+
+        var secondaryPrimaryBinding = state.EffectiveKeyMap[Key.I];
+        Assert.Equal("p2", secondaryPrimaryBinding.PortId);
+        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), secondaryPrimaryBinding.ActionId);
+
+        var secondarySecondaryBinding = state.EffectiveKeyMap[Key.K];
+        Assert.Equal("p2", secondarySecondaryBinding.PortId);
+        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), secondarySecondaryBinding.ActionId);
 
         var extra = Assert.Single(state.EffectiveExtraBindings);
         Assert.Equal(Key.Q, extra.Key);
+        Assert.Equal("p1", extra.PortId);
         Assert.True(state.EffectiveHandledKeys.Contains(Key.F9));
         Assert.True(state.EffectiveHandledKeys.Contains(Key.Q));
         Assert.False(state.EffectiveHandledKeys.Contains(Key.W));
@@ -119,42 +130,35 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         var workflowController = new MainWindowInputBindingWorkflowController();
         var inputBindingsController = new MainWindowInputBindingsController();
         var inputOverrideController = new MainWindowInputOverrideController(inputBindingsController, ConfigurableKeys);
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         var globalInputBindings = new ObservableCollection<InputBindingEntry>();
         var globalExtraInputBindings = new ObservableCollection<ExtraInputBindingEntry>();
         var romInputBindings = new ObservableCollection<InputBindingEntry>
         {
-            CreateInputBinding(0, NesButton.A, Key.Z)
+            CreateInputBinding("p1", NesButton.A, Key.Z)
         };
-        var romInputBindingsPlayer1 = new ObservableCollection<InputBindingEntry>
-        {
-            romInputBindings[0]
-        };
-        var romInputBindingsPlayer2 = new ObservableCollection<InputBindingEntry>();
         var romExtraInputBindings = new ObservableCollection<ExtraInputBindingEntry>
         {
-            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.Q, ConfigurableKeys)
+            ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.Q, ConfigurableKeys)
         };
-        var romExtraInputBindingsPlayer1 = new ObservableCollection<ExtraInputBindingEntry>
+        var romInputPortGroups = new ObservableCollection<InputBindingPortGroup>
         {
-            romExtraInputBindings[0]
+            new("p1", "1P", romInputBindings, romExtraInputBindings)
         };
-        var romExtraInputBindingsPlayer2 = new ObservableCollection<ExtraInputBindingEntry>();
         var isOverrideEnabled = true;
         var summaryNotifyCount = 0;
 
         workflowController.RefreshRomInputBindings(
             inputOverrideController,
             currentRom: null,
-            new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
             globalInputBindings,
             globalExtraInputBindings,
             romInputBindings,
-            romInputBindingsPlayer1,
-            romInputBindingsPlayer2,
             romExtraInputBindings,
-            romExtraInputBindingsPlayer1,
-            romExtraInputBindingsPlayer2,
+            romInputPortGroups,
+            inputBindingSchema,
             BuildDefaultKeyMaps(),
             ConfigurableKeys,
             InputBindingLayoutProfile.CreateDefault(),
@@ -164,15 +168,12 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
         Assert.False(isOverrideEnabled);
         Assert.Equal(1, summaryNotifyCount);
         Assert.Empty(romInputBindings);
-        Assert.Empty(romInputBindingsPlayer1);
-        Assert.Empty(romInputBindingsPlayer2);
         Assert.Empty(romExtraInputBindings);
-        Assert.Empty(romExtraInputBindingsPlayer1);
-        Assert.Empty(romExtraInputBindingsPlayer2);
+        Assert.Empty(romInputPortGroups);
     }
 
-    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
-        BuildReadOnlyMaps(NesInputTestAdapter.BuildPlayerMaps(
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
+        BuildReadOnlyMaps(NesInputTestAdapter.BuildBindingsByPort(
             new Dictionary<int, Dictionary<NesButton, Key>>
             {
                 [0] = new()
@@ -187,15 +188,18 @@ public sealed class MainWindowInputBindingWorkflowControllerTests
                 }
             }));
 
-    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildReadOnlyMaps(
-        Dictionary<int, Dictionary<string, Key>> maps)
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> BuildReadOnlyMaps(
+        Dictionary<string, Dictionary<string, Key>> maps)
     {
-        var readOnly = new Dictionary<int, IReadOnlyDictionary<string, Key>>();
-        foreach (var (player, bindings) in maps)
-            readOnly[player] = bindings;
+        var readOnly = new Dictionary<string, IReadOnlyDictionary<string, Key>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (portId, bindings) in maps)
+            readOnly[portId] = bindings;
         return readOnly;
     }
 
-    private static InputBindingEntry CreateInputBinding(int player, NesButton button, Key key) =>
-        new(player, NesInputTestAdapter.ActionId(button), button.ToString(), key, ConfigurableKeys);
+    private static InputBindingEntry CreateInputBinding(string portId, NesButton button, Key key) =>
+        new(portId, GetPortLabel(portId), NesInputTestAdapter.ActionId(button), button.ToString(), key, ConfigurableKeys);
+
+    private static string GetPortLabel(string portId) =>
+        string.Equals(portId, "p2", StringComparison.OrdinalIgnoreCase) ? "2P" : "1P";
 }

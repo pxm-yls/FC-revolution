@@ -73,7 +73,8 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     private readonly ObservableCollection<ExtraInputButtonPickerItem> _buttonPickerItems = [];
 
     public ExtraInputBindingEntry(
-        int player,
+        string portId,
+        string portLabel,
         ExtraInputBindingKind kind,
         Key selectedKey,
         IReadOnlyList<Key> availableKeys,
@@ -82,7 +83,8 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         IReadOnlyList<ExtraInputButtonOption>? comboButtons = null,
         int turboHz = 10)
     {
-        Player = player;
+        PortId = portId;
+        PortLabel = portLabel;
         Kind = kind;
         AvailableKeys = availableKeys;
         ButtonOptions = NormalizeButtonOptions(buttonOptions);
@@ -101,9 +103,9 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         RebuildButtonPickerItems();
     }
 
-    public int Player { get; }
+    public string PortId { get; }
 
-    public string PlayerLabel => Player == 0 ? "1P" : "2P";
+    public string PortLabel { get; }
 
     public ExtraInputBindingKind Kind { get; }
 
@@ -259,7 +261,7 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
 
     public ExtraInputBindingProfile ToProfile() => new()
     {
-        Player = Player,
+        PortId = PortId,
         Kind = Kind.ToString(),
         Key = SelectedKey.ToString(),
         Buttons = GetActionIds().ToList(),
@@ -267,14 +269,16 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     };
 
     public static ExtraInputBindingEntry CreateDefaultTurbo(
-        int player,
+        string portId,
+        string portLabel,
         Key key,
         IReadOnlyList<Key> availableKeys,
         IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
     {
         var normalizedButtonOptions = NormalizeButtonOptions(buttonOptions ?? Array.Empty<ExtraInputButtonOption>());
         return new ExtraInputBindingEntry(
-            player,
+            portId,
+            portLabel,
             ExtraInputBindingKind.Turbo,
             key,
             availableKeys,
@@ -284,14 +288,16 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     }
 
     public static ExtraInputBindingEntry CreateDefaultCombo(
-        int player,
+        string portId,
+        string portLabel,
         Key key,
         IReadOnlyList<Key> availableKeys,
         IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
     {
         var normalizedButtonOptions = NormalizeButtonOptions(buttonOptions ?? Array.Empty<ExtraInputButtonOption>());
         return new ExtraInputBindingEntry(
-            player,
+            portId,
+            portLabel,
             ExtraInputBindingKind.Combo,
             key,
             availableKeys,
@@ -301,6 +307,8 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
 
     public static ExtraInputBindingEntry FromProfile(
         ExtraInputBindingProfile profile,
+        string portId,
+        string portLabel,
         IReadOnlyList<Key> availableKeys,
         IReadOnlyList<ExtraInputButtonOption>? buttonOptions = null)
     {
@@ -322,12 +330,12 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
         if (kind == ExtraInputBindingKind.Turbo)
         {
             var primary = buttons.Count > 0 ? buttons[0] : normalizedButtonOptions[0];
-            return new ExtraInputBindingEntry(player: profile.Player, kind: kind, selectedKey: key,
+            return new ExtraInputBindingEntry(portId: portId, portLabel: portLabel, kind: kind, selectedKey: key,
                 availableKeys: availableKeys, buttonOptions: normalizedButtonOptions, primaryButton: primary, turboHz: Math.Clamp(profile.TurboHz <= 0 ? 10 : profile.TurboHz, 1, 30));
         }
         else
         {
-            return new ExtraInputBindingEntry(player: profile.Player, kind: kind, selectedKey: key,
+            return new ExtraInputBindingEntry(portId: portId, portLabel: portLabel, kind: kind, selectedKey: key,
                 availableKeys: availableKeys, buttonOptions: normalizedButtonOptions, comboButtons: buttons);
         }
     }
@@ -335,9 +343,9 @@ public sealed partial class ExtraInputBindingEntry : ObservableObject, IKeyCaptu
     public ExtraInputBindingEntry Clone()
     {
         if (Kind == ExtraInputBindingKind.Turbo)
-            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, ButtonOptions, PrimaryButtonOption, turboHz: TurboHz);
+            return new ExtraInputBindingEntry(PortId, PortLabel, Kind, SelectedKey, AvailableKeys, ButtonOptions, PrimaryButtonOption, turboHz: TurboHz);
         else
-            return new ExtraInputBindingEntry(Player, Kind, SelectedKey, AvailableKeys, ButtonOptions, comboButtons: [.. _comboButtonList]);
+            return new ExtraInputBindingEntry(PortId, PortLabel, Kind, SelectedKey, AvailableKeys, ButtonOptions, comboButtons: [.. _comboButtonList]);
     }
 
     partial void OnSelectedKeyChanged(Key value) => OnPropertyChanged(nameof(SelectedKeyDisplay));

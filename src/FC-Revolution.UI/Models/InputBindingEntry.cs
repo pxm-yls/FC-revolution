@@ -8,18 +8,25 @@ namespace FC_Revolution.UI.Models;
 
 public sealed partial class InputBindingEntry : ObservableObject, IKeyCaptureBinding
 {
-    public InputBindingEntry(int player, string actionId, string actionName, Key selectedKey, IReadOnlyList<Key> availableKeys)
+    public InputBindingEntry(
+        string portId,
+        string portLabel,
+        string actionId,
+        string actionName,
+        Key selectedKey,
+        IReadOnlyList<Key> availableKeys)
     {
-        Player = player;
+        PortId = portId;
+        PortLabel = portLabel;
         ActionId = actionId;
         ActionName = actionName;
         _selectedKey = selectedKey;
         AvailableKeys = availableKeys;
     }
 
-    public int Player { get; }
+    public string PortId { get; }
 
-    public string PlayerLabel => Player == 0 ? "1P" : "2P";
+    public string PortLabel { get; }
 
     public string ActionName { get; }
 

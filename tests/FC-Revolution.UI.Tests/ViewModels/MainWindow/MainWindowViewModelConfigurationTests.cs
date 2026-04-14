@@ -595,11 +595,13 @@ public sealed class MainWindowViewModelConfigurationTests
             var vm = host.ViewModel;
 
             var actionIdA = NesInputTestAdapter.ActionId(NesButton.A);
-            var player1A = Assert.Single(vm.GlobalInputBindingsPlayer1, entry => entry.ActionId == actionIdA);
+            var player1Group = Assert.Single(vm.GlobalInputPortGroups, group => group.PortId == "p1");
+            var player1A = Assert.Single(player1Group.InputBindings, entry => entry.ActionId == actionIdA);
             Assert.True(player1A.TrySetSelectedKey(Key.Q));
 
             var extraBinding = ExtraInputBindingEntry.CreateDefaultTurbo(
-                player: 0,
+                portId: player1Group.PortId,
+                portLabel: player1Group.PortLabel,
                 key: Key.A,
                 availableKeys: player1A.AvailableKeys);
             extraBinding.SetTurboHz(12);
@@ -612,10 +614,10 @@ public sealed class MainWindowViewModelConfigurationTests
             host.InvokeSaveSystemConfig();
 
             var profile = SystemConfigProfile.Load();
-            Assert.Equal(nameof(Key.Q), profile.PlayerInputOverrides["Player1"][actionIdA]);
+            Assert.Equal(nameof(Key.Q), profile.PlayerInputOverrides["p1"][actionIdA]);
 
             var extra = Assert.Single(profile.ExtraInputBindings);
-            Assert.Equal(0, extra.Player);
+            Assert.Equal("p1", extra.PortId);
             Assert.Equal(nameof(ExtraInputBindingKind.Turbo), extra.Kind);
             Assert.Equal(nameof(Key.A), extra.Key);
             Assert.Equal(12, extra.TurboHz);

@@ -16,7 +16,7 @@ public sealed class MainWindowRuntimeDependencyBundleTests
     public void Create_BuildsLanRuntimeDependencies()
     {
         var romLibrary = new ObservableCollection<RomLibraryItem>();
-        var romInputOverrides = new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
+        var romInputOverrides = new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase);
         var globalInputBindings = new ObservableCollection<InputBindingEntry>();
         var gameSessionService = new GameSessionService();
 

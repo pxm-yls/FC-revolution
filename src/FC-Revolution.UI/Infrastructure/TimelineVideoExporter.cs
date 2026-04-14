@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using FCRevolution.Emulation.Abstractions;
@@ -11,7 +12,11 @@ internal static class TimelineVideoExporter
 {
     private static readonly IReplayFrameRenderer ReplayFrameRenderer = LegacyFeatureBridgeLoader.GetReplayFrameRenderer();
 
-    internal readonly record struct ReplayInputRecord(long Frame, byte Player1Mask, byte Player2Mask);
+    internal readonly record struct ReplayInputRecord(long Frame, IReadOnlyDictionary<string, byte> MasksByPort)
+    {
+        public byte GetMask(string portId) =>
+            MasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+    }
 
     internal readonly record struct ReplayExportPlan(long BaseFrame, ReplayInputRecord[] Records);
 
@@ -57,7 +62,9 @@ internal static class TimelineVideoExporter
             ? StateSnapshotFrameReader.ReadFrame(snapshotBytes)
             : startFrame;
         var records = ReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame)
-            .Select(record => new ReplayInputRecord(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask))
+            .Select(record => new ReplayInputRecord(
+                record.Frame,
+                new Dictionary<string, byte>(record.ButtonsByPort, StringComparer.OrdinalIgnoreCase)))
             .ToArray();
 
         return new ReplayExportPlan(

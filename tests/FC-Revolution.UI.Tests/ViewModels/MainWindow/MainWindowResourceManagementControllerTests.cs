@@ -262,7 +262,10 @@ public sealed class MainWindowResourceManagementControllerTests
         public ImportedRomResource ImportRom(string sourcePath) =>
             new("rom", "rom-key", sourcePath);
 
-        public IReadOnlyList<ImportedRomResource> ImportRomDirectory(string directoryPath, bool recursive = true) =>
+        public IReadOnlyList<ImportedRomResource> ImportRomDirectory(
+            string directoryPath,
+            bool recursive = true,
+            IReadOnlyList<string>? supportedFilePatterns = null) =>
             [new ImportedRomResource("rom", "rom-key", directoryPath)];
 
         public ImportedRomResource ImportPreviewVideo(string romPath, string sourcePath)

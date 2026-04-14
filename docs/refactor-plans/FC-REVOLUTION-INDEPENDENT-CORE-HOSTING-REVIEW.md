@@ -11,14 +11,15 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 包、输入设置/UI 仍保留双手柄 NES 形状假设、CLI checker 虽已落地但独立核心工具链仍未完成、native loader 仍未落地、外部核心仓库试点尚未验证”这五件事。
-- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，保留 runtime-only 输出复制，并通过 provider 契约发现来加载 legacy bridge，而不是再硬编码 FC adapter 类型名；backend WebSocket / heartbeat / claim-release 入口也已经收敛为 `portId` 驱动，公开 contracts 不再暴露 `Player`。剩余输入残留主要集中在 UI 配置、运行时控制器与视图结构还保留 `p1/p2` / `Player1` / `Player2` 过渡形态，以及 `GameSessionSummaryDto` / WebPad 仍是固定双槽展示。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 包、sample core 仍随 UI build 直接复制、managed package-first 仍未扩展到 native loader、CLI checker 虽已落地但独立核心工具链仍未完成、外部核心仓库试点尚未验证”这五件事。
+- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，保留 runtime-only 输出复制，并通过 provider 契约发现来加载 legacy bridge，而不是再硬编码 FC adapter 类型名；backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。当前剩余输入兼容残留主要集中在配置迁移字段与旧 profile 兼容路径，例如 `PlayerInputOverrides`、`ExtraInputBindingProfile.Player` 这类为旧配置读取保留的过渡字段。
+- 此外，UI 当前对游戏介质文件的发现/导入已开始从 `CoreManifest.SupportedMediaFilePatterns` 聚合模式，不再把库扫描与文件选择器完全硬编码为 `*.nes`；这把“新增核心时 UI 至少不必再改一轮后缀判断”这件事前移到了 manifest 元数据层。
 
 ## 1. 当前判断总览
 
 | 主题 | 你的想法 | 当前仓库状态 | 结论 |
 | --- | --- | --- | --- |
-| 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，但仍有 NES 偏置和扩展缺口 | 方向正确，需要继续强化 |
+| 中间层 | 核心应通过中间层与宿主交换数据 | 已有中间层，输入/远控主链已 `portId` 化，但 legacy bridge/provider 与更复杂介质模型仍有缺口 | 方向正确，需要继续强化 |
 | C# / C++ 双核心 | 未来会同时存在两类实现 | 方案已考虑，代码只落地了 managed | 方向正确，但 native 仍未落地 |
 | 核心独立打包 | 核心应可独立打包为 DLL/组件 | managed package / install / export / uninstall / zero-core 启动已支持；UI 对 FC adapter 的编译期程序集依赖已移除，但运行时仍保留显式 FC adapter provider 包 | 方向正确，运行时前提已基本独立，最后的实现 provider 边界还需继续收口 |
 | 外部核心仓库 + 测试工具 | 核心应可独立设计、独立测试、独立打包，并由独立工具验证 | 已有共享运行时雏形，CLI checker 首版已可用，headless preview driver 已落到 shared runtime，但 `Core Workbench` 与外部核心仓库试点仍未完成 | 方向正确，应继续收口为“共享 Host Runtime + CLI checker + Core Workbench” |
@@ -373,7 +374,7 @@ App startup
 1. `Emulation.Host` 已不再直接 `ProjectReference` NES managed core，`EmulatorCoreHost` 也支持 empty catalog。
 2. bundled NES core 已降级为 bundled package / 发行策略，而不是 Host 架构前提。
 3. UI 主会话链路在零核心场景已能退回 unavailable session。
-4. `FC-Revolution.UI -> FC-Revolution.Core.FC` 的直接项目引用已经移除，`FC-Revolution.UI -> FCRevolution.Core.*` 的显式 FC 兼容桥也已迁出 `Core.*` 工程树；但 legacy timeline / replay / mapper 仍通过显式 FC adapter/provider 层接入，因此“完全系统无关的 UI”还没彻底完成。
+4. `FC-Revolution.UI -> FC-Revolution.Core.FC` 的直接项目引用已经移除，`FC-Revolution.UI -> FCRevolution.Core.*` 的显式 FC 兼容桥也已迁出 `Core.*` 工程树；`MainWindow` 与 `GameWindow` 输入绑定、运行时输入写入、远控入口和回放日志头部也已经切到 `portId` / `actionId` 驱动。但 legacy timeline / replay / mapper 仍通过显式 FC adapter/provider 层接入，因此“完全系统无关的 UI”还没彻底完成。
 
 ### Phase C：落地独立测试工具与外置核心仓库试点（已启动，未完成）
 
@@ -438,10 +439,10 @@ App startup
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
 1. `FC-Revolution.UI` 已改为通过显式 FC adapter/provider 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path、replay log 文件格式、snapshot base-frame 读取，以及 timeline bridge DTO / repository surface 已下沉到通用层，bridge loader 也不再硬编码 FC 类型名，但 repository 实现 / replay 渲染 / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
-2. 旧时间线桥接、preview 编码与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
-3. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
-4. `native-cabi` 路线还只是方案，不是代码能力。
-5. 具体核心项目仍位于主仓内，尚未证明“主仓外独立 build / test / pack”流程。
+2. preview 编码、preview asset 管理与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
+3. sample managed core 仍随 `FC-Revolution.UI` 构建直接复制到 `cores/managed`，这说明“独立核心作为包挂载”在发行策略层还没彻底收口。
+4. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
+5. `native-cabi` 路线还只是方案，不是代码能力。
 
 ## 10. 推荐的下一步
 

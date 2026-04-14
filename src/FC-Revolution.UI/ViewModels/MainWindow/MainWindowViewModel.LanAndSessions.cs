@@ -108,7 +108,7 @@ public partial class MainWindowViewModel
 
     private void StartGameSession(RomLibraryItem rom)
     {
-        var inputMaps = GetEffectivePlayerInputMaps(rom.Path);
+        var inputMaps = GetEffectiveInputMapsByPort(rom.Path);
         var extraInputBindings = GetEffectiveExtraInputBindingProfiles(rom.Path);
         var mapperDescription = DescribeRomMapper(rom.Path);
         var gameWindowShortcuts = BuildGameWindowShortcutMap();
@@ -119,7 +119,7 @@ public partial class MainWindowViewModel
                 rom.DisplayName,
                 rom.Path,
                 GameAspectRatioMode,
-                InputBindingContractAdapter.BuildActionBindingsFromPlayerMaps(inputMaps, _inputBindingSchema),
+                InputBindingContractAdapter.BuildActionBindingsFromPortMaps(inputMaps, _inputBindingSchema),
                 extraInputBindings,
                 SyncLoadedFlags,
                 _macUpscaleMode,

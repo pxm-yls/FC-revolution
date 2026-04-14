@@ -41,7 +41,8 @@ public sealed class MainWindowLibraryCatalogControllerTests
         var state = controller.BuildEmptyLibraryState(
             romDirectory: "/tmp/roms",
             totalRomCount: 7,
-            librarySearchText: "  Ninja  ");
+            librarySearchText: "  Ninja  ",
+            supportedFilePatternSummary: "`*.nes`");
 
         Assert.Equal("没有匹配的 ROM", state.CurrentRomName);
         Assert.Equal("搜索“Ninja”没有命中，可尝试标题片段、文件名或清空搜索", state.CurrentRomPathText);

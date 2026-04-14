@@ -1,6 +1,7 @@
 using Avalonia.Input;
 using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -13,44 +14,42 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
     {
         var runtimeController = new MainWindowActiveInputRuntimeController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/test.nes");
         runtimeController.PressKey(Key.Z);
 
         var plan = runtimeController.BuildApplyPlan(
             inputStateController,
-            new Dictionary<Key, (int Player, string ActionId)>
+            new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
             },
             [],
-            player1CurrentMask: 0,
-            player2CurrentMask: 0,
-            ControllerActionIds,
-            GetInputPortId);
+            inputBindingSchema);
 
-        Assert.Equal((byte)NesButton.A, plan.DesiredPlayer1Mask);
-        Assert.Equal((byte)0, plan.DesiredPlayer2Mask);
+        Assert.Equal((byte)NesButton.A, plan.DesiredLegacyMasksByPort["p1"]);
+        Assert.Equal((byte)0, plan.DesiredLegacyMasksByPort["p2"]);
+        Assert.Equal((byte)NesButton.A, plan.GetDesiredLegacyMask("p1"));
+        Assert.Equal((byte)0, plan.GetDesiredLegacyMask("p2"));
         var write = Assert.Single(plan.WriteRequests);
-        Assert.Equal(0, write.Player);
-        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), write.ActionId);
-        Assert.True(write.DesiredPressed);
         Assert.Equal("p1", write.PortId);
         Assert.Equal("a", write.ActionId);
+        Assert.True(write.DesiredPressed);
         Assert.Equal(1f, write.Value);
 
         var writer = new FakeInputStateWriter();
-        var maskUpdates = new List<(int Player, string ActionId, bool Pressed)>();
+        var maskUpdates = new List<(string PortId, string ActionId, bool Pressed)>();
         runtimeController.ApplyPlan(
             plan,
             new object(),
             writer,
-            (player, actionId, pressed) => maskUpdates.Add((player, actionId, pressed)));
+            (portId, actionId, pressed) => maskUpdates.Add((portId, actionId, pressed)));
 
         var call = Assert.Single(writer.Calls);
         Assert.Equal("p1", call.PortId);
         Assert.Equal("a", call.ActionId);
         Assert.Equal(1f, call.Value);
-        Assert.Equal([(0, "a", true)], maskUpdates);
+        Assert.Equal([("p1", "a", true)], maskUpdates);
     }
 
     [Fact]
@@ -58,19 +57,35 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
     {
         var runtimeController = new MainWindowActiveInputRuntimeController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/test.nes");
+        runtimeController.PressKey(Key.Z);
+
+        var activatePlan = runtimeController.BuildApplyPlan(
+            inputStateController,
+            new Dictionary<Key, (string PortId, string ActionId)>
+            {
+                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+            },
+            [],
+            inputBindingSchema);
+        runtimeController.ApplyPlan(
+            activatePlan,
+            new object(),
+            new FakeInputStateWriter(),
+            static (_, _, _) => { });
+
+        runtimeController.ReleaseKey(Key.Z);
 
         var plan = runtimeController.BuildApplyPlan(
             inputStateController,
-            new Dictionary<Key, (int Player, string ActionId)>(),
+            new Dictionary<Key, (string PortId, string ActionId)>(),
             [],
-            player1CurrentMask: (byte)NesButton.A,
-            player2CurrentMask: 0,
-            ControllerActionIds,
-            GetInputPortId);
+            inputBindingSchema);
 
         var write = Assert.Single(plan.WriteRequests);
-        Assert.Equal(0, write.Player);
+        Assert.Equal((byte)0, plan.GetDesiredLegacyMask("p1"));
+        Assert.Equal("p1", write.PortId);
         Assert.Equal("a", write.ActionId);
         Assert.False(write.DesiredPressed);
         Assert.Equal(0f, write.Value);
@@ -85,25 +100,13 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
         runtimeController.PressKey(Key.Q);
         runtimeController.UpdateTurboPulse(
             inputStateController,
-            [new ResolvedExtraInputBinding(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
+            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
 
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/another.nes");
 
         Assert.False(runtimeController.TurboPulseActive);
         Assert.Empty(runtimeController.PressedKeys);
     }
-
-    private static IReadOnlyList<string> ControllerActionIds => NesInputTestAdapter.ActionIds(
-        NesButton.A,
-        NesButton.B,
-        NesButton.Select,
-        NesButton.Start,
-        NesButton.Up,
-        NesButton.Down,
-        NesButton.Left,
-        NesButton.Right);
-
-    private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
 
     private sealed class FakeInputStateWriter : ICoreInputStateWriter
     {

@@ -58,7 +58,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private readonly Stopwatch _fpsWatch = Stopwatch.StartNew();
     private readonly LegacyTimelineSessionAdapter _legacyTimeline;
     private readonly string _romPath;
-    private readonly Dictionary<Key, (int Player, string ActionId)> _keyMap;
+    private readonly Dictionary<Key, (string PortId, string ActionId)> _keyMap;
     private readonly IReadOnlyList<GameWindowResolvedExtraInputBinding> _extraInputBindings;
     private readonly HashSet<Key> _pressedKeys = [];
     private readonly CoreBranchTree _branchTree = new();

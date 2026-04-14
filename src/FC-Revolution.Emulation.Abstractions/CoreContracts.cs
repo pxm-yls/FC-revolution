@@ -28,7 +28,10 @@ public sealed record CoreManifest(
     string DisplayName,
     string SystemId,
     string Version,
-    string BinaryKind);
+    string BinaryKind)
+{
+    public IReadOnlyList<string> SupportedMediaFilePatterns { get; init; } = [];
+}
 
 public sealed record CoreRuntimeInfo(
     string CoreId,

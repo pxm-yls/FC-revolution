@@ -8,7 +8,7 @@ using FC_Revolution.UI.Models;
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record GameWindowResolvedExtraInputBinding(
-    int Player,
+    string PortId,
     Key Key,
     ExtraInputBindingKind Kind,
     IReadOnlyList<string> ActionIds,
@@ -16,32 +16,32 @@ internal sealed record GameWindowResolvedExtraInputBinding(
 
 internal static class GameWindowInputBindingResolver
 {
-    public static Dictionary<Key, (int Player, string ActionId)> BuildKeyMap(
+    public static Dictionary<Key, (string PortId, string ActionId)> BuildKeyMap(
         IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort,
         CoreInputBindingSchema inputBindingSchema)
     {
         ArgumentNullException.ThrowIfNull(inputBindingsByPort);
         ArgumentNullException.ThrowIfNull(inputBindingSchema);
 
-        var map = new Dictionary<Key, (int Player, string ActionId)>();
+        var map = new Dictionary<Key, (string PortId, string ActionId)>();
         foreach (var (portId, bindings) in inputBindingsByPort)
         {
-            if (!inputBindingSchema.TryResolvePort(portId, out var player, out _))
+            if (!inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId))
                 continue;
 
             foreach (var (actionId, key) in bindings)
             {
-                if (!inputBindingSchema.TryNormalizeActionId(player, actionId, out var normalizedActionId))
+                if (!inputBindingSchema.TryNormalizeActionId(normalizedPortId, actionId, out var normalizedActionId))
                     continue;
 
-                map[key] = (player, normalizedActionId);
+                map[key] = (normalizedPortId, normalizedActionId);
             }
         }
 
         return map;
     }
 
-    public static Dictionary<Key, (int Player, string ActionId)> BuildKeyMap(
+    public static Dictionary<Key, (string PortId, string ActionId)> BuildKeyMap(
         IReadOnlyDictionary<string, Dictionary<string, Key>> inputBindingsByPort) =>
         BuildKeyMap(inputBindingsByPort, CoreInputBindingSchema.CreateFallback());
 
@@ -57,11 +57,14 @@ internal static class GameWindowInputBindingResolver
                 if (!Enum.TryParse<Key>(profile.Key, out var key) || key == Key.None)
                     return null;
 
+                if (!TryResolveProfilePort(profile, inputBindingSchema, out var portId))
+                    return null;
+
                 var kind = Enum.TryParse<ExtraInputBindingKind>(profile.Kind, out var parsedKind)
                     ? parsedKind
                     : ExtraInputBindingKind.Turbo;
                 var actionIds = (profile.Buttons ?? [])
-                    .Select(actionId => inputBindingSchema.TryNormalizeActionId(profile.Player, actionId, out var normalizedActionId)
+                    .Select(actionId => inputBindingSchema.TryNormalizeActionId(portId, actionId, out var normalizedActionId)
                         ? normalizedActionId
                         : null)
                     .Where(static actionId => actionId != null)
@@ -72,7 +75,7 @@ internal static class GameWindowInputBindingResolver
                     return null;
 
                 return new GameWindowResolvedExtraInputBinding(
-                    profile.Player,
+                    portId,
                     key,
                     kind,
                     actionIds,
@@ -88,7 +91,7 @@ internal static class GameWindowInputBindingResolver
         ResolveExtraInputBindings(profiles, CoreInputBindingSchema.CreateFallback());
 
     public static HashSet<Key> BuildHandledKeys(
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> keyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> keyMap,
         IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings)
     {
         var keys = keyMap.Keys.ToHashSet();
@@ -96,5 +99,20 @@ internal static class GameWindowInputBindingResolver
             keys.Add(binding.Key);
 
         return keys;
+    }
+
+    private static bool TryResolveProfilePort(
+        ExtraInputBindingProfile profile,
+        CoreInputBindingSchema inputBindingSchema,
+        out string portId)
+    {
+        if (inputBindingSchema.TryNormalizePortId(profile.PortId, out portId))
+            return true;
+
+        if (profile.Player is 0 or 1)
+            return inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(profile.Player), out portId);
+
+        portId = string.Empty;
+        return false;
     }
 }

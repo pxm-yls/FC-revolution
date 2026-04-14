@@ -1,5 +1,5 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using System.IO;
 using System.Linq;
@@ -28,11 +28,12 @@ public sealed class MainWindowViewModelInputAndShortcutsTests
         using var host = new MainWindowViewModelTestHost();
         var vm = host.ViewModel;
 
-        var previousCount = vm.GlobalExtraInputBindingsPlayer1.Count;
-        vm.AddGlobalTurboBindingCommand.Execute("0");
-        Assert.Equal(previousCount + 1, vm.GlobalExtraInputBindingsPlayer1.Count);
+        var previousCount = Assert.Single(vm.GlobalInputPortGroups, group => group.PortId == "p1").ExtraBindings.Count;
+        vm.AddGlobalTurboBindingCommand.Execute("p1");
+        var player1Group = Assert.Single(vm.GlobalInputPortGroups, group => group.PortId == "p1");
+        Assert.Equal(previousCount + 1, player1Group.ExtraBindings.Count);
 
-        var entry = vm.GlobalExtraInputBindingsPlayer1.Last();
+        var entry = player1Group.ExtraBindings.Last();
         Assert.True(entry.TrySetSelectedKey(Key.Q));
         Assert.True(vm.ShouldHandleKey(Key.Q));
     }
@@ -52,19 +53,21 @@ public sealed class MainWindowViewModelInputAndShortcutsTests
     }
 
     [Fact]
-    public void InputKeyDownUp_UpdatesPlayer1CombinedMask()
+    public void InputKeyDownUp_UpdatesPrimaryPortCombinedMask()
     {
         using var host = new MainWindowViewModelTestHost();
         var vm = host.ViewModel;
         host.CreateAndLoadTestRom();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
+        Assert.True(inputBindingSchema.TryGetLegacyBitMask("p1", "a", out var aBit));
 
         vm.OnKeyDown(Key.Z);
-        var pressedMask = host.ReadByteField("_player1InputMask");
-        Assert.NotEqual((byte)0, pressedMask & (byte)NesButton.A);
+        var pressedMask = host.ReadInputMask("p1");
+        Assert.NotEqual((byte)0, pressedMask & aBit);
 
         vm.OnKeyUp(Key.Z);
-        var releasedMask = host.ReadByteField("_player1InputMask");
-        Assert.Equal((byte)0, releasedMask & (byte)NesButton.A);
+        var releasedMask = host.ReadInputMask("p1");
+        Assert.Equal((byte)0, releasedMask & aBit);
     }
 
     [Fact]

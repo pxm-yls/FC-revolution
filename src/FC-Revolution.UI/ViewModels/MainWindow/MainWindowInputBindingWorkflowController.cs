@@ -10,7 +10,7 @@ using FC_Revolution.UI.Models;
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record MainWindowEffectiveInputBindingState(
-    IReadOnlyDictionary<Key, (int Player, string ActionId)> EffectiveKeyMap,
+    IReadOnlyDictionary<Key, (string PortId, string ActionId)> EffectiveKeyMap,
     IReadOnlyList<ResolvedExtraInputBinding> EffectiveExtraBindings,
     IReadOnlySet<Key> EffectiveHandledKeys);
 
@@ -20,15 +20,12 @@ internal sealed class MainWindowInputBindingWorkflowController
         MainWindowInputBindingsController inputBindingsController,
         SystemConfigProfile? profile,
         CoreInputBindingSchema inputBindingSchema,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer2,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2)
+        ObservableCollection<InputBindingPortGroup> globalInputPortGroups)
     {
         ArgumentNullException.ThrowIfNull(inputBindingsController);
         ArgumentNullException.ThrowIfNull(defaultKeyMaps);
@@ -36,10 +33,7 @@ internal sealed class MainWindowInputBindingWorkflowController
         ArgumentNullException.ThrowIfNull(inputBindingLayout);
         ArgumentNullException.ThrowIfNull(globalInputBindings);
         ArgumentNullException.ThrowIfNull(globalExtraInputBindings);
-        ArgumentNullException.ThrowIfNull(globalInputBindingsPlayer1);
-        ArgumentNullException.ThrowIfNull(globalInputBindingsPlayer2);
-        ArgumentNullException.ThrowIfNull(globalExtraInputBindingsPlayer1);
-        ArgumentNullException.ThrowIfNull(globalExtraInputBindingsPlayer2);
+        ArgumentNullException.ThrowIfNull(globalInputPortGroups);
 
         var viewState = inputBindingsController.BuildGlobalInputBindingViewState(
             profile,
@@ -47,57 +41,27 @@ internal sealed class MainWindowInputBindingWorkflowController
             defaultKeyMaps,
             configurableKeys,
             inputBindingLayout);
-        ApplyGlobalInputBindingViewState(
-            viewState,
+        ApplyInputBindingViewState(
+            viewState.InputBindings,
+            viewState.ExtraBindings,
+            inputBindingSchema,
             globalInputBindings,
             globalExtraInputBindings,
-            globalInputBindingsPlayer1,
-            globalInputBindingsPlayer2,
-            globalExtraInputBindingsPlayer1,
-            globalExtraInputBindingsPlayer2);
+            globalInputPortGroups);
     }
-
-    public void BuildAndApplyGlobalInputBindingViewState(
-        MainWindowInputBindingsController inputBindingsController,
-        SystemConfigProfile? profile,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
-        IReadOnlyList<Key> configurableKeys,
-        InputBindingLayoutProfile inputBindingLayout,
-        ObservableCollection<InputBindingEntry> globalInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer2,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2) =>
-        BuildAndApplyGlobalInputBindingViewState(
-            inputBindingsController,
-            profile,
-            CoreInputBindingSchema.CreateFallback(),
-            defaultKeyMaps,
-            configurableKeys,
-            inputBindingLayout,
-            globalInputBindings,
-            globalExtraInputBindings,
-            globalInputBindingsPlayer1,
-            globalInputBindingsPlayer2,
-            globalExtraInputBindingsPlayer1,
-            globalExtraInputBindingsPlayer2);
 
     public void RefreshRomInputBindings(
         MainWindowInputOverrideController inputOverrideController,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
         ObservableCollection<InputBindingEntry> romInputBindings,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer2,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
+        ObservableCollection<InputBindingPortGroup> romInputPortGroups,
         CoreInputBindingSchema inputBindingSchema,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         Action<bool> setRomInputOverrideEnabled,
@@ -109,11 +73,8 @@ internal sealed class MainWindowInputBindingWorkflowController
         ArgumentNullException.ThrowIfNull(globalInputBindings);
         ArgumentNullException.ThrowIfNull(globalExtraInputBindings);
         ArgumentNullException.ThrowIfNull(romInputBindings);
-        ArgumentNullException.ThrowIfNull(romInputBindingsPlayer1);
-        ArgumentNullException.ThrowIfNull(romInputBindingsPlayer2);
         ArgumentNullException.ThrowIfNull(romExtraInputBindings);
-        ArgumentNullException.ThrowIfNull(romExtraInputBindingsPlayer1);
-        ArgumentNullException.ThrowIfNull(romExtraInputBindingsPlayer2);
+        ArgumentNullException.ThrowIfNull(romInputPortGroups);
         ArgumentNullException.ThrowIfNull(defaultKeyMaps);
         ArgumentNullException.ThrowIfNull(configurableKeys);
         ArgumentNullException.ThrowIfNull(inputBindingLayout);
@@ -127,11 +88,8 @@ internal sealed class MainWindowInputBindingWorkflowController
             globalInputBindings,
             globalExtraInputBindings,
             romInputBindings,
-            romInputBindingsPlayer1,
-            romInputBindingsPlayer2,
             romExtraInputBindings,
-            romExtraInputBindingsPlayer1,
-            romExtraInputBindingsPlayer2,
+            romInputPortGroups,
             inputBindingSchema,
             defaultKeyMaps,
             configurableKeys,
@@ -140,54 +98,16 @@ internal sealed class MainWindowInputBindingWorkflowController
             notifyRomInputOverrideSummaryChanged);
     }
 
-    public void RefreshRomInputBindings(
-        MainWindowInputOverrideController inputOverrideController,
-        RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
-        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        ObservableCollection<InputBindingEntry> globalInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<InputBindingEntry> romInputBindings,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer2,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
-        IReadOnlyList<Key> configurableKeys,
-        InputBindingLayoutProfile inputBindingLayout,
-        Action<bool> setRomInputOverrideEnabled,
-        Action notifyRomInputOverrideSummaryChanged) =>
-        RefreshRomInputBindings(
-            inputOverrideController,
-            currentRom,
-            romInputOverrides,
-            romExtraInputOverrides,
-            globalInputBindings,
-            globalExtraInputBindings,
-            romInputBindings,
-            romInputBindingsPlayer1,
-            romInputBindingsPlayer2,
-            romExtraInputBindings,
-            romExtraInputBindingsPlayer1,
-            romExtraInputBindingsPlayer2,
-            CoreInputBindingSchema.CreateFallback(),
-            defaultKeyMaps,
-            configurableKeys,
-            inputBindingLayout,
-            setRomInputOverrideEnabled,
-            notifyRomInputOverrideSummaryChanged);
-
     public MainWindowEffectiveInputBindingState BuildEffectiveInputBindingState(
         MainWindowInputBindingsController inputBindingsController,
         MainWindowInputStateController inputStateController,
         CoreInputBindingSchema inputBindingSchema,
         string? romPath,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> defaultKeyMaps)
     {
         ArgumentNullException.ThrowIfNull(inputBindingsController);
         ArgumentNullException.ThrowIfNull(inputStateController);
@@ -197,12 +117,13 @@ internal sealed class MainWindowInputBindingWorkflowController
         ArgumentNullException.ThrowIfNull(globalExtraInputBindings);
         ArgumentNullException.ThrowIfNull(defaultKeyMaps);
 
-        var playerMaps = inputBindingsController.GetEffectivePlayerInputMaps(
+        var portMaps = inputBindingsController.GetEffectiveInputMapsByPort(
             romPath,
             romInputOverrides,
             globalInputBindings,
-            defaultKeyMaps);
-        var keyMap = BuildEffectiveKeyMap(playerMaps);
+            defaultKeyMaps,
+            inputBindingSchema);
+        var keyMap = BuildEffectiveKeyMap(portMaps, inputBindingSchema);
 
         var extraBindings = inputBindingsController
             .GetEffectiveExtraInputBindingProfiles(
@@ -218,61 +139,41 @@ internal sealed class MainWindowInputBindingWorkflowController
         return new MainWindowEffectiveInputBindingState(keyMap, extraBindings, handledKeys);
     }
 
-    public MainWindowEffectiveInputBindingState BuildEffectiveInputBindingState(
-        MainWindowInputBindingsController inputBindingsController,
-        MainWindowInputStateController inputStateController,
-        string? romPath,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
-        Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        IEnumerable<InputBindingEntry> globalInputBindings,
-        IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps) =>
-        BuildEffectiveInputBindingState(
-            inputBindingsController,
-            inputStateController,
-            CoreInputBindingSchema.CreateFallback(),
-            romPath,
-            romInputOverrides,
-            romExtraInputOverrides,
-            globalInputBindings,
-            globalExtraInputBindings,
-            defaultKeyMaps);
-
-    private static void ApplyGlobalInputBindingViewState(
-        GlobalInputBindingViewState viewState,
-        ObservableCollection<InputBindingEntry> globalInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> globalInputBindingsPlayer2,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2)
+    private static void ApplyInputBindingViewState(
+        IReadOnlyList<InputBindingEntry> inputBindings,
+        IReadOnlyList<ExtraInputBindingEntry> extraBindings,
+        CoreInputBindingSchema inputBindingSchema,
+        ObservableCollection<InputBindingEntry> targetInputBindings,
+        ObservableCollection<ExtraInputBindingEntry> targetExtraBindings,
+        ObservableCollection<InputBindingPortGroup> targetPortGroups)
     {
-        globalInputBindings.Clear();
-        foreach (var entry in viewState.InputBindings)
-            globalInputBindings.Add(entry);
+        targetInputBindings.Clear();
+        foreach (var entry in inputBindings)
+            targetInputBindings.Add(entry);
 
-        globalExtraInputBindings.Clear();
-        foreach (var entry in viewState.ExtraBindings)
-            globalExtraInputBindings.Add(entry);
+        targetExtraBindings.Clear();
+        foreach (var entry in extraBindings)
+            targetExtraBindings.Add(entry);
 
-        MainWindowInputOverrideController.RefreshPlayerBindingViews(
-            globalInputBindings,
-            globalInputBindingsPlayer1,
-            globalInputBindingsPlayer2);
-        MainWindowInputOverrideController.RefreshExtraBindingViews(
-            globalExtraInputBindings,
-            globalExtraInputBindingsPlayer1,
-            globalExtraInputBindingsPlayer2);
+        MainWindowInputOverrideController.RefreshPortBindingViews(
+            targetInputBindings,
+            targetExtraBindings,
+            targetPortGroups,
+            inputBindingSchema);
     }
 
-    private static Dictionary<Key, (int Player, string ActionId)> BuildEffectiveKeyMap(
-        IReadOnlyDictionary<int, Dictionary<string, Key>> playerMaps)
+    private static Dictionary<Key, (string PortId, string ActionId)> BuildEffectiveKeyMap(
+        IReadOnlyDictionary<string, Dictionary<string, Key>> portMaps,
+        CoreInputBindingSchema inputBindingSchema)
     {
-        var keyMap = new Dictionary<Key, (int Player, string ActionId)>();
-        foreach (var (player, bindings) in playerMaps)
+        var keyMap = new Dictionary<Key, (string PortId, string ActionId)>();
+        foreach (var portMap in portMaps)
         {
-            foreach (var (actionId, key) in bindings)
-                keyMap[key] = (player, actionId);
+            if (!inputBindingSchema.TryNormalizePortId(portMap.Key, out var portId))
+                continue;
+
+            foreach (var (actionId, key) in portMap.Value)
+                keyMap[key] = (portId, actionId);
         }
 
         return keyMap;

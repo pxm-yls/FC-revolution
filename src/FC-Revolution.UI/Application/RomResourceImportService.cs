@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FCRevolution.Storage;
 
@@ -28,10 +29,16 @@ public sealed class RomResourceImportService : IRomResourceImportService
         return new ImportedRomResource("rom.binary", objectKey, targetPath);
     }
 
-    public IReadOnlyList<ImportedRomResource> ImportRomDirectory(string directoryPath, bool recursive = true)
+    public IReadOnlyList<ImportedRomResource> ImportRomDirectory(
+        string directoryPath,
+        bool recursive = true,
+        IReadOnlyList<string>? supportedFilePatterns = null)
     {
         var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        return Directory.EnumerateFiles(directoryPath, "*.nes", searchOption)
+        return CoreMediaFilePatternCatalog.EnumerateFiles(
+                directoryPath,
+                CoreMediaFilePatternCatalog.ResolvePatterns(supportedFilePatterns),
+                searchOption)
             .Select(ImportRom)
             .ToList();
     }

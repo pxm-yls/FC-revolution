@@ -19,7 +19,10 @@ public sealed class NesManagedCoreModule : IManagedCoreModule
         "FC-Revolution NES Managed Core",
         "nes",
         "0.1.0",
-        CoreBinaryKinds.ManagedDotNet);
+        CoreBinaryKinds.ManagedDotNet)
+    {
+        SupportedMediaFilePatterns = ["*.nes"]
+    };
 
     public IEmulatorCoreFactory CreateFactory() => new NesManagedCoreFactory(Manifest);
 }

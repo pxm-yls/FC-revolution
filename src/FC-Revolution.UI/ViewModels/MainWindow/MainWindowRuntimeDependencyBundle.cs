@@ -33,7 +33,7 @@ internal sealed class MainWindowRuntimeDependencyBundle
 
     public static MainWindowRuntimeDependencyBundle Create(
         IReadOnlyList<RomLibraryItem> romLibrary,
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         IGameSessionService gameSessionService,
         CoreInputBindingSchema inputBindingSchema,

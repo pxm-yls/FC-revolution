@@ -5,7 +5,9 @@ namespace FC_Revolution.UI.Models;
 
 public sealed class ExtraInputBindingProfile
 {
-    public int Player { get; set; }
+    public string PortId { get; set; } = string.Empty;
+
+    public int Player { get; set; } = -1;
 
     public string Kind { get; set; } = ExtraInputBindingKind.Turbo.ToString();
 

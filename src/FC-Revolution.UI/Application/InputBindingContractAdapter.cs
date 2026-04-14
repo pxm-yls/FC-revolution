@@ -29,7 +29,11 @@ internal static class InputBindingContractAdapter
                 continue;
             }
 
-            var portId = inputBindingSchema.GetPortId(entry.Player);
+            if (!inputBindingSchema.TryNormalizePortId(entry.PortId, out var portId))
+            {
+                continue;
+            }
+
             if (!bindingsByPort.TryGetValue(portId, out var actionBindings))
             {
                 actionBindings = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
@@ -42,22 +46,26 @@ internal static class InputBindingContractAdapter
         return bindingsByPort;
     }
 
-    public static IReadOnlyDictionary<string, Dictionary<string, Key>> BuildActionBindingsFromPlayerMaps(
-        IReadOnlyDictionary<int, Dictionary<string, Key>> playerMaps)
-        => BuildActionBindingsFromPlayerMaps(playerMaps, FallbackSchema);
+    public static IReadOnlyDictionary<string, Dictionary<string, Key>> BuildActionBindingsFromPortMaps(
+        IReadOnlyDictionary<string, Dictionary<string, Key>> portMaps)
+        => BuildActionBindingsFromPortMaps(portMaps, FallbackSchema);
 
-    public static IReadOnlyDictionary<string, Dictionary<string, Key>> BuildActionBindingsFromPlayerMaps(
-        IReadOnlyDictionary<int, Dictionary<string, Key>> playerMaps,
+    public static IReadOnlyDictionary<string, Dictionary<string, Key>> BuildActionBindingsFromPortMaps(
+        IReadOnlyDictionary<string, Dictionary<string, Key>> portMaps,
         CoreInputBindingSchema inputBindingSchema)
     {
-        ArgumentNullException.ThrowIfNull(playerMaps);
+        ArgumentNullException.ThrowIfNull(portMaps);
         ArgumentNullException.ThrowIfNull(inputBindingSchema);
 
         var bindingsByPort = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var playerMap in playerMaps)
+        foreach (var portMap in portMaps)
         {
-            var portId = inputBindingSchema.GetPortId(playerMap.Key);
-            bindingsByPort[portId] = playerMap.Value.ToDictionary(
+            if (!inputBindingSchema.TryNormalizePortId(portMap.Key, out var portId))
+            {
+                continue;
+            }
+
+            bindingsByPort[portId] = portMap.Value.ToDictionary(
                 pair => pair.Key,
                 pair => pair.Value,
                 StringComparer.OrdinalIgnoreCase);
@@ -67,11 +75,11 @@ internal static class InputBindingContractAdapter
     }
 
     public static IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> BuildActionBindingsByRomPath(
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides)
+        IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides)
         => BuildActionBindingsByRomPath(romInputOverrides, FallbackSchema);
 
     public static IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> BuildActionBindingsByRomPath(
-        IReadOnlyDictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        IReadOnlyDictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         CoreInputBindingSchema inputBindingSchema)
     {
         ArgumentNullException.ThrowIfNull(romInputOverrides);
@@ -80,34 +88,8 @@ internal static class InputBindingContractAdapter
         return romInputOverrides.ToDictionary(
             pair => pair.Key,
             pair => new Dictionary<string, Dictionary<string, Key>>(
-                BuildActionBindingsFromPlayerMaps(pair.Value, inputBindingSchema),
+                BuildActionBindingsFromPortMaps(pair.Value, inputBindingSchema),
                 StringComparer.OrdinalIgnoreCase),
             StringComparer.OrdinalIgnoreCase);
-    }
-
-    public static IReadOnlyDictionary<int, Dictionary<string, Key>> BuildPlayerMapsFromActionBindings(
-        IReadOnlyDictionary<string, Dictionary<string, Key>> bindingsByPort)
-        => BuildPlayerMapsFromActionBindings(bindingsByPort, FallbackSchema);
-
-    public static IReadOnlyDictionary<int, Dictionary<string, Key>> BuildPlayerMapsFromActionBindings(
-        IReadOnlyDictionary<string, Dictionary<string, Key>> bindingsByPort,
-        CoreInputBindingSchema inputBindingSchema)
-    {
-        ArgumentNullException.ThrowIfNull(bindingsByPort);
-        ArgumentNullException.ThrowIfNull(inputBindingSchema);
-
-        var playerMaps = new Dictionary<int, Dictionary<string, Key>>();
-        foreach (var portBindings in bindingsByPort)
-        {
-            if (!inputBindingSchema.TryResolvePort(portBindings.Key, out var player, out _))
-                continue;
-
-            playerMaps[player] = portBindings.Value.ToDictionary(
-                pair => pair.Key,
-                pair => pair.Value,
-                StringComparer.OrdinalIgnoreCase);
-        }
-
-        return playerMaps;
     }
 }

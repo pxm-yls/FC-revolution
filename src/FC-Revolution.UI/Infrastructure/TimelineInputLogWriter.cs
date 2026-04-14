@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FCRevolution.Storage;
 
 namespace FC_Revolution.UI.Infrastructure;
@@ -9,12 +10,12 @@ internal sealed class TimelineInputLogWriter : IDisposable
 
     public bool IsOpen => _writer.IsOpen;
 
-    public void Open(string path, bool resetFile) => _writer.Open(path, resetFile);
+    public void Open(string path, bool resetFile, IEnumerable<string> portIds) => _writer.Open(path, resetFile, portIds);
 
     public void Close() => _writer.Close();
 
-    public void Append(long frame, byte player1Mask, byte player2Mask) =>
-        _writer.Append(new FrameInputRecord(frame, player1Mask, player2Mask));
+    public void Append(long frame, IReadOnlyDictionary<string, byte> masksByPort) =>
+        _writer.Append(new FrameInputRecord(frame, masksByPort));
 
     public void Dispose() => _writer.Dispose();
 }

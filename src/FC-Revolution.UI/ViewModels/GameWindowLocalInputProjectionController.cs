@@ -8,30 +8,59 @@ using FC_Revolution.UI.Models;
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record GameWindowDesiredLocalInputActions(
-    IReadOnlySet<string> Player1Actions,
-    IReadOnlySet<string> Player2Actions);
+    IReadOnlyDictionary<string, IReadOnlySet<string>> ActionsByPort)
+{
+    public IReadOnlySet<string> GetActions(string portId) =>
+        ActionsByPort.TryGetValue(portId, out var actions)
+            ? actions
+            : EmptyActions;
+
+    private static IReadOnlySet<string> EmptyActions { get; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+}
 
 internal readonly record struct GameWindowDesiredLocalInputMasks(
-    byte Player1Mask,
-    byte Player2Mask);
+    IReadOnlyDictionary<string, byte> MasksByPort)
+{
+    public byte GetMask(string portId) =>
+        MasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+}
 
 internal static class GameWindowLocalInputProjectionController
 {
     public static GameWindowDesiredLocalInputActions BuildDesiredLocalInputActions(
         IReadOnlyCollection<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> keyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> keyMap,
         IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings,
         IReadOnlyDictionary<Key, int> turboTickCounters)
+        => BuildDesiredLocalInputActions(
+            pressedKeys,
+            keyMap,
+            extraInputBindings,
+            turboTickCounters,
+            CoreInputBindingSchema.CreateFallback());
+
+    public static GameWindowDesiredLocalInputActions BuildDesiredLocalInputActions(
+        IReadOnlyCollection<Key> pressedKeys,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> keyMap,
+        IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings,
+        IReadOnlyDictionary<Key, int> turboTickCounters,
+        CoreInputBindingSchema inputBindingSchema)
     {
-        HashSet<string> player1Actions = new(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> player2Actions = new(StringComparer.OrdinalIgnoreCase);
+        ArgumentNullException.ThrowIfNull(inputBindingSchema);
+
+        var actionsByPort = inputBindingSchema.GetSupportedPorts()
+            .ToDictionary(
+                port => port.PortId,
+                _ => new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var key in pressedKeys)
         {
             if (!keyMap.TryGetValue(key, out var binding))
                 continue;
 
-            GetTargetActions(binding.Player, player1Actions, player2Actions).Add(binding.ActionId);
+            GetTargetActions(binding.PortId, actionsByPort).Add(binding.ActionId);
         }
 
         foreach (var binding in extraInputBindings)
@@ -47,43 +76,68 @@ internal static class GameWindowLocalInputProjectionController
                     continue;
             }
 
-            var targetActions = GetTargetActions(binding.Player, player1Actions, player2Actions);
+            var targetActions = GetTargetActions(binding.PortId, actionsByPort);
             foreach (var actionId in binding.ActionIds)
                 targetActions.Add(actionId);
         }
 
-        return new GameWindowDesiredLocalInputActions(player1Actions, player2Actions);
+        return new GameWindowDesiredLocalInputActions(actionsByPort.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlySet<string>)pair.Value,
+            StringComparer.OrdinalIgnoreCase));
     }
 
     public static GameWindowDesiredLocalInputMasks BuildDesiredLocalInputMasks(
         IReadOnlyCollection<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> keyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> keyMap,
         IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings,
         IReadOnlyDictionary<Key, int> turboTickCounters)
+        => BuildDesiredLocalInputMasks(
+            pressedKeys,
+            keyMap,
+            extraInputBindings,
+            turboTickCounters,
+            CoreInputBindingSchema.CreateFallback());
+
+    public static GameWindowDesiredLocalInputMasks BuildDesiredLocalInputMasks(
+        IReadOnlyCollection<Key> pressedKeys,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> keyMap,
+        IReadOnlyList<GameWindowResolvedExtraInputBinding> extraInputBindings,
+        IReadOnlyDictionary<Key, int> turboTickCounters,
+        CoreInputBindingSchema inputBindingSchema)
     {
-        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         var desiredActions = BuildDesiredLocalInputActions(
             pressedKeys,
             keyMap,
             extraInputBindings,
-            turboTickCounters);
+            turboTickCounters,
+            inputBindingSchema);
         return new GameWindowDesiredLocalInputMasks(
-            BuildLegacyMask(0, desiredActions.Player1Actions, inputBindingSchema),
-            BuildLegacyMask(1, desiredActions.Player2Actions, inputBindingSchema));
+            inputBindingSchema.GetSupportedPorts().ToDictionary(
+                port => port.PortId,
+                port => BuildLegacyMask(port.PortId, desiredActions.GetActions(port.PortId), inputBindingSchema),
+                StringComparer.OrdinalIgnoreCase));
     }
 
     private static HashSet<string> GetTargetActions(
-        int player,
-        HashSet<string> player1Actions,
-        HashSet<string> player2Actions) =>
-        player == 0 ? player1Actions : player2Actions;
+        string portId,
+        IDictionary<string, HashSet<string>> actionsByPort)
+    {
+        if (!actionsByPort.TryGetValue(portId, out var targetActions))
+        {
+            targetActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            actionsByPort[portId] = targetActions;
+        }
 
-    private static byte BuildLegacyMask(int player, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
+        return targetActions;
+    }
+
+    private static byte BuildLegacyMask(string portId, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
     {
         byte mask = 0;
         foreach (var actionId in actionIds)
         {
-            if (inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
+            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
                 mask |= bit;
         }
 

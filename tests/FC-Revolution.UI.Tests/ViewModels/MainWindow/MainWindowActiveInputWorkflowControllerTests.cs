@@ -4,6 +4,7 @@ using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -31,6 +32,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
         var runtimeController = new MainWindowActiveInputRuntimeController();
         var workflowController = new MainWindowActiveInputWorkflowController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/demo.nes");
         runtimeController.PressKey(Key.Z);
 
@@ -39,23 +41,19 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             inputStateController,
             isRomLoaded: false,
             activeRomPath: null,
-            effectiveKeyMap: new Dictionary<Key, (int Player, string ActionId)>
+            effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
             },
             effectiveExtraBindings:
             [
-                new ResolvedExtraInputBinding(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))
+                new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))
             ],
-            player1CurrentMask: (byte)NesButton.A,
-            player2CurrentMask: 0,
-            ControllerActionIds,
-            GetInputPortId);
+            inputBindingSchema);
 
-        var write = Assert.Single(decision.ApplyPlan.WriteRequests);
-        Assert.Equal(0, write.Player);
-        Assert.Equal("a", write.ActionId);
-        Assert.False(write.DesiredPressed);
+        Assert.Empty(decision.ApplyPlan.WriteRequests);
+        Assert.Equal((byte)0, decision.ApplyPlan.GetDesiredLegacyMask("p1"));
+        Assert.Equal((byte)0, decision.ApplyPlan.GetDesiredLegacyMask("p2"));
         Assert.False(decision.LegacyMirror.TurboPulseActive);
         Assert.Empty(decision.LegacyMirror.PressedKeys);
     }
@@ -66,6 +64,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
         var runtimeController = new MainWindowActiveInputRuntimeController();
         var workflowController = new MainWindowActiveInputWorkflowController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/demo.nes");
         runtimeController.PressKey(Key.Z);
 
@@ -74,28 +73,25 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             inputStateController,
             isRomLoaded: true,
             activeRomPath: "/tmp/demo.nes",
-            effectiveKeyMap: new Dictionary<Key, (int Player, string ActionId)>
+            effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
             },
             effectiveExtraBindings: [],
-            player1CurrentMask: 0,
-            player2CurrentMask: 0,
-            ControllerActionIds,
-            GetInputPortId);
+            inputBindingSchema);
 
         var writer = new FakeInputStateWriter();
-        var maskUpdates = new List<(int Player, string ActionId, bool Pressed)>();
+        var maskUpdates = new List<(string PortId, string ActionId, bool Pressed)>();
         var mirror = workflowController.ApplyRefreshDecision(
             runtimeController,
             decision,
             new object(),
             writer,
-            (player, actionId, pressed) => maskUpdates.Add((player, actionId, pressed)));
+            (portId, actionId, pressed) => maskUpdates.Add((portId, actionId, pressed)));
 
         var call = Assert.Single(writer.Calls);
         Assert.Equal(("p1", "a", 1f), call);
-        Assert.Equal([(0, "a", true)], maskUpdates);
+        Assert.Equal([("p1", "a", true)], maskUpdates);
         Assert.Equal([Key.Z], mirror.PressedKeys.ToArray());
         Assert.False(mirror.TurboPulseActive);
     }
@@ -106,28 +102,26 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
         var runtimeController = new MainWindowActiveInputRuntimeController();
         var workflowController = new MainWindowActiveInputWorkflowController();
         var inputStateController = new MainWindowInputStateController();
+        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/demo.nes");
         runtimeController.PressKey(Key.Z);
 
         var writer = new FakeInputStateWriter();
-        var maskUpdates = new List<(int Player, string ActionId, bool Pressed)>();
+        var maskUpdates = new List<(string PortId, string ActionId, bool Pressed)>();
         var result = workflowController.RefreshActiveInputState(
             runtimeController,
             inputStateController,
             isRomLoaded: true,
             activeRomPath: "/tmp/demo.nes",
-            effectiveKeyMap: new Dictionary<Key, (int Player, string ActionId)>
+            effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
             },
             effectiveExtraBindings: [],
-            player1CurrentMask: 0,
-            player2CurrentMask: 0,
-            ControllerActionIds,
-            GetInputPortId,
+            inputBindingSchema,
             new object(),
             writer,
-            (player, actionId, pressed) => maskUpdates.Add((player, actionId, pressed)));
+            (portId, actionId, pressed) => maskUpdates.Add((portId, actionId, pressed)));
 
         Assert.Equal([Key.Z], result.LegacyMirrorBeforeApply.PressedKeys.ToArray());
         Assert.Equal([Key.Z], result.LegacyMirrorAfterApply.PressedKeys.ToArray());
@@ -136,7 +130,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
 
         var call = Assert.Single(writer.Calls);
         Assert.Equal(("p1", "a", 1f), call);
-        Assert.Equal([(0, "a", true)], maskUpdates);
+        Assert.Equal([("p1", "a", true)], maskUpdates);
     }
 
     [Fact]
@@ -151,24 +145,12 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
         var decision = workflowController.UpdateTurboPulse(
             runtimeController,
             inputStateController,
-            [new ResolvedExtraInputBinding(0, Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
+            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
 
         Assert.True(decision.ShouldRefreshActiveInputState);
         Assert.True(decision.LegacyMirror.TurboPulseActive);
         Assert.Equal([Key.Q], decision.LegacyMirror.PressedKeys.ToArray());
     }
-
-    private static IReadOnlyList<string> ControllerActionIds => NesInputTestAdapter.ActionIds(
-        NesButton.A,
-        NesButton.B,
-        NesButton.Select,
-        NesButton.Start,
-        NesButton.Up,
-        NesButton.Down,
-        NesButton.Left,
-        NesButton.Right);
-
-    private static string GetInputPortId(int player) => player == 0 ? "p1" : "p2";
 
     private sealed class FakeInputStateWriter : ICoreInputStateWriter
     {

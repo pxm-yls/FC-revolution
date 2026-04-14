@@ -45,18 +45,18 @@ internal sealed class MainWindowInputOverrideController
 
     public void EnableRomInputOverride(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
         if (currentRom == null)
             return;
 
-        var inputOverride = _inputBindingsController.BuildPlayerInputMaps(globalInputBindings);
+        var inputOverride = _inputBindingsController.BuildInputMapsByPort(globalInputBindings);
         romInputOverrides[currentRom.Path] = inputOverride;
         romExtraInputOverrides[currentRom.Path] = _inputBindingsController.BuildExtraInputBindingProfiles(globalExtraInputBindings);
         saveRomProfileInputOverride(currentRom.Path, inputOverride);
@@ -69,9 +69,9 @@ internal sealed class MainWindowInputOverrideController
         bool isRomInputOverrideEnabled,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -94,9 +94,9 @@ internal sealed class MainWindowInputOverrideController
 
     public void ClearRomInputOverride(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -113,58 +113,58 @@ internal sealed class MainWindowInputOverrideController
     }
 
     public void AddGlobalTurboBinding(
-        string? playerToken,
+        string? portId,
         IEnumerable<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2,
+        ObservableCollection<InputBindingPortGroup> globalInputPortGroups,
         Action saveSystemConfig,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
     {
-        var player = ParsePlayerToken(playerToken);
+        var normalizedPortId = ResolveRequestedPortId(portId);
         globalExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultTurbo(
-            player,
+            normalizedPortId,
+            _inputBindingSchema.GetPortDisplayName(normalizedPortId),
             GetSuggestedExtraKey(globalInputBindings, globalExtraInputBindings),
             _configurableKeys,
             _inputBindingSchema.ExtraInputButtonOptions));
-        RefreshExtraBindingViews(globalExtraInputBindings, globalExtraInputBindingsPlayer1, globalExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(globalInputBindings, globalExtraInputBindings, globalInputPortGroups, _inputBindingSchema);
         saveSystemConfig();
         refreshRomInputBindings();
         refreshActiveInputState();
-        setStatus($"已新增 {GetPlayerLabel(player)} 连发键");
+        setStatus($"已新增 {GetPortLabel(normalizedPortId)} 连发键");
     }
 
     public void AddGlobalComboBinding(
-        string? playerToken,
+        string? portId,
         IEnumerable<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2,
+        ObservableCollection<InputBindingPortGroup> globalInputPortGroups,
         Action saveSystemConfig,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
     {
-        var player = ParsePlayerToken(playerToken);
+        var normalizedPortId = ResolveRequestedPortId(portId);
         globalExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultCombo(
-            player,
+            normalizedPortId,
+            _inputBindingSchema.GetPortDisplayName(normalizedPortId),
             GetSuggestedExtraKey(globalInputBindings, globalExtraInputBindings),
             _configurableKeys,
             _inputBindingSchema.ExtraInputButtonOptions));
-        RefreshExtraBindingViews(globalExtraInputBindings, globalExtraInputBindingsPlayer1, globalExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(globalInputBindings, globalExtraInputBindings, globalInputPortGroups, _inputBindingSchema);
         saveSystemConfig();
         refreshRomInputBindings();
         refreshActiveInputState();
-        setStatus($"已新增 {GetPlayerLabel(player)} 组合键");
+        setStatus($"已新增 {GetPortLabel(normalizedPortId)} 组合键");
     }
 
     public void RemoveGlobalExtraBinding(
         ExtraInputBindingEntry? entry,
+        IEnumerable<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindingsPlayer2,
+        ObservableCollection<InputBindingPortGroup> globalInputPortGroups,
         Action saveSystemConfig,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
@@ -174,26 +174,25 @@ internal sealed class MainWindowInputOverrideController
             return;
 
         globalExtraInputBindings.Remove(entry);
-        RefreshExtraBindingViews(globalExtraInputBindings, globalExtraInputBindingsPlayer1, globalExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(globalInputBindings, globalExtraInputBindings, globalInputPortGroups, _inputBindingSchema);
         saveSystemConfig();
         refreshRomInputBindings();
         refreshActiveInputState();
-        setStatus($"已删除 {entry.PlayerLabel} {entry.KindLabel}");
+        setStatus($"已删除 {entry.PortLabel} {entry.KindLabel}");
     }
 
     public void AddRomTurboBinding(
-        string? playerToken,
+        string? portId,
         RomLibraryItem? currentRom,
         bool isRomInputOverrideEnabled,
         ObservableCollection<InputBindingEntry> romInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        ObservableCollection<InputBindingPortGroup> romInputPortGroups,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -211,13 +210,14 @@ internal sealed class MainWindowInputOverrideController
         if (!isRomInputOverrideEnabled)
             refreshRomInputBindings();
 
-        var player = ParsePlayerToken(playerToken);
+        var normalizedPortId = ResolveRequestedPortId(portId);
         romExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultTurbo(
-            player,
+            normalizedPortId,
+            _inputBindingSchema.GetPortDisplayName(normalizedPortId),
             GetSuggestedExtraKey(romInputBindings, romExtraInputBindings),
             _configurableKeys,
             _inputBindingSchema.ExtraInputButtonOptions));
-        RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(romInputBindings, romExtraInputBindings, romInputPortGroups, _inputBindingSchema);
         PersistCurrentRomInputBindings(
             currentRom,
             romInputBindings,
@@ -228,22 +228,21 @@ internal sealed class MainWindowInputOverrideController
             refreshRomInputBindings,
             refreshActiveInputState,
             setStatus,
-            $"已新增 {GetPlayerLabel(player)} 连发键");
+            $"已新增 {GetPortLabel(normalizedPortId)} 连发键");
     }
 
     public void AddRomComboBinding(
-        string? playerToken,
+        string? portId,
         RomLibraryItem? currentRom,
         bool isRomInputOverrideEnabled,
         ObservableCollection<InputBindingEntry> romInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        ObservableCollection<InputBindingPortGroup> romInputPortGroups,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -261,13 +260,14 @@ internal sealed class MainWindowInputOverrideController
         if (!isRomInputOverrideEnabled)
             refreshRomInputBindings();
 
-        var player = ParsePlayerToken(playerToken);
+        var normalizedPortId = ResolveRequestedPortId(portId);
         romExtraInputBindings.Add(ExtraInputBindingEntry.CreateDefaultCombo(
-            player,
+            normalizedPortId,
+            _inputBindingSchema.GetPortDisplayName(normalizedPortId),
             GetSuggestedExtraKey(romInputBindings, romExtraInputBindings),
             _configurableKeys,
             _inputBindingSchema.ExtraInputButtonOptions));
-        RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(romInputBindings, romExtraInputBindings, romInputPortGroups, _inputBindingSchema);
         PersistCurrentRomInputBindings(
             currentRom,
             romInputBindings,
@@ -278,21 +278,20 @@ internal sealed class MainWindowInputOverrideController
             refreshRomInputBindings,
             refreshActiveInputState,
             setStatus,
-            $"已新增 {GetPlayerLabel(player)} 组合键");
+            $"已新增 {GetPortLabel(normalizedPortId)} 组合键");
     }
 
     public void RemoveRomExtraBinding(
         ExtraInputBindingEntry? entry,
         RomLibraryItem? currentRom,
+        ObservableCollection<InputBindingEntry> romInputBindings,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        ObservableCollection<InputBindingPortGroup> romInputPortGroups,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        IEnumerable<InputBindingEntry> romInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -308,7 +307,7 @@ internal sealed class MainWindowInputOverrideController
             globalExtraInputBindings,
             saveRomProfileInputOverride);
         romExtraInputBindings.Remove(entry);
-        RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(romInputBindings, romExtraInputBindings, romInputPortGroups, _inputBindingSchema);
         PersistCurrentRomInputBindings(
             currentRom,
             romInputBindings,
@@ -319,7 +318,7 @@ internal sealed class MainWindowInputOverrideController
             refreshRomInputBindings,
             refreshActiveInputState,
             setStatus,
-            $"已删除 {entry.PlayerLabel} {entry.KindLabel}");
+            $"已删除 {entry.PortLabel} {entry.KindLabel}");
     }
 
     public void IncrGlobalTurboHz(ExtraInputBindingEntry? entry, Action saveSystemConfig, Action refreshActiveInputState)
@@ -345,13 +344,13 @@ internal sealed class MainWindowInputOverrideController
     public void IncrRomTurboHz(
         ExtraInputBindingEntry? entry,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -384,13 +383,13 @@ internal sealed class MainWindowInputOverrideController
     public void DecrRomTurboHz(
         ExtraInputBindingEntry? entry,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus)
@@ -424,11 +423,11 @@ internal sealed class MainWindowInputOverrideController
         RomLibraryItem? rom,
         Action<RomLibraryItem> setCurrentRom,
         Action<bool> setQuickRomInputEditorOpen,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
@@ -455,9 +454,9 @@ internal sealed class MainWindowInputOverrideController
         RomLibraryItem? currentRom,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus,
@@ -483,9 +482,9 @@ internal sealed class MainWindowInputOverrideController
     public void RemoveRomInputOverrideFromMenu(
         RomLibraryItem? rom,
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action<string> setStatus)
     {
@@ -502,11 +501,11 @@ internal sealed class MainWindowInputOverrideController
 
     public void EnsureRomInputOverrideForEditing(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         IEnumerable<InputBindingEntry> globalInputBindings,
         IEnumerable<ExtraInputBindingEntry> globalExtraInputBindings,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride)
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride)
     {
         _inputBindingsController.EnsureRomInputOverrideForEditing(
             romPath,
@@ -519,7 +518,7 @@ internal sealed class MainWindowInputOverrideController
 
     public void LoadRomProfileInputOverride(
         string romPath,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
         _inputBindingsController.LoadRomProfileInputOverride(romPath, romInputOverrides, romExtraInputOverrides, _inputBindingSchema);
@@ -527,19 +526,19 @@ internal sealed class MainWindowInputOverrideController
 
     public void SaveRomProfileInputOverride(
         string romPath,
-        Dictionary<int, Dictionary<string, Key>>? inputOverride,
+        Dictionary<string, Dictionary<string, Key>>? inputOverride,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides)
     {
-        _inputBindingsController.SaveRomProfileInputOverride(romPath, inputOverride, romExtraInputOverrides);
+        _inputBindingsController.SaveRomProfileInputOverride(romPath, inputOverride, romExtraInputOverrides, _inputBindingSchema);
     }
 
     public void PersistCurrentRomInputBindings(
         RomLibraryItem? currentRom,
         IEnumerable<InputBindingEntry> romInputBindings,
         IEnumerable<ExtraInputBindingEntry> romExtraInputBindings,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
-        Action<string, Dictionary<int, Dictionary<string, Key>>?> saveRomProfileInputOverride,
+        Action<string, Dictionary<string, Dictionary<string, Key>>?> saveRomProfileInputOverride,
         Action refreshRomInputBindings,
         Action refreshActiveInputState,
         Action<string> setStatus,
@@ -548,7 +547,7 @@ internal sealed class MainWindowInputOverrideController
         if (currentRom == null)
             return;
 
-        romInputOverrides[currentRom.Path] = _inputBindingsController.BuildPlayerInputMaps(romInputBindings);
+        romInputOverrides[currentRom.Path] = _inputBindingsController.BuildInputMapsByPort(romInputBindings);
         romExtraInputOverrides[currentRom.Path] = _inputBindingsController.BuildExtraInputBindingProfiles(romExtraInputBindings);
         saveRomProfileInputOverride(currentRom.Path, romInputOverrides[currentRom.Path]);
         refreshRomInputBindings();
@@ -559,29 +558,23 @@ internal sealed class MainWindowInputOverrideController
 
     public void RefreshRomInputBindings(
         RomLibraryItem? currentRom,
-        Dictionary<string, Dictionary<int, Dictionary<string, Key>>> romInputOverrides,
+        Dictionary<string, Dictionary<string, Dictionary<string, Key>>> romInputOverrides,
         Dictionary<string, List<ExtraInputBindingProfile>> romExtraInputOverrides,
         ObservableCollection<InputBindingEntry> globalInputBindings,
         ObservableCollection<ExtraInputBindingEntry> globalExtraInputBindings,
         ObservableCollection<InputBindingEntry> romInputBindings,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer1,
-        ObservableCollection<InputBindingEntry> romInputBindingsPlayer2,
         ObservableCollection<ExtraInputBindingEntry> romExtraInputBindings,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer1,
-        ObservableCollection<ExtraInputBindingEntry> romExtraInputBindingsPlayer2,
+        ObservableCollection<InputBindingPortGroup> romInputPortGroups,
         CoreInputBindingSchema inputBindingSchema,
-        IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> defaultKeyMaps,
         IReadOnlyList<Key> configurableKeys,
         InputBindingLayoutProfile inputBindingLayout,
         Action<bool> setRomInputOverrideEnabled,
         Action notifyRomInputOverrideSummaryChanged)
     {
         romInputBindings.Clear();
-        romInputBindingsPlayer1.Clear();
-        romInputBindingsPlayer2.Clear();
         romExtraInputBindings.Clear();
-        romExtraInputBindingsPlayer1.Clear();
-        romExtraInputBindingsPlayer2.Clear();
+        romInputPortGroups.Clear();
 
         if (currentRom == null)
         {
@@ -606,48 +599,43 @@ internal sealed class MainWindowInputOverrideController
         foreach (var entry in viewState.ExtraBindings)
             romExtraInputBindings.Add(entry);
 
-        RefreshPlayerBindingViews(romInputBindings, romInputBindingsPlayer1, romInputBindingsPlayer2);
-        RefreshExtraBindingViews(romExtraInputBindings, romExtraInputBindingsPlayer1, romExtraInputBindingsPlayer2);
+        RefreshPortBindingViews(romInputBindings, romExtraInputBindings, romInputPortGroups, inputBindingSchema);
         notifyRomInputOverrideSummaryChanged();
     }
 
-    public static void RefreshPlayerBindingViews(
-        IEnumerable<InputBindingEntry> source,
-        ObservableCollection<InputBindingEntry> player1Bindings,
-        ObservableCollection<InputBindingEntry> player2Bindings)
+    public static void RefreshPortBindingViews(
+        IEnumerable<InputBindingEntry> inputBindings,
+        IEnumerable<ExtraInputBindingEntry> extraBindings,
+        ObservableCollection<InputBindingPortGroup> portGroups,
+        CoreInputBindingSchema inputBindingSchema)
     {
-        player1Bindings.Clear();
-        player2Bindings.Clear();
+        portGroups.Clear();
 
-        foreach (var entry in source)
+        foreach (var port in inputBindingSchema.GetSupportedPorts())
         {
-            if (entry.Player == 0)
-                player1Bindings.Add(entry);
-            else
-                player2Bindings.Add(entry);
+            var portInputBindings = inputBindings
+                .Where(entry => entry.PortId.Equals(port.PortId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var portExtraBindings = extraBindings
+                .Where(entry => entry.PortId.Equals(port.PortId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            portGroups.Add(new InputBindingPortGroup(
+                port.PortId,
+                port.DisplayName,
+                portInputBindings,
+                portExtraBindings));
         }
     }
 
-    public static void RefreshExtraBindingViews(
-        IEnumerable<ExtraInputBindingEntry> source,
-        ObservableCollection<ExtraInputBindingEntry> player1Bindings,
-        ObservableCollection<ExtraInputBindingEntry> player2Bindings)
+    private string ResolveRequestedPortId(string? requestedPortId)
     {
-        player1Bindings.Clear();
-        player2Bindings.Clear();
+        if (_inputBindingSchema.TryNormalizePortId(requestedPortId, out var normalizedPortId))
+            return normalizedPortId;
 
-        foreach (var entry in source)
-        {
-            if (entry.Player == 0)
-                player1Bindings.Add(entry);
-            else
-                player2Bindings.Add(entry);
-        }
+        return _inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId ?? _inputBindingSchema.GetPortId(0);
     }
 
-    private static string GetPlayerLabel(int player) => player == 0 ? "1P" : "2P";
-
-    private static int ParsePlayerToken(string? playerToken) => playerToken == "1" ? 1 : 0;
+    private string GetPortLabel(string portId) => _inputBindingSchema.GetPortDisplayName(portId);
 
     private Key GetSuggestedExtraKey(IEnumerable<InputBindingEntry> baseBindings, IEnumerable<ExtraInputBindingEntry> extraBindings)
     {

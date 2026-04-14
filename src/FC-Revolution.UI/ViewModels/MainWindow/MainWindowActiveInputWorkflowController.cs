@@ -26,8 +26,8 @@ internal sealed record MainWindowActiveInputTurboPulseDecision(
 
 internal sealed class MainWindowActiveInputWorkflowController
 {
-    private static readonly IReadOnlyDictionary<Key, (int Player, string ActionId)> EmptyKeyMap =
-        new Dictionary<Key, (int Player, string ActionId)>();
+    private static readonly IReadOnlyDictionary<Key, (string PortId, string ActionId)> EmptyKeyMap =
+        new Dictionary<Key, (string PortId, string ActionId)>();
     private static readonly IReadOnlyList<ResolvedExtraInputBinding> EmptyExtraBindings = [];
 
     public string? GetActiveInputRomPath(bool isRomLoaded, string? loadedRomPath, RomLibraryItem? currentRom)
@@ -38,7 +38,7 @@ internal sealed class MainWindowActiveInputWorkflowController
         MainWindowInputStateController inputStateController,
         bool isRomLoaded,
         string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
         CoreInputBindingSchema inputBindingSchema)
     {
@@ -60,45 +60,12 @@ internal sealed class MainWindowActiveInputWorkflowController
             BuildLegacyMirror(runtimeController));
     }
 
-    public MainWindowActiveInputRefreshDecision BuildRefreshDecision(
-        MainWindowActiveInputRuntimeController runtimeController,
-        MainWindowInputStateController inputStateController,
-        bool isRomLoaded,
-        string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
-        IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
-        byte player1CurrentMask,
-        byte player2CurrentMask,
-        IReadOnlyList<string> controllerActionIds,
-        Func<int, string> getInputPortId)
-    {
-        ArgumentNullException.ThrowIfNull(runtimeController);
-        ArgumentNullException.ThrowIfNull(inputStateController);
-        ArgumentNullException.ThrowIfNull(effectiveKeyMap);
-        ArgumentNullException.ThrowIfNull(effectiveExtraBindings);
-        ArgumentNullException.ThrowIfNull(controllerActionIds);
-        ArgumentNullException.ThrowIfNull(getInputPortId);
-
-        runtimeController.RefreshContext(isRomLoaded, activeRomPath);
-        var applyPlan = runtimeController.BuildApplyPlan(
-            inputStateController,
-            isRomLoaded ? effectiveKeyMap : EmptyKeyMap,
-            isRomLoaded ? effectiveExtraBindings : EmptyExtraBindings,
-            player1CurrentMask,
-            player2CurrentMask,
-            controllerActionIds,
-            getInputPortId);
-        return new MainWindowActiveInputRefreshDecision(
-            applyPlan,
-            BuildLegacyMirror(runtimeController));
-    }
-
     public MainWindowActiveInputLegacyMirror ApplyRefreshDecision(
         MainWindowActiveInputRuntimeController runtimeController,
         MainWindowActiveInputRefreshDecision decision,
         object inputSyncRoot,
         ICoreInputStateWriter inputStateWriter,
-        Action<int, string, bool> updateInputMask)
+        Action<string, string, bool> updateInputMask)
     {
         ArgumentNullException.ThrowIfNull(runtimeController);
         ArgumentNullException.ThrowIfNull(decision);
@@ -119,12 +86,12 @@ internal sealed class MainWindowActiveInputWorkflowController
         MainWindowInputStateController inputStateController,
         bool isRomLoaded,
         string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
         CoreInputBindingSchema inputBindingSchema,
         object inputSyncRoot,
         ICoreInputStateWriter inputStateWriter,
-        Action<int, string, bool> updateInputMask)
+        Action<string, string, bool> updateInputMask)
     {
         var refreshDecision = BuildRefreshDecision(
             runtimeController,
@@ -134,41 +101,6 @@ internal sealed class MainWindowActiveInputWorkflowController
             effectiveKeyMap,
             effectiveExtraBindings,
             inputBindingSchema);
-        var updatedMirror = ApplyRefreshDecision(
-            runtimeController,
-            refreshDecision,
-            inputSyncRoot,
-            inputStateWriter,
-            updateInputMask);
-        return new MainWindowActiveInputRefreshResult(refreshDecision.LegacyMirror, updatedMirror);
-    }
-
-    public MainWindowActiveInputRefreshResult RefreshActiveInputState(
-        MainWindowActiveInputRuntimeController runtimeController,
-        MainWindowInputStateController inputStateController,
-        bool isRomLoaded,
-        string? activeRomPath,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
-        IReadOnlyList<ResolvedExtraInputBinding> effectiveExtraBindings,
-        byte player1CurrentMask,
-        byte player2CurrentMask,
-        IReadOnlyList<string> controllerActionIds,
-        Func<int, string> getInputPortId,
-        object inputSyncRoot,
-        ICoreInputStateWriter inputStateWriter,
-        Action<int, string, bool> updateInputMask)
-    {
-        var refreshDecision = BuildRefreshDecision(
-            runtimeController,
-            inputStateController,
-            isRomLoaded,
-            activeRomPath,
-            effectiveKeyMap,
-            effectiveExtraBindings,
-            player1CurrentMask,
-            player2CurrentMask,
-            controllerActionIds,
-            getInputPortId);
         var updatedMirror = ApplyRefreshDecision(
             runtimeController,
             refreshDecision,

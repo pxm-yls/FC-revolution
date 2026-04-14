@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Avalonia.Input;
 using CommunityToolkit.Mvvm.Input;
-using FCRevolution.Storage;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -125,26 +123,24 @@ public partial class MainWindowViewModel
             status => StatusText = status);
 
     [RelayCommand]
-    private void AddGlobalTurboBinding(string? playerToken) =>
+    private void AddGlobalTurboBinding(string? portId) =>
         _inputOverrideController.AddGlobalTurboBinding(
-            playerToken,
+            portId,
             _globalInputBindings,
             _globalExtraInputBindings,
-            _globalExtraInputBindingsPlayer1,
-            _globalExtraInputBindingsPlayer2,
+            _globalInputPortGroups,
             SaveSystemConfig,
             RefreshRomInputBindings,
             RefreshActiveInputState,
             status => StatusText = status);
 
     [RelayCommand]
-    private void AddGlobalComboBinding(string? playerToken) =>
+    private void AddGlobalComboBinding(string? portId) =>
         _inputOverrideController.AddGlobalComboBinding(
-            playerToken,
+            portId,
             _globalInputBindings,
             _globalExtraInputBindings,
-            _globalExtraInputBindingsPlayer1,
-            _globalExtraInputBindingsPlayer2,
+            _globalInputPortGroups,
             SaveSystemConfig,
             RefreshRomInputBindings,
             RefreshActiveInputState,
@@ -154,24 +150,23 @@ public partial class MainWindowViewModel
     private void RemoveGlobalExtraBinding(ExtraInputBindingEntry? entry) =>
         _inputOverrideController.RemoveGlobalExtraBinding(
             entry,
+            _globalInputBindings,
             _globalExtraInputBindings,
-            _globalExtraInputBindingsPlayer1,
-            _globalExtraInputBindingsPlayer2,
+            _globalInputPortGroups,
             SaveSystemConfig,
             RefreshRomInputBindings,
             RefreshActiveInputState,
             status => StatusText = status);
 
     [RelayCommand]
-    private void AddRomTurboBinding(string? playerToken) =>
+    private void AddRomTurboBinding(string? portId) =>
         _inputOverrideController.AddRomTurboBinding(
-            playerToken,
+            portId,
             CurrentRom,
             IsRomInputOverrideEnabled,
             _romInputBindings,
             _romExtraInputBindings,
-            _romExtraInputBindingsPlayer1,
-            _romExtraInputBindingsPlayer2,
+            _romInputPortGroups,
             _romInputOverrides,
             _romExtraInputOverrides,
             _globalInputBindings,
@@ -182,15 +177,14 @@ public partial class MainWindowViewModel
             status => StatusText = status);
 
     [RelayCommand]
-    private void AddRomComboBinding(string? playerToken) =>
+    private void AddRomComboBinding(string? portId) =>
         _inputOverrideController.AddRomComboBinding(
-            playerToken,
+            portId,
             CurrentRom,
             IsRomInputOverrideEnabled,
             _romInputBindings,
             _romExtraInputBindings,
-            _romExtraInputBindingsPlayer1,
-            _romExtraInputBindingsPlayer2,
+            _romInputPortGroups,
             _romInputOverrides,
             _romExtraInputOverrides,
             _globalInputBindings,
@@ -205,14 +199,13 @@ public partial class MainWindowViewModel
         _inputOverrideController.RemoveRomExtraBinding(
             entry,
             CurrentRom,
+            _romInputBindings,
             _romExtraInputBindings,
-            _romExtraInputBindingsPlayer1,
-            _romExtraInputBindingsPlayer2,
+            _romInputPortGroups,
             _romInputOverrides,
             _romExtraInputOverrides,
             _globalInputBindings,
             _globalExtraInputBindings,
-            _romInputBindings,
             (romPath, inputOverride) => _inputOverrideController.SaveRomProfileInputOverride(romPath, inputOverride, _romExtraInputOverrides),
             RefreshRomInputBindings,
             RefreshActiveInputState,
@@ -312,14 +305,13 @@ public partial class MainWindowViewModel
             inputBindingLayout: _inputBindingLayout,
             globalInputBindings: _globalInputBindings,
             globalExtraInputBindings: _globalExtraInputBindings,
-            globalInputBindingsPlayer1: _globalInputBindingsPlayer1,
-            globalInputBindingsPlayer2: _globalInputBindingsPlayer2,
-            globalExtraInputBindingsPlayer1: _globalExtraInputBindingsPlayer1,
-            globalExtraInputBindingsPlayer2: _globalExtraInputBindingsPlayer2);
+            globalInputPortGroups: _globalInputPortGroups);
         RefreshRomInputBindings();
+        OnPropertyChanged(nameof(InputLayoutDebugBindings));
     }
 
-    private void RefreshRomInputBindings() =>
+    private void RefreshRomInputBindings()
+    {
         _inputBindingWorkflowController.RefreshRomInputBindings(
             _inputOverrideController,
             CurrentRom,
@@ -328,17 +320,16 @@ public partial class MainWindowViewModel
             _globalInputBindings,
             _globalExtraInputBindings,
             _romInputBindings,
-            _romInputBindingsPlayer1,
-            _romInputBindingsPlayer2,
             _romExtraInputBindings,
-            _romExtraInputBindingsPlayer1,
-            _romExtraInputBindingsPlayer2,
+            _romInputPortGroups,
             _inputBindingSchema,
             _defaultKeyMaps,
             ConfigurableKeys,
             _inputBindingLayout,
             enabled => IsRomInputOverrideEnabled = enabled,
             () => OnPropertyChanged(nameof(RomInputOverrideSummary)));
+        OnPropertyChanged(nameof(InputLayoutDebugBindings));
+    }
 
     public void MoveInputBindingLayoutSlot(string actionId, double deltaX, double deltaY)
         => _inputLayoutController.MoveInputBindingLayoutSlot(
@@ -381,18 +372,17 @@ public partial class MainWindowViewModel
             _inputBindingLayout,
             _globalInputBindings,
             _globalExtraInputBindings,
-            _globalInputBindingsPlayer1,
-            _globalInputBindingsPlayer2,
-            _globalExtraInputBindingsPlayer1,
-            _globalExtraInputBindingsPlayer2);
+            _globalInputPortGroups);
+        OnPropertyChanged(nameof(InputLayoutDebugBindings));
     }
 
-    private Dictionary<int, Dictionary<string, Key>> GetEffectivePlayerInputMaps(string? romPath = null)
-        => _inputBindingsController.GetEffectivePlayerInputMaps(
+    internal Dictionary<string, Dictionary<string, Key>> GetEffectiveInputMapsByPort(string? romPath = null)
+        => _inputBindingsController.GetEffectiveInputMapsByPort(
             romPath,
             _romInputOverrides,
             _globalInputBindings,
-            _defaultKeyMaps);
+            _defaultKeyMaps,
+            _inputBindingSchema);
 
     private List<ExtraInputBindingProfile> GetEffectiveExtraInputBindingProfiles(string? romPath = null)
         => _inputBindingsController.GetEffectiveExtraInputBindingProfiles(

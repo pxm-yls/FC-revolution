@@ -11,10 +11,10 @@ public sealed class GameWindowLocalInputProjectionControllerTests
     public void BuildDesiredLocalInputMasks_ProjectsPressedMappedKeysForTwoPlayers()
     {
         var pressedKeys = new HashSet<Key> { Key.Z, Key.I };
-        var keyMap = new Dictionary<Key, (int Player, string ActionId)>
+        var keyMap = new Dictionary<Key, (string PortId, string ActionId)>
         {
-            [Key.Z] = (0, NesInputTestAdapter.ActionId(NesButton.A)),
-            [Key.I] = (1, NesInputTestAdapter.ActionId(NesButton.Up))
+            [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A)),
+            [Key.I] = ("p2", NesInputTestAdapter.ActionId(NesButton.Up))
         };
 
         var result = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
@@ -23,8 +23,8 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             extraInputBindings: [],
             turboTickCounters: new Dictionary<Key, int>());
 
-        Assert.Equal((byte)NesButton.A, result.Player1Mask);
-        Assert.Equal((byte)NesButton.Up, result.Player2Mask);
+        Assert.Equal((byte)NesButton.A, result.GetMask("p1"));
+        Assert.Equal((byte)NesButton.Up, result.GetMask("p2"));
     }
 
     [Fact]
@@ -34,11 +34,11 @@ public sealed class GameWindowLocalInputProjectionControllerTests
 
         var result = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
+            keyMap: new Dictionary<Key, (string PortId, string ActionId)>(),
             extraInputBindings:
             [
                 new GameWindowResolvedExtraInputBinding(
-                    Player: 0,
+                    PortId: "p1",
                     Key: Key.Q,
                     Kind: ExtraInputBindingKind.Combo,
                     ActionIds: NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B, NesButton.A))
@@ -46,8 +46,8 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             turboTickCounters: new Dictionary<Key, int>());
 
         var expected = (byte)((byte)NesButton.A | (byte)NesButton.B);
-        Assert.Equal(expected, result.Player1Mask);
-        Assert.Equal(0, result.Player2Mask);
+        Assert.Equal(expected, result.GetMask("p1"));
+        Assert.Equal(0, result.GetMask("p2"));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class GameWindowLocalInputProjectionControllerTests
     {
         var pressedKeys = new HashSet<Key> { Key.Q };
         var turboBinding = new GameWindowResolvedExtraInputBinding(
-            Player: 0,
+            PortId: "p1",
             Key: Key.Q,
             Kind: ExtraInputBindingKind.Turbo,
             ActionIds: NesInputTestAdapter.ActionIds(NesButton.A),
@@ -63,16 +63,16 @@ public sealed class GameWindowLocalInputProjectionControllerTests
 
         var inOnWindow = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
+            keyMap: new Dictionary<Key, (string PortId, string ActionId)>(),
             extraInputBindings: [turboBinding],
             turboTickCounters: new Dictionary<Key, int> { [Key.Q] = 0 });
         var inOffWindow = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
             pressedKeys,
-            keyMap: new Dictionary<Key, (int Player, string ActionId)>(),
+            keyMap: new Dictionary<Key, (string PortId, string ActionId)>(),
             extraInputBindings: [turboBinding],
             turboTickCounters: new Dictionary<Key, int> { [Key.Q] = 6 });
 
-        Assert.Equal((byte)NesButton.A, inOnWindow.Player1Mask);
-        Assert.Equal(0, inOffWindow.Player1Mask);
+        Assert.Equal((byte)NesButton.A, inOnWindow.GetMask("p1"));
+        Assert.Equal(0, inOffWindow.GetMask("p1"));
     }
 }

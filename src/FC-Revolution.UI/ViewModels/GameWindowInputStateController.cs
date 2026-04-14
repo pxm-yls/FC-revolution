@@ -1,31 +1,36 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal readonly record struct GameWindowInputStateChange(
-    int Player,
+    string PortId,
     string ActionId,
     bool Pressed);
 
 internal readonly record struct GameWindowInputStateSnapshot(
-    byte Player1CombinedMask,
-    byte Player2CombinedMask,
-    byte Player1LocalMask,
-    byte Player2LocalMask,
-    byte Player1RemoteMask,
-    byte Player2RemoteMask);
+    IReadOnlyDictionary<string, byte> CombinedMasksByPort,
+    IReadOnlyDictionary<string, byte> LocalMasksByPort,
+    IReadOnlyDictionary<string, byte> RemoteMasksByPort)
+{
+    public byte GetCombinedMask(string portId) =>
+        CombinedMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+
+    public byte GetLocalMask(string portId) =>
+        LocalMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+
+    public byte GetRemoteMask(string portId) =>
+        RemoteMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+}
 
 internal sealed class GameWindowInputStateController
 {
     private readonly CoreInputBindingSchema _inputBindingSchema;
-    private readonly HashSet<string> _player1CombinedActions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _player2CombinedActions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _player1LocalActions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _player2LocalActions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _player1RemoteActions = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _player2RemoteActions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<string>> _combinedActionsByPort = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<string>> _localActionsByPort = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, HashSet<string>> _remoteActionsByPort = new(StringComparer.OrdinalIgnoreCase);
 
     public GameWindowInputStateController(CoreInputBindingSchema inputBindingSchema)
     {
@@ -38,26 +43,23 @@ internal sealed class GameWindowInputStateController
     }
 
     public GameWindowInputStateSnapshot Snapshot => new(
-        GetCombinedMask(0),
-        GetCombinedMask(1),
-        GetLocalMask(0),
-        GetLocalMask(1),
-        GetRemoteMask(0),
-        GetRemoteMask(1));
+        BuildMaskMap(GetCombinedMask),
+        BuildMaskMap(GetLocalMask),
+        BuildMaskMap(GetRemoteMask));
 
-    public byte GetCombinedMask(int player) => BuildLegacyMask(player, GetCombinedActions(player));
+    public byte GetCombinedMask(string portId) => BuildLegacyMask(portId, GetCombinedActions(portId));
 
-    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputActionsForPlayer(
-        int player,
+    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputActions(
+        string portId,
         IReadOnlySet<string> desiredActions,
         bool allowLocalInput)
     {
-        if (!IsSupportedPlayer(player))
+        if (!TryNormalizePortId(portId, out var normalizedPortId))
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        var localActions = GetLocalActions(player);
-        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
+        var localActions = GetLocalActions(normalizedPortId);
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(normalizedPortId))
         {
             var desired = allowLocalInput && desiredActions.Contains(actionId);
             if (desired)
@@ -65,84 +67,87 @@ internal sealed class GameWindowInputStateController
             else
                 localActions.Remove(actionId);
 
-            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
+            ApplyCombinedActionState(normalizedPortId, actionId, allowLocalInput, changes);
         }
 
         return changes;
     }
 
-    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputMaskForPlayer(
-        int player,
+    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputMask(
+        string portId,
         byte desiredMask,
         bool allowLocalInput)
     {
+        if (!TryNormalizePortId(portId, out var normalizedPortId))
+            return Array.Empty<GameWindowInputStateChange>();
+
         HashSet<string> desiredActions = new(StringComparer.OrdinalIgnoreCase);
-        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(normalizedPortId))
         {
-            if (_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit) &&
+            if (_inputBindingSchema.TryGetLegacyBitMask(normalizedPortId, actionId, out var bit) &&
                 (desiredMask & bit) != 0)
             {
                 desiredActions.Add(actionId);
             }
         }
 
-        return ApplyDesiredLocalInputActionsForPlayer(player, desiredActions, allowLocalInput);
+        return ApplyDesiredLocalInputActions(normalizedPortId, desiredActions, allowLocalInput);
     }
 
     public IReadOnlyList<GameWindowInputStateChange> SetRemoteActionState(
-        int player,
+        string portId,
         string actionId,
         bool pressed,
         bool allowLocalInput)
     {
-        if (!IsSupportedPlayer(player))
+        if (!TryNormalizeAction(portId, actionId, out var normalizedPortId, out var normalizedActionId))
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        var remoteActions = GetRemoteActions(player);
+        var remoteActions = GetRemoteActions(normalizedPortId);
         if (pressed)
-            remoteActions.Add(actionId);
+            remoteActions.Add(normalizedActionId);
         else
-            remoteActions.Remove(actionId);
+            remoteActions.Remove(normalizedActionId);
 
-        ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
+        ApplyCombinedActionState(normalizedPortId, normalizedActionId, allowLocalInput, changes);
         return changes;
     }
 
-    public IReadOnlyList<GameWindowInputStateChange> ClearRemoteButtons(int player, bool allowLocalInput)
+    public IReadOnlyList<GameWindowInputStateChange> ClearRemoteButtons(string portId, bool allowLocalInput)
     {
-        if (!IsSupportedPlayer(player))
+        if (!TryNormalizePortId(portId, out var normalizedPortId))
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        var remoteActions = GetRemoteActions(player);
+        var remoteActions = GetRemoteActions(normalizedPortId);
         remoteActions.Clear();
-        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
-            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(normalizedPortId))
+            ApplyCombinedActionState(normalizedPortId, actionId, allowLocalInput, changes);
 
         return changes;
     }
 
-    public IReadOnlyList<GameWindowInputStateChange> RebuildCombinedStateForPlayer(int player, bool allowLocalInput)
+    public IReadOnlyList<GameWindowInputStateChange> RebuildCombinedState(string portId, bool allowLocalInput)
     {
-        if (!IsSupportedPlayer(player))
+        if (!TryNormalizePortId(portId, out var normalizedPortId))
             return Array.Empty<GameWindowInputStateChange>();
 
         List<GameWindowInputStateChange> changes = [];
-        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(player))
-            ApplyCombinedActionState(player, actionId, allowLocalInput, changes);
+        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(normalizedPortId))
+            ApplyCombinedActionState(normalizedPortId, actionId, allowLocalInput, changes);
         return changes;
     }
 
     private void ApplyCombinedActionState(
-        int player,
+        string portId,
         string actionId,
         bool allowLocalInput,
         List<GameWindowInputStateChange> changes)
     {
-        var localActions = GetLocalActions(player);
-        var remoteActions = GetRemoteActions(player);
-        var combinedActions = GetCombinedActions(player);
+        var localActions = GetLocalActions(portId);
+        var remoteActions = GetRemoteActions(portId);
+        var combinedActions = GetCombinedActions(portId);
         var desired = (allowLocalInput && localActions.Contains(actionId)) || remoteActions.Contains(actionId);
         var current = combinedActions.Contains(actionId);
         if (desired == current)
@@ -153,30 +158,70 @@ internal sealed class GameWindowInputStateController
         else
             combinedActions.Remove(actionId);
 
-        changes.Add(new GameWindowInputStateChange(player, actionId, desired));
+        changes.Add(new GameWindowInputStateChange(portId, actionId, desired));
     }
 
-    private static bool IsSupportedPlayer(int player) => player is 0 or 1;
+    private byte GetLocalMask(string portId) => BuildLegacyMask(portId, GetLocalActions(portId));
 
-    private byte GetLocalMask(int player) => BuildLegacyMask(player, GetLocalActions(player));
+    private byte GetRemoteMask(string portId) => BuildLegacyMask(portId, GetRemoteActions(portId));
 
-    private byte GetRemoteMask(int player) => BuildLegacyMask(player, GetRemoteActions(player));
-
-    private byte BuildLegacyMask(int player, IEnumerable<string> actionIds)
+    private byte BuildLegacyMask(string portId, IEnumerable<string> actionIds)
     {
         byte mask = 0;
         foreach (var actionId in actionIds)
         {
-            if (_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
+            if (_inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
                 mask |= bit;
         }
 
         return mask;
     }
 
-    private HashSet<string> GetCombinedActions(int player) => player == 0 ? _player1CombinedActions : _player2CombinedActions;
+    private Dictionary<string, byte> BuildMaskMap(Func<string, byte> getMask) =>
+        _inputBindingSchema.GetSupportedPorts().ToDictionary(
+            port => port.PortId,
+            port => getMask(port.PortId),
+            StringComparer.OrdinalIgnoreCase);
 
-    private HashSet<string> GetLocalActions(int player) => player == 0 ? _player1LocalActions : _player2LocalActions;
+    private HashSet<string> GetCombinedActions(string portId) =>
+        GetOrCreateActions(_combinedActionsByPort, portId);
 
-    private HashSet<string> GetRemoteActions(int player) => player == 0 ? _player1RemoteActions : _player2RemoteActions;
+    private HashSet<string> GetLocalActions(string portId) =>
+        GetOrCreateActions(_localActionsByPort, portId);
+
+    private HashSet<string> GetRemoteActions(string portId) =>
+        GetOrCreateActions(_remoteActionsByPort, portId);
+
+    private static HashSet<string> GetOrCreateActions(
+        IDictionary<string, HashSet<string>> actionsByPort,
+        string portId)
+    {
+        if (!actionsByPort.TryGetValue(portId, out var actions))
+        {
+            actions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            actionsByPort[portId] = actions;
+        }
+
+        return actions;
+    }
+
+    private bool TryNormalizePortId(string? portId, out string normalizedPortId) =>
+        _inputBindingSchema.TryNormalizePortId(portId, out normalizedPortId);
+
+    private bool TryNormalizeAction(
+        string? portId,
+        string? actionId,
+        out string normalizedPortId,
+        out string normalizedActionId)
+    {
+        if (_inputBindingSchema.TryNormalizePortId(portId, out normalizedPortId) &&
+            _inputBindingSchema.TryNormalizeActionId(normalizedPortId, actionId, out normalizedActionId))
+        {
+            return true;
+        }
+
+        normalizedPortId = string.Empty;
+        normalizedActionId = string.Empty;
+        return false;
+    }
 }

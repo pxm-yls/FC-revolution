@@ -111,7 +111,7 @@ public partial class MainWindowViewModel : ViewModelBase
     ];
     private readonly IEmulatorCoreSession _coreSession;
     private readonly CoreInputBindingSchema _inputBindingSchema;
-    private readonly IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> _defaultKeyMaps;
+    private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> _defaultKeyMaps;
     private readonly ICoreInputStateWriter _inputStateWriter;
     private readonly ITimeTravelService _timeTravelService;
     private readonly CoreBranchTree _branchTree = new();
@@ -132,22 +132,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly MainWindowTaskMessageController _taskMessageController;
     private readonly IGameSessionService _gameSessionService = new GameSessionService();
     private readonly ObservableCollection<InputBindingEntry> _globalInputBindings = new();
-    private readonly ObservableCollection<InputBindingEntry> _globalInputBindingsPlayer1 = new();
-    private readonly ObservableCollection<InputBindingEntry> _globalInputBindingsPlayer2 = new();
     private readonly ObservableCollection<ExtraInputBindingEntry> _globalExtraInputBindings = new();
-    private readonly ObservableCollection<ExtraInputBindingEntry> _globalExtraInputBindingsPlayer1 = new();
-    private readonly ObservableCollection<ExtraInputBindingEntry> _globalExtraInputBindingsPlayer2 = new();
+    private readonly ObservableCollection<InputBindingPortGroup> _globalInputPortGroups = new();
     private readonly ObservableCollection<InputBindingEntry> _romInputBindings = new();
-    private readonly ObservableCollection<InputBindingEntry> _romInputBindingsPlayer1 = new();
-    private readonly ObservableCollection<InputBindingEntry> _romInputBindingsPlayer2 = new();
     private readonly ObservableCollection<ExtraInputBindingEntry> _romExtraInputBindings = new();
-    private readonly ObservableCollection<ExtraInputBindingEntry> _romExtraInputBindingsPlayer1 = new();
-    private readonly ObservableCollection<ExtraInputBindingEntry> _romExtraInputBindingsPlayer2 = new();
+    private readonly ObservableCollection<InputBindingPortGroup> _romInputPortGroups = new();
     private readonly ObservableCollection<ShortcutBindingEntry> _mainWindowShortcutBindings = new();
     private readonly ObservableCollection<ShortcutBindingEntry> _sharedGameShortcutBindings = new();
     private readonly ObservableCollection<ShortcutBindingEntry> _gameWindowShortcutBindings = new();
     private readonly object _romLock = new();
-    private readonly Dictionary<string, Dictionary<int, Dictionary<string, Key>>> _romInputOverrides = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<string, Dictionary<string, Key>>> _romInputOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<ExtraInputBindingProfile>> _romExtraInputOverrides = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ShortcutBindingEntry> _shortcutBindings = new(StringComparer.Ordinal);
     private readonly HashSet<Key> _pressedKeys = [];
@@ -291,8 +285,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private volatile int _frameTimeMicros;
     private volatile bool _emuThreadAlive;
     private volatile uint[]? _pendingFrame;
-    private volatile byte _player1InputMask;
-    private volatile byte _player2InputMask;
+    private readonly Dictionary<string, byte> _inputMasksByPort = new(StringComparer.OrdinalIgnoreCase);
     private uint[]? _lastFrame;
     private RomLibraryItem? _currentRom;
     private RomLibraryItem? _pendingLaunchRom;
@@ -349,7 +342,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _defaultCoreId = NormalizeConfiguredCoreId(bootstrapProfile.DefaultCoreId);
         _coreSession = CreateMainCoreSession();
         _inputBindingSchema = CoreInputBindingSchema.Create(_coreSession.InputSchema);
-        _defaultKeyMaps = _inputBindingSchema.BuildDefaultKeyMaps(ConfigurableKeys);
+        _defaultKeyMaps = _inputBindingSchema.BuildDefaultKeyMapsByPort(ConfigurableKeys);
         _timeTravelService = CoreSessionCapabilityResolver.ResolveTimeTravelService(_coreSession);
         _inputStateWriter = CoreSessionCapabilityResolver.ResolveInputStateWriter(_coreSession);
         _legacyTimeline = new LegacyTimelineSessionAdapter(_branchTree);
@@ -471,7 +464,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LogStartup($"service graph ready in {ctorWatch.ElapsedMilliseconds} ms");
 
         _emuThreadAlive = true;
-        _emuThread = new Thread(EmuThreadLoop) { IsBackground = true, Name = "NesEmu" };
+        _emuThread = new Thread(EmuThreadLoop) { IsBackground = true, Name = "CoreSessionEmu" };
         _emuThread.Start();
         LogStartup($"emulation thread started in {ctorWatch.ElapsedMilliseconds} ms");
 
@@ -533,18 +526,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<ActiveGameSessionItem> ActiveGameSessions => _gameSessionService.Sessions;
     public ObservableCollection<InputBindingEntry> GlobalInputBindings => _globalInputBindings;
-    public ObservableCollection<InputBindingEntry> GlobalInputBindingsPlayer1 => _globalInputBindingsPlayer1;
-    public ObservableCollection<InputBindingEntry> GlobalInputBindingsPlayer2 => _globalInputBindingsPlayer2;
     public ObservableCollection<ExtraInputBindingEntry> GlobalExtraInputBindings => _globalExtraInputBindings;
-    public ObservableCollection<ExtraInputBindingEntry> GlobalExtraInputBindingsPlayer1 => _globalExtraInputBindingsPlayer1;
-    public ObservableCollection<ExtraInputBindingEntry> GlobalExtraInputBindingsPlayer2 => _globalExtraInputBindingsPlayer2;
+    public ObservableCollection<InputBindingPortGroup> GlobalInputPortGroups => _globalInputPortGroups;
     public ObservableCollection<InputBindingEntry> RomInputBindings => _romInputBindings;
-    public ObservableCollection<InputBindingEntry> RomInputBindingsPlayer1 => _romInputBindingsPlayer1;
-    public ObservableCollection<InputBindingEntry> RomInputBindingsPlayer2 => _romInputBindingsPlayer2;
     public ObservableCollection<ExtraInputBindingEntry> RomExtraInputBindings => _romExtraInputBindings;
-    public ObservableCollection<ExtraInputBindingEntry> RomExtraInputBindingsPlayer1 => _romExtraInputBindingsPlayer1;
-    public ObservableCollection<ExtraInputBindingEntry> RomExtraInputBindingsPlayer2 => _romExtraInputBindingsPlayer2;
-    public ObservableCollection<InputBindingEntry> InputLayoutDebugBindings => _globalInputBindingsPlayer1;
+    public ObservableCollection<InputBindingPortGroup> RomInputPortGroups => _romInputPortGroups;
+    public IEnumerable<InputBindingEntry> InputLayoutDebugBindings =>
+        _globalInputPortGroups.FirstOrDefault()?.InputBindings ?? _globalInputBindings;
 
     public WriteableBitmap? ScreenBitmap
     {
@@ -880,7 +868,7 @@ public partial class MainWindowViewModel : ViewModelBase
         get
         {
             if (_allRomLibrary.Count == 0)
-                return "把 .nes 放进当前工作目录的 roms 文件夹，或在设置里导入 ROM。";
+                return $"把 {GetSupportedMediaFilePatternSummary()} 文件放进当前工作目录的 roms 文件夹，或在设置里导入 ROM。";
 
             if (CurrentRom == null)
             {
@@ -1114,7 +1102,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             return remoteSessions.Count > 0
                 ? string.Join(Environment.NewLine, remoteSessions)
-                : "当前没有网页手柄接管中的 1P / 2P 槽位";
+                : "当前没有网页手柄接管中的控制端口";
         }
     }
 
@@ -1836,8 +1824,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 _globalInputBindings,
                 _globalExtraInputBindings,
                 _shortcutBindings,
-                _inputBindingLayout);
-            profile.PlayerInputOverrides = inputConfigSaveState.PlayerInputOverrides;
+                _inputBindingLayout,
+                _inputBindingSchema);
+            profile.PlayerInputOverrides = inputConfigSaveState.PortInputOverrides;
             profile.ExtraInputBindings = inputConfigSaveState.ExtraInputBindings;
             profile.ShortcutBindings = inputConfigSaveState.ShortcutBindings;
             profile.InputBindingLayout = inputConfigSaveState.InputBindingLayout;
@@ -2160,8 +2149,8 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
             var path = await PickSingleFileAsync(
-                "导入 NES ROM",
-                new FilePickerFileType("NES ROM") { Patterns = ["*.nes"] },
+                "导入游戏介质",
+                CreateSupportedMediaFilePickerType(),
                 new FilePickerFileType("All Files") { Patterns = ["*.*"] });
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -2226,13 +2215,14 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             taskItem.Status = $"正在扫描: {Path.GetFileName(path)}";
-            var imported = _romResourceImportService.ImportRomDirectory(path);
+            var supportedMediaFilePatterns = GetSupportedMediaFilePatterns();
+            var imported = _romResourceImportService.ImportRomDirectory(path, supportedFilePatterns: supportedMediaFilePatterns);
             RefreshRomLibrary();
             taskItem.Complete(imported.Count == 0
-                ? "未找到可导入的 .nes 文件"
+                ? $"未找到可导入的 {GetSupportedMediaFilePatternSummary(supportedMediaFilePatterns)} 文件"
                 : $"导入完成: {imported.Count} 个 ROM");
             StatusText = imported.Count == 0
-                ? "所选文件夹中未找到 .nes 文件"
+                ? $"所选文件夹中未找到 {GetSupportedMediaFilePatternSummary(supportedMediaFilePatterns)} 文件"
                 : $"已导入 ROM {imported.Count} 个";
         }
         catch (Exception ex)
@@ -2289,8 +2279,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _romExtraInputOverrides.Clear();
         _previewCleanupController.ClearPreviewFrames(_allRomLibrary, clearPreviewAvailability: false);
 
+        var supportedMediaFilePatterns = GetSupportedMediaFilePatterns();
         var snapshot = _libraryCatalogController.CaptureCatalogSnapshot(
             romDirectory,
+            supportedMediaFilePatterns,
             ResolvePreviewPlaybackPath,
             isInitialStartupRefresh,
             onRomFilesScanned: count => LogStartup($"RefreshRomLibrary found {count} ROM file(s) in {refreshWatch.ElapsedMilliseconds} ms"),
@@ -2373,7 +2365,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var emptyState = _libraryCatalogController.BuildEmptyLibraryState(
             GetRomDirectory(),
             _allRomLibrary.Count,
-            LibrarySearchText);
+            LibrarySearchText,
+            GetSupportedMediaFilePatternSummary());
         CurrentRomName = emptyState.CurrentRomName;
         CurrentRomPathText = emptyState.CurrentRomPathText;
         PreviewStatusText = emptyState.PreviewStatusText;
@@ -2675,8 +2668,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 PreviewSourceWidth,
                 PreviewSourceHeight);
 
-            _player1InputMask = 0;
-            _player2InputMask = 0;
+            _inputMasksByPort.Clear();
             _activeInputRuntime.RefreshContext(isRomLoaded: false, activeRomPath: null);
             ApplyLegacyActiveInputRuntimeMirror(_activeInputWorkflowController.BuildLegacyMirror(_activeInputRuntime));
             ApplyTimelineMode();
@@ -2969,7 +2961,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (TimelineMode != TimelineModeOption.FullTimeline || !_replayLogWriter.IsOpen)
             return;
 
-        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _player1InputMask, _player2InputMask);
+        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _inputMasksByPort);
     }
 
     private void ReopenReplayLog(bool resetFile)
@@ -2987,7 +2979,10 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _replayLogWriter.Open(inputLogPath, resetFile);
+        _replayLogWriter.Open(
+            inputLogPath,
+            resetFile,
+            _inputBindingSchema.GetSupportedPorts().Select(port => port.PortId));
     }
 
     private void ApplyTimelineMode()
@@ -3178,15 +3173,15 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusText = landed < 0 ? "无可用回溯快照" : $"已回退 {allowedSeconds:0.00} 秒（{allowedFrames} 帧）至帧 {landed}";
     }
 
-    private void UpdateInputMask(int player, string actionId, bool pressed)
+    private void UpdateInputMask(string portId, string actionId, bool pressed)
     {
-        if (!_inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
+        if (!_inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
             return;
 
-        if (player == 0)
-            _player1InputMask = pressed ? (byte)(_player1InputMask | bit) : (byte)(_player1InputMask & ~bit);
-        else
-            _player2InputMask = pressed ? (byte)(_player2InputMask | bit) : (byte)(_player2InputMask & ~bit);
+        var currentMask = _inputMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+        _inputMasksByPort[portId] = pressed
+            ? (byte)(currentMask | bit)
+            : (byte)(currentMask & ~bit);
     }
 
     private Task<string> ExportBranchRangeAsync(BranchCanvasNode startNode, long startFrame, long endFrame)
@@ -3636,4 +3631,19 @@ public partial class MainWindowViewModel : ViewModelBase
             options: CreateManagedCoreRuntimeOptions())
             ? session!
             : ManagedCoreRuntime.CreateUnavailableSession(DefaultCoreId);
+
+    private IReadOnlyList<string> GetSupportedMediaFilePatterns() =>
+        CoreMediaFilePatternCatalog.ResolvePatterns(InstalledCoreManifests);
+
+    private string GetSupportedMediaFilePatternSummary() =>
+        GetSupportedMediaFilePatternSummary(GetSupportedMediaFilePatterns());
+
+    private static string GetSupportedMediaFilePatternSummary(IReadOnlyList<string> supportedMediaFilePatterns) =>
+        CoreMediaFilePatternCatalog.DescribePatterns(
+            CoreMediaFilePatternCatalog.ResolvePatterns(supportedMediaFilePatterns));
+
+    private FilePickerFileType CreateSupportedMediaFilePickerType() => new("游戏介质文件")
+    {
+        Patterns = [.. GetSupportedMediaFilePatterns()]
+    };
 }

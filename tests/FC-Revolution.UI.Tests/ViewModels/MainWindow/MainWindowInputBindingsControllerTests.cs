@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -80,23 +79,23 @@ public sealed class MainWindowInputBindingsControllerTests
         var controller = new MainWindowInputBindingsController();
         var global = new List<InputBindingEntry>
         {
-            new(0, "a", "A", Key.Z, TestConfigurableKeys),
-            new(0, "b", "B", Key.X, TestConfigurableKeys),
-            new(1, "a", "A", Key.Enter, TestConfigurableKeys),
-            new(1, "b", "B", Key.S, TestConfigurableKeys)
+            CreateInputBinding("p1", "a", "A", Key.Z),
+            CreateInputBinding("p1", "b", "B", Key.X),
+            CreateInputBinding("p2", "a", "A", Key.Enter),
+            CreateInputBinding("p2", "b", "B", Key.S)
         };
         var globalExtra = new List<ExtraInputBindingEntry>
         {
-            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.A, TestConfigurableKeys)
+            ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.A, TestConfigurableKeys)
         };
-        var defaultMaps = new Dictionary<int, IReadOnlyDictionary<string, Key>>
+        var defaultMaps = new Dictionary<string, IReadOnlyDictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
         {
-            [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
+            ["p1"] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
                 ["a"] = Key.Z,
                 ["b"] = Key.X
             },
-            [1] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
+            ["p2"] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
                 ["a"] = Key.Enter,
                 ["b"] = Key.S
@@ -105,7 +104,7 @@ public sealed class MainWindowInputBindingsControllerTests
 
         var state = controller.BuildRomInputBindingViewState(
             "/tmp/demo.nes",
-            new Dictionary<string, Dictionary<int, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, Dictionary<string, Dictionary<string, Key>>>(StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, List<ExtraInputBindingProfile>>(StringComparer.OrdinalIgnoreCase),
             global,
             globalExtra,
@@ -133,7 +132,7 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(4, state.InputBindings.Count);
         Assert.Empty(state.ExtraBindings);
 
-        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "a");
+        var player1A = Assert.Single(state.InputBindings, entry => entry.PortId == "p1" && entry.ActionId == "a");
         Assert.Equal(Key.Z, player1A.SelectedKey);
         Assert.Equal(layout.GetSlot("a").CenterX, player1A.CenterX, precision: 6);
         Assert.Equal(layout.GetSlot("a").CenterY, player1A.CenterY, precision: 6);
@@ -148,7 +147,7 @@ public sealed class MainWindowInputBindingsControllerTests
         {
             PlayerInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
             {
-                ["Player1"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                ["p1"] = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
                     ["a"] = nameof(Key.F9)
                 }
@@ -157,7 +156,7 @@ public sealed class MainWindowInputBindingsControllerTests
             [
                 new ExtraInputBindingProfile
                 {
-                    Player = 1,
+                    PortId = "p2",
                     Kind = nameof(ExtraInputBindingKind.Combo),
                     Key = nameof(Key.A),
                     Buttons = ["a", "b"]
@@ -171,13 +170,13 @@ public sealed class MainWindowInputBindingsControllerTests
             TestConfigurableKeys,
             layout);
 
-        var player1A = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "a");
-        var player1B = Assert.Single(state.InputBindings, entry => entry.Player == 0 && entry.ActionId == "b");
+        var player1A = Assert.Single(state.InputBindings, entry => entry.PortId == "p1" && entry.ActionId == "a");
+        var player1B = Assert.Single(state.InputBindings, entry => entry.PortId == "p1" && entry.ActionId == "b");
         Assert.Equal(Key.F9, player1A.SelectedKey);
         Assert.Equal(Key.X, player1B.SelectedKey);
 
         var extra = Assert.Single(state.ExtraBindings);
-        Assert.Equal(1, extra.Player);
+        Assert.Equal("p2", extra.PortId);
         Assert.Equal(ExtraInputBindingKind.Combo, extra.Kind);
         Assert.Equal(Key.A, extra.SelectedKey);
         Assert.Equal("A+B", extra.SummaryText);
@@ -193,14 +192,14 @@ public sealed class MainWindowInputBindingsControllerTests
 
         var inputBindings = new List<InputBindingEntry>
         {
-            new(0, "a", "A", Key.F9, TestConfigurableKeys),
-            new(0, "b", "B", Key.X, TestConfigurableKeys),
-            new(1, "a", "A", Key.Enter, TestConfigurableKeys),
-            new(1, "b", "B", Key.S, TestConfigurableKeys)
+            CreateInputBinding("p1", "a", "A", Key.F9),
+            CreateInputBinding("p1", "b", "B", Key.X),
+            CreateInputBinding("p2", "a", "A", Key.Enter),
+            CreateInputBinding("p2", "b", "B", Key.S)
         };
         var extraBindings = new List<ExtraInputBindingEntry>
         {
-            ExtraInputBindingEntry.CreateDefaultTurbo(0, Key.A, TestConfigurableKeys)
+            ExtraInputBindingEntry.CreateDefaultTurbo("p1", "1P", Key.A, TestConfigurableKeys)
         };
         extraBindings[0].SetTurboHz(12);
 
@@ -217,11 +216,11 @@ public sealed class MainWindowInputBindingsControllerTests
             shortcuts,
             layout);
 
-        Assert.Equal(nameof(Key.F9), state.PlayerInputOverrides["Player1"]["a"]);
-        Assert.Equal(Key.Enter.ToString(), state.PlayerInputOverrides["Player2"]["a"]);
+        Assert.Equal(nameof(Key.F9), state.PortInputOverrides["p1"]["a"]);
+        Assert.Equal(Key.Enter.ToString(), state.PortInputOverrides["p2"]["a"]);
 
         var extra = Assert.Single(state.ExtraInputBindings);
-        Assert.Equal(0, extra.Player);
+        Assert.Equal("p1", extra.PortId);
         Assert.Equal(nameof(Key.A), extra.Key);
         Assert.Equal(12, extra.TurboHz);
         Assert.Equal("a", Assert.Single(extra.Buttons));
@@ -234,15 +233,21 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(layout.BridgeY, state.InputBindingLayout.BridgeY, precision: 6);
     }
 
-    private static IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
-        new Dictionary<int, IReadOnlyDictionary<string, Key>>
+    private static InputBindingEntry CreateInputBinding(string portId, string actionId, string actionName, Key key) =>
+        new(portId, GetPortLabel(portId), actionId, actionName, key, TestConfigurableKeys);
+
+    private static string GetPortLabel(string portId) =>
+        string.Equals(portId, "p2", StringComparison.OrdinalIgnoreCase) ? "2P" : "1P";
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps() =>
+        new Dictionary<string, IReadOnlyDictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
         {
-            [0] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
+            ["p1"] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
                 ["a"] = Key.Z,
                 ["b"] = Key.X
             },
-            [1] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
+            ["p2"] = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
             {
                 ["a"] = Key.Enter,
                 ["b"] = Key.S

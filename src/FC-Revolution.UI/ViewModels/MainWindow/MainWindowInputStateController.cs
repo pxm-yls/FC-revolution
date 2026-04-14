@@ -8,16 +8,29 @@ using FC_Revolution.UI.Models;
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed record ResolvedExtraInputBinding(
-    int Player,
+    string PortId,
     Key Key,
     ExtraInputBindingKind Kind,
     IReadOnlyList<string> ActionIds);
 
 internal sealed record InputDesiredActions(
-    IReadOnlySet<string> Player1Actions,
-    IReadOnlySet<string> Player2Actions);
+    IReadOnlyDictionary<string, IReadOnlySet<string>> ActionsByPort)
+{
+    public IReadOnlySet<string> GetActions(string portId) =>
+        ActionsByPort.TryGetValue(portId, out var actions)
+            ? actions
+            : EmptyActions;
 
-internal sealed record InputDesiredMasks(byte Player1Mask, byte Player2Mask);
+    private static IReadOnlySet<string> EmptyActions { get; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+}
+
+internal sealed record InputDesiredMasks(
+    IReadOnlyDictionary<string, byte> MasksByPort)
+{
+    public byte GetMask(string portId) =>
+        MasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+}
 
 internal sealed record InputActionTransition(string ActionId, bool DesiredPressed);
 
@@ -35,11 +48,14 @@ internal sealed class MainWindowInputStateController
         if (!Enum.TryParse<Key>(profile.Key, out var key) || key == Key.None)
             return null;
 
+        if (!TryResolveProfilePort(profile, inputBindingSchema, out var portId))
+            return null;
+
         var kind = Enum.TryParse<ExtraInputBindingKind>(profile.Kind, out var parsedKind)
             ? parsedKind
             : ExtraInputBindingKind.Turbo;
         var actionIds = (profile.Buttons ?? [])
-            .Select(actionId => inputBindingSchema.TryNormalizeActionId(profile.Player, actionId, out var normalizedActionId)
+            .Select(actionId => inputBindingSchema.TryNormalizeActionId(portId, actionId, out var normalizedActionId)
                 ? normalizedActionId
                 : null)
             .Where(static actionId => actionId != null)
@@ -49,14 +65,14 @@ internal sealed class MainWindowInputStateController
         if (actionIds.Count == 0)
             return null;
 
-        return new ResolvedExtraInputBinding(profile.Player, key, kind, actionIds);
+        return new ResolvedExtraInputBinding(portId, key, kind, actionIds);
     }
 
     public ResolvedExtraInputBinding? ResolveExtraInputBinding(ExtraInputBindingProfile profile) =>
         ResolveExtraInputBinding(profile, CoreInputBindingSchema.CreateFallback());
 
     public HashSet<Key> BuildEffectiveHandledKeys(
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> extraBindings)
     {
         var keys = effectiveKeyMap.Keys.ToHashSet();
@@ -67,18 +83,17 @@ internal sealed class MainWindowInputStateController
 
     public InputDesiredActions BuildDesiredActions(
         IReadOnlySet<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
         bool turboPulseActive)
     {
-        HashSet<string> player1Actions = new(StringComparer.OrdinalIgnoreCase);
-        HashSet<string> player2Actions = new(StringComparer.OrdinalIgnoreCase);
+        var actionsByPort = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var key in pressedKeys)
         {
             if (!effectiveKeyMap.TryGetValue(key, out var binding))
                 continue;
 
-            GetTargetActions(binding.Player, player1Actions, player2Actions).Add(binding.ActionId);
+            GetTargetActions(binding.PortId, actionsByPort).Add(binding.ActionId);
         }
 
         foreach (var binding in extraBindings)
@@ -89,26 +104,43 @@ internal sealed class MainWindowInputStateController
             if (binding.Kind == ExtraInputBindingKind.Turbo && !turboPulseActive)
                 continue;
 
-            var targetActions = GetTargetActions(binding.Player, player1Actions, player2Actions);
+            var targetActions = GetTargetActions(binding.PortId, actionsByPort);
             foreach (var actionId in binding.ActionIds)
                 targetActions.Add(actionId);
         }
 
-        return new InputDesiredActions(player1Actions, player2Actions);
+        return new InputDesiredActions(actionsByPort.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlySet<string>)pair.Value,
+            StringComparer.OrdinalIgnoreCase));
     }
 
     public InputDesiredMasks BuildDesiredMasks(
         IReadOnlySet<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (int Player, string ActionId)> effectiveKeyMap,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
         IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
-        bool turboPulseActive)
+        bool turboPulseActive,
+        CoreInputBindingSchema inputBindingSchema)
     {
-        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
         var desiredActions = BuildDesiredActions(pressedKeys, effectiveKeyMap, extraBindings, turboPulseActive);
         return new InputDesiredMasks(
-            BuildLegacyMask(0, desiredActions.Player1Actions, inputBindingSchema),
-            BuildLegacyMask(1, desiredActions.Player2Actions, inputBindingSchema));
+            inputBindingSchema.GetSupportedPorts().ToDictionary(
+                port => port.PortId,
+                port => BuildLegacyMask(port.PortId, desiredActions.GetActions(port.PortId), inputBindingSchema),
+                StringComparer.OrdinalIgnoreCase));
     }
+
+    public InputDesiredMasks BuildDesiredMasks(
+        IReadOnlySet<Key> pressedKeys,
+        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
+        IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
+        bool turboPulseActive) =>
+        BuildDesiredMasks(
+            pressedKeys,
+            effectiveKeyMap,
+            extraBindings,
+            turboPulseActive,
+            CoreInputBindingSchema.CreateFallback());
 
     public IReadOnlyList<InputActionTransition> BuildActionTransitions(
         IReadOnlySet<string> desiredActions,
@@ -133,17 +165,6 @@ internal sealed class MainWindowInputStateController
         return transitions;
     }
 
-    public IReadOnlyList<InputActionTransition> BuildMaskTransitions(
-        byte desiredMask,
-        byte currentMask,
-        IReadOnlyList<string> controllerActionIds)
-    {
-        var inputBindingSchema = CoreInputBindingSchema.CreateFallback();
-        var desiredActions = BuildActionsFromMask(0, desiredMask, controllerActionIds, inputBindingSchema);
-        var currentActions = BuildActionsFromMask(0, currentMask, controllerActionIds, inputBindingSchema);
-        return BuildActionTransitions(desiredActions, currentActions, controllerActionIds);
-    }
-
     public TurboPulseDecision BuildTurboPulseDecision(
         bool turboPulseActive,
         IReadOnlySet<Key> pressedKeys,
@@ -165,39 +186,42 @@ internal sealed class MainWindowInputStateController
     }
 
     private static HashSet<string> GetTargetActions(
-        int player,
-        HashSet<string> player1Actions,
-        HashSet<string> player2Actions) =>
-        player == 0 ? player1Actions : player2Actions;
+        string portId,
+        IDictionary<string, HashSet<string>> actionsByPort)
+    {
+        if (!actionsByPort.TryGetValue(portId, out var actions))
+        {
+            actions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            actionsByPort[portId] = actions;
+        }
 
-    private static byte BuildLegacyMask(int player, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
+        return actions;
+    }
+
+    private static byte BuildLegacyMask(string portId, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
     {
         byte mask = 0;
         foreach (var actionId in actionIds)
         {
-            if (inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit))
+            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
                 mask |= bit;
         }
 
         return mask;
     }
 
-    private static IReadOnlySet<string> BuildActionsFromMask(
-        int player,
-        byte mask,
-        IEnumerable<string> actionIds,
-        CoreInputBindingSchema inputBindingSchema)
+    private static bool TryResolveProfilePort(
+        ExtraInputBindingProfile profile,
+        CoreInputBindingSchema inputBindingSchema,
+        out string portId)
     {
-        HashSet<string> actions = new(StringComparer.OrdinalIgnoreCase);
-        foreach (var actionId in actionIds)
-        {
-            if (inputBindingSchema.TryGetLegacyBitMask(player, actionId, out var bit) &&
-                (mask & bit) != 0)
-            {
-                actions.Add(actionId);
-            }
-        }
+        if (inputBindingSchema.TryNormalizePortId(profile.PortId, out portId))
+            return true;
 
-        return actions;
+        if (profile.Player is 0 or 1)
+            return inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(profile.Player), out portId);
+
+        portId = string.Empty;
+        return false;
     }
 }
