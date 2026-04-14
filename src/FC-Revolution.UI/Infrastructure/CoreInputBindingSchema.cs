@@ -16,6 +16,14 @@ internal sealed record CoreBindableInputAction(
 
 internal sealed class CoreInputBindingSchema
 {
+    private static readonly IReadOnlyDictionary<int, string> FallbackPortDisplayNames =
+        new ReadOnlyDictionary<int, string>(
+            new Dictionary<int, string>
+            {
+                [0] = "1P",
+                [1] = "2P"
+            });
+
     private static readonly IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> PreferredKeyMaps =
         new ReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>>(
             new Dictionary<int, IReadOnlyDictionary<string, Key>>
@@ -86,6 +94,7 @@ internal sealed class CoreInputBindingSchema
     private readonly IReadOnlyDictionary<string, string> _displayNamesByActionId;
     private readonly IReadOnlyDictionary<string, IReadOnlySet<string>> _supportedActionsByPort;
     private readonly IReadOnlyDictionary<string, (int Player, string PortId)> _portsById;
+    private readonly IReadOnlyList<InputPortDescriptor> _supportedPorts;
 
     private CoreInputBindingSchema(
         IReadOnlyDictionary<int, IReadOnlyList<CoreBindableInputAction>> actionsByPlayer,
@@ -94,7 +103,8 @@ internal sealed class CoreInputBindingSchema
         IReadOnlyDictionary<int, IReadOnlyDictionary<string, byte>> legacyBitMasksByPlayer,
         IReadOnlyDictionary<string, string> displayNamesByActionId,
         IReadOnlyDictionary<string, IReadOnlySet<string>> supportedActionsByPort,
-        IReadOnlyDictionary<string, (int Player, string PortId)> portsById)
+        IReadOnlyDictionary<string, (int Player, string PortId)> portsById,
+        IReadOnlyList<InputPortDescriptor> supportedPorts)
     {
         _actionsByPlayer = actionsByPlayer;
         _portIdsByPlayer = portIdsByPlayer;
@@ -103,6 +113,7 @@ internal sealed class CoreInputBindingSchema
         _displayNamesByActionId = displayNamesByActionId;
         _supportedActionsByPort = supportedActionsByPort;
         _portsById = portsById;
+        _supportedPorts = supportedPorts;
         ExtraInputButtonOptions = BuildExtraInputButtonOptions(actionsByPlayer);
     }
 
@@ -202,6 +213,22 @@ internal sealed class CoreInputBindingSchema
             pair => pair.Value,
             pair => (pair.Key, pair.Value),
             StringComparer.OrdinalIgnoreCase);
+        var supportedPorts = portIdsByPlayer
+            .OrderBy(pair => pair.Key)
+            .Select(pair =>
+            {
+                var matchingPort = inputPortsById.Values.FirstOrDefault(port => port.PlayerIndex == pair.Key);
+                var displayName = matchingPort?.DisplayName;
+                if (string.IsNullOrWhiteSpace(displayName))
+                {
+                    displayName = FallbackPortDisplayNames.TryGetValue(pair.Key, out var fallbackDisplayName)
+                        ? fallbackDisplayName
+                        : pair.Value;
+                }
+
+                return new InputPortDescriptor(pair.Value, displayName, pair.Key);
+            })
+            .ToArray();
 
         return new CoreInputBindingSchema(
             actionsByPlayer.ToDictionary(
@@ -222,7 +249,8 @@ internal sealed class CoreInputBindingSchema
                 pair => pair.Key,
                 pair => (IReadOnlySet<string>)pair.Value,
                 StringComparer.OrdinalIgnoreCase),
-            new ReadOnlyDictionary<string, (int Player, string PortId)>(portsById));
+            new ReadOnlyDictionary<string, (int Player, string PortId)>(portsById),
+            supportedPorts);
     }
 
     public IReadOnlyDictionary<int, IReadOnlyDictionary<string, Key>> BuildDefaultKeyMaps(IReadOnlyList<Key> configurableKeys)
@@ -256,6 +284,8 @@ internal sealed class CoreInputBindingSchema
 
     public IReadOnlyList<CoreBindableInputAction> GetBindableActions(int player) =>
         _actionsByPlayer.TryGetValue(player, out var actions) ? actions : Array.Empty<CoreBindableInputAction>();
+
+    public IReadOnlyList<InputPortDescriptor> GetSupportedPorts() => _supportedPorts;
 
     public IReadOnlyList<string> GetBindableActionIds(int player) =>
         GetBindableActions(player).Select(static action => action.ActionId).ToArray();

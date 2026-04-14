@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using FCRevolution.Backend.Hosting;
 using FCRevolution.Contracts.RemoteControl;
+using FCRevolution.Contracts.Sessions;
 using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Metal;
@@ -251,6 +252,18 @@ public sealed class ArcadeRuntimeContractAdapterTests
 
         var summary = Assert.Single(summaries);
         Assert.Equal("当前本地控制", summary.ControlSummary);
+        Assert.Collection(
+            summary.ControlPorts,
+            first =>
+            {
+                Assert.Equal("p1", first.PortId);
+                Assert.Equal(ControlPortSourceDto.Local, first.ControlSource);
+            },
+            second =>
+            {
+                Assert.Equal("p2", second.PortId);
+                Assert.Equal(ControlPortSourceDto.Local, second.ControlSource);
+            });
     }
 
     [Fact]

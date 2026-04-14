@@ -72,7 +72,15 @@ public sealed class BackendRuntimeStateTests
         new($"Rom-{index}", $"/roms/{index}.nes", true, HasPreview: index % 2 == 0);
 
     private static GameSessionSummaryDto CreateSession(int index) =>
-        new(Guid.NewGuid(), $"Session-{index}", $"/roms/{index}.nes", "control", PlayerControlSourceDto.Local, PlayerControlSourceDto.Remote);
+        new(
+            Guid.NewGuid(),
+            $"Session-{index}",
+            $"/roms/{index}.nes",
+            "control",
+            [
+                new GameSessionControlPortDto("p1", "1P", ControlPortSourceDto.Local),
+                new GameSessionControlPortDto("p2", "2P", ControlPortSourceDto.Remote)
+            ]);
 
     private static int ExtractIndex(string value) =>
         int.Parse(value[value.IndexOf('-')..].TrimStart('-'));

@@ -51,6 +51,10 @@ var DEFAULT_KEY_BINDINGS = {
   Select: 'Space',
   Start: 'Enter'
 };
+var DEFAULT_CONTROL_PORTS = [
+  { portId: 'p1', displayName: '1P', controlSource: 0 },
+  { portId: 'p2', displayName: '2P', controlSource: 0 }
+];
 var KEYBIND_STORAGE_KEY = 'fc-revolution-webpad-keybinds-v1';
 var INPUT_WATCHDOG_INTERVAL_MS = 250;
 var CONTROLLER_CHROME_HIDE_DELAY_MS = 2000;
@@ -163,10 +167,61 @@ var dom = {
 
 // --- 工具函数 ---
 function setStatus(text) { dom.statusBar.textContent = text || ''; }
-function getPlayer() { return Number(dom.playerSelect.value); }
-function playerLabel() { return getPlayer() === 0 ? '1P' : '2P'; }
-function getPortIdForPlayer(player) { return player === 0 ? 'p1' : player === 1 ? 'p2' : null; }
-function getSelectedPortId() { return getPortIdForPlayer(getPlayer()); }
+function getSessionControlPorts(session) {
+  var source = session && Array.isArray(session.controlPorts) && session.controlPorts.length > 0
+    ? session.controlPorts
+    : DEFAULT_CONTROL_PORTS;
+
+  return source
+    .filter(function(port) {
+      return port && typeof port.portId === 'string' && port.portId.trim();
+    })
+    .map(function(port) {
+      return {
+        portId: port.portId.trim(),
+        displayName: typeof port.displayName === 'string' && port.displayName.trim()
+          ? port.displayName.trim()
+          : port.portId.trim(),
+        controlSource: typeof port.controlSource === 'number' ? port.controlSource : 0
+      };
+    });
+}
+
+function getAvailableControlPorts() {
+  return getSessionControlPorts(getSessionById(state.selectedSessionId));
+}
+
+function syncControlPortOptions() {
+  var ports = getAvailableControlPorts();
+  var preferredPortId = state.claimedPortId || dom.playerSelect.value;
+  var selectedPortId = ports.some(function(port) { return port.portId === preferredPortId; })
+    ? preferredPortId
+    : ports[0].portId;
+
+  dom.playerSelect.innerHTML = '';
+  ports.forEach(function(port) {
+    var option = document.createElement('option');
+    option.value = port.portId;
+    option.textContent = port.displayName;
+    option.selected = port.portId === selectedPortId;
+    dom.playerSelect.appendChild(option);
+  });
+}
+
+function playerLabel() {
+  syncControlPortOptions();
+  var selectedIndex = dom.playerSelect.selectedIndex;
+  if (selectedIndex < 0)
+    return '当前端口';
+
+  var option = dom.playerSelect.options[selectedIndex];
+  return option && option.text ? option.text : '当前端口';
+}
+
+function getSelectedPortId() {
+  syncControlPortOptions();
+  return dom.playerSelect.value || null;
+}
 function wsUrl() { return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'; }
 function sessionPreviewUrl(sessionId, tick) { return '/api/sessions/' + sessionId + '/preview?v=' + (tick || state.sessionPreviewVersion); }
 function romPreviewUrl(romPath) { return '/api/roms/preview?romPath=' + encodeURIComponent(romPath); }
@@ -994,6 +1049,8 @@ function shouldSuppressMobileSelection(target) {
 
 // --- 视图切换 ---
 function updateSelectionSummary() {
+  syncControlPortOptions();
+
   if (state.selectedSessionId) {
     dom.selectionTitle.textContent = state.selectedSessionName || '已选择游戏窗口';
     dom.selectionMeta.textContent = '当前将接管 ' + playerLabel() + '。画面为该窗口实时串流。';
@@ -1359,6 +1416,20 @@ function formatPlayerSource(label, source) {
   return label + ' ' + (source === 1 ? '网页控制' : '本地控制');
 }
 
+function appendSessionControlBadges(container, session) {
+  var controlPorts = Array.isArray(session.controlPorts) ? session.controlPorts : [];
+  controlPorts.forEach(function(port) {
+    if (!port)
+      return;
+
+    var label = typeof port.displayName === 'string' && port.displayName.trim()
+      ? port.displayName.trim()
+      : (typeof port.portId === 'string' && port.portId.trim() ? port.portId.trim() : '端口');
+    var source = typeof port.controlSource === 'number' ? port.controlSource : 0;
+    container.appendChild(badge(formatPlayerSource(label, source), source === 1 ? 'warn' : ''));
+  });
+}
+
 // 渲染桌面端 ROM 列表
 function renderRoms() {
   var root = document.getElementById('roms');
@@ -1575,8 +1646,7 @@ function renderSessions() {
 
     var badges = document.createElement('div');
     badges.className = 'badge-line';
-    badges.appendChild(badge(formatPlayerSource('1P', session.player1ControlSource), session.player1ControlSource === 1 ? 'warn' : ''));
-    badges.appendChild(badge(formatPlayerSource('2P', session.player2ControlSource), session.player2ControlSource === 1 ? 'warn' : ''));
+    appendSessionControlBadges(badges, session);
 
     var actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -1662,8 +1732,7 @@ function renderMobileSessions() {
 
     var badges = document.createElement('div');
     badges.className = 'badge-line';
-    badges.appendChild(badge(formatPlayerSource('1P', session.player1ControlSource), session.player1ControlSource === 1 ? 'warn' : ''));
-    badges.appendChild(badge(formatPlayerSource('2P', session.player2ControlSource), session.player2ControlSource === 1 ? 'warn' : ''));
+    appendSessionControlBadges(badges, session);
 
     var button = document.createElement('button');
     button.className = 'primary mobile-launch-btn';
@@ -1724,6 +1793,7 @@ async function refreshSessions() {
   if (state.claimedSessionId && !getSessionById(state.claimedSessionId))
     clearClaimedControlState();
 
+  syncControlPortOptions();
   renderSessions();
   updateSelectionSummary();
 }
@@ -1967,7 +2037,7 @@ async function handlePlayerSelectionChanged() {
       updateControllerSummary();
       setStatus('已切换到 ' + playerLabel() + ' 控制');
     } else {
-      setStatus('已切换当前目标玩家为 ' + playerLabel());
+      setStatus('已切换当前目标端口为 ' + playerLabel());
     }
 
     await refreshSessions();

@@ -5,5 +5,4 @@ public sealed record GameSessionSummaryDto(
     string DisplayName,
     string RomPath,
     string ControlSummary,
-    PlayerControlSourceDto Player1ControlSource,
-    PlayerControlSourceDto Player2ControlSource);
+    IReadOnlyList<GameSessionControlPortDto> ControlPorts);

@@ -24,8 +24,7 @@ public sealed class SessionQueryService
                 session.DisplayName,
                 session.RomPath,
                 string.IsNullOrWhiteSpace(session.ViewModel.RemoteControlStatusText) ? "当前本地控制" : session.ViewModel.RemoteControlStatusText,
-                MapSource(session.ViewModel.Player1ControlSource),
-                MapSource(session.ViewModel.Player2ControlSource)))
+                session.ViewModel.BuildRemoteControlPortSummaries()))
             .ToList();
 
     public byte[]? GetSessionPreview(Guid sessionId)
@@ -33,9 +32,6 @@ public sealed class SessionQueryService
         var session = _gameSessionService.FindSession(sessionId);
         return session?.SnapshotBitmap == null ? null : EncodeBitmap(session.SnapshotBitmap);
     }
-
-    private static PlayerControlSourceDto MapSource(GamePlayerControlSource source) =>
-        source == GamePlayerControlSource.Remote ? PlayerControlSourceDto.Remote : PlayerControlSourceDto.Local;
 
     private static byte[] EncodeBitmap(WriteableBitmap bitmap)
     {

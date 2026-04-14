@@ -11,6 +11,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FCRevolution.Backend.Hosting;
+using FCRevolution.Contracts.Sessions;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Emulation.Host;
 using FCRevolution.Rendering.Abstractions;
@@ -447,6 +448,17 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         get => _player2ControlSource;
         private set => SetProperty(ref _player2ControlSource, value);
     }
+
+    internal IReadOnlyList<GameSessionControlPortDto> BuildRemoteControlPortSummaries() =>
+        _inputBindingSchema.GetSupportedPorts()
+            .Select(port => new GameSessionControlPortDto(
+                port.PortId,
+                port.DisplayName,
+                MapControlSource(_remoteControlRuntime.GetPlayerControlSource(port.PlayerIndex))))
+            .ToArray();
+
+    private static ControlPortSourceDto MapControlSource(GamePlayerControlSource source) =>
+        source == GamePlayerControlSource.Remote ? ControlPortSourceDto.Remote : ControlPortSourceDto.Local;
 
     public void SetVolume(double volume) => _audio.Volume = (float)volume;
 

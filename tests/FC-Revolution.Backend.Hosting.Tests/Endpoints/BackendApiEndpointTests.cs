@@ -19,7 +19,15 @@ public sealed class BackendApiEndpointTests
         };
         var sessions = new[]
         {
-            new GameSessionSummaryDto(Guid.NewGuid(), "Contra", "/roms/contra.nes", "当前本地控制", PlayerControlSourceDto.Local, PlayerControlSourceDto.Remote)
+            new GameSessionSummaryDto(
+                Guid.NewGuid(),
+                "Contra",
+                "/roms/contra.nes",
+                "当前本地控制",
+                [
+                    new GameSessionControlPortDto("p1", "1P", ControlPortSourceDto.Local),
+                    new GameSessionControlPortDto("p2", "2P", ControlPortSourceDto.Remote)
+                ])
         };
 
         using var romResponse = await host.Client.PostAsJsonAsync("internal/sync/roms", roms);
@@ -38,7 +46,7 @@ public sealed class BackendApiEndpointTests
         Assert.NotNull(syncedSessions);
         Assert.Single(syncedSessions!);
         Assert.Equal("当前本地控制", syncedSessions[0].ControlSummary);
-        Assert.Equal(PlayerControlSourceDto.Remote, syncedSessions[0].Player2ControlSource);
+        Assert.Equal(ControlPortSourceDto.Remote, Assert.Single(syncedSessions[0].ControlPorts, port => port.PortId == "p2").ControlSource);
     }
 
     [Fact]
