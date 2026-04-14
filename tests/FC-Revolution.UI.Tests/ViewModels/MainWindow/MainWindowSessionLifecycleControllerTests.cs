@@ -10,8 +10,7 @@ public sealed class MainWindowSessionLifecycleControllerTests
     public void IsRemoteControlTrackedProperty_RecognizesExpectedPropertyNames()
     {
         Assert.True(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty("RemoteControlStatusText"));
-        Assert.True(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty("Player1ControlSource"));
-        Assert.True(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty("Player2ControlSource"));
+        Assert.True(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty("RemoteControlPortsVersion"));
         Assert.False(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty("StatusText"));
         Assert.False(MainWindowSessionLifecycleController.IsRemoteControlTrackedProperty(null));
     }
@@ -49,7 +48,7 @@ public sealed class MainWindowSessionLifecycleControllerTests
         Assert.Equal(0, unsubscribeCalls);
         Assert.Equal(1, activeRefreshCalls);
 
-        tracked.RaisePropertyChanged("Player1ControlSource");
+        tracked.RaisePropertyChanged("RemoteControlPortsVersion");
         Assert.Equal(1, summaryRefreshCalls);
         Assert.Equal(2, activeRefreshCalls);
 

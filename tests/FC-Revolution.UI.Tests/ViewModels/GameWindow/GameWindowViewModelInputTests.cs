@@ -1,4 +1,5 @@
 using Avalonia.Input;
+using FCRevolution.Contracts.Sessions;
 using FCRevolution.Core.Input;
 using FCRevolution.Core.Mappers;
 using FCRevolution.Core.PPU;
@@ -150,14 +151,25 @@ public sealed class GameWindowViewModelInputTests
         vm.OnKeyDown(Key.Z);
         Assert.Equal((byte)NesButton.A, host.ReadCombinedInputMask(0));
 
-        var acquired = vm.AcquireRemoteControl(0, "127.0.0.1", "remote-client");
+        var acquired = vm.AcquireRemoteControl("p1", "127.0.0.1", "remote-client");
         Assert.True(acquired);
         Assert.Equal(0, host.ReadCombinedInputMask(0));
-        Assert.Equal(GamePlayerControlSource.Remote, vm.Player1ControlSource);
-        Assert.Equal(GamePlayerControlSource.Local, vm.Player2ControlSource);
+        Assert.Collection(
+            vm.BuildRemoteControlPortSummaries(),
+            first =>
+            {
+                Assert.Equal("p1", first.PortId);
+                Assert.Equal(ControlPortSourceDto.Remote, first.ControlSource);
+            },
+            second =>
+            {
+                Assert.Equal("p2", second.PortId);
+                Assert.Equal(ControlPortSourceDto.Local, second.ControlSource);
+            });
+        Assert.Equal(1, vm.RemoteControlPortsVersion);
         Assert.True(vm.HasRemoteControlStatus);
         Assert.Contains("remote-client (127.0.0.1)", vm.RemoteControlStatusText);
-        Assert.Equal("1P 已切换为 127.0.0.1 网页控制", vm.TransientMessage);
+        Assert.Equal("Player 1 已切换为 127.0.0.1 网页控制", vm.TransientMessage);
 
         var remoteApplied = vm.SetRemoteInputState("p1", NesInputTestAdapter.ActionId(NesButton.B), 1f, "127.0.0.1", "remote-client");
         Assert.True(remoteApplied);
@@ -170,9 +182,10 @@ public sealed class GameWindowViewModelInputTests
         Assert.True(remoteReleasedButton);
         Assert.Equal(0, host.ReadCombinedInputMask(0));
 
-        vm.ReleaseRemoteControl(0, "remote disconnected");
+        vm.ReleaseRemoteControl("p1", "remote disconnected");
         Assert.Equal((byte)((byte)NesButton.A | (byte)NesButton.B), host.ReadCombinedInputMask(0));
-        Assert.Equal(GamePlayerControlSource.Local, vm.Player1ControlSource);
+        Assert.All(vm.BuildRemoteControlPortSummaries(), port => Assert.Equal(ControlPortSourceDto.Local, port.ControlSource));
+        Assert.Equal(2, vm.RemoteControlPortsVersion);
         Assert.False(vm.HasRemoteControlStatus);
         Assert.Equal(string.Empty, vm.RemoteControlStatusText);
         Assert.Equal("remote disconnected", vm.TransientMessage);
@@ -184,7 +197,7 @@ public sealed class GameWindowViewModelInputTests
         using var host = new GameWindowViewModelTestHost();
         var vm = host.ViewModel;
 
-        Assert.True(vm.AcquireRemoteControl(0, "127.0.0.1", "remote-client"));
+        Assert.True(vm.AcquireRemoteControl("p1", "127.0.0.1", "remote-client"));
 
         var applied = vm.SetRemoteInputState("p1", "x", 1f, "127.0.0.1", "remote-client");
 
@@ -199,7 +212,7 @@ public sealed class GameWindowViewModelInputTests
         using var host = new GameWindowViewModelTestHost(coreSession: coreSession);
         var vm = host.ViewModel;
 
-        Assert.True(vm.AcquireRemoteControl(0, "127.0.0.1", "remote-client"));
+        Assert.True(vm.AcquireRemoteControl("p1", "127.0.0.1", "remote-client"));
 
         var applied = vm.SetRemoteInputState("p1", "x", 1f, "127.0.0.1", "remote-client");
 
@@ -218,7 +231,7 @@ public sealed class GameWindowViewModelInputTests
         using var host = new GameWindowViewModelTestHost(coreSession: coreSession);
         var vm = host.ViewModel;
 
-        Assert.True(vm.AcquireRemoteControl(0, "127.0.0.1", "remote-client"));
+        Assert.True(vm.AcquireRemoteControl("p1", "127.0.0.1", "remote-client"));
 
         var applied = vm.SetRemoteInputState("p1", "fire", 1f, "127.0.0.1", "remote-client");
 

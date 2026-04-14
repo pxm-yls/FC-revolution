@@ -1,86 +1,95 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
 
 internal sealed class GameWindowRemoteControlRuntimeSlotStateController
 {
-    private GameWindowRemoteControlRuntimeSlot _player1Slot = new(GamePlayerControlSource.Local, null, null, null);
-    private GameWindowRemoteControlRuntimeSlot _player2Slot = new(GamePlayerControlSource.Local, null, null, null);
+    private readonly IReadOnlyList<string> _supportedPortIds;
+    private readonly Dictionary<string, GameWindowRemoteControlRuntimeSlot> _slotsByPortId;
 
-    public GamePlayerControlSource GetPlayerControlSource(int player) =>
-        player == 0 ? _player1Slot.ControlSource : _player2Slot.ControlSource;
+    public GameWindowRemoteControlRuntimeSlotStateController(IReadOnlyList<InputPortDescriptor> supportedPorts)
+    {
+        _supportedPortIds = supportedPorts
+            .Select(static port => port.PortId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _slotsByPortId = _supportedPortIds.ToDictionary(
+            static portId => portId,
+            static _ => new GameWindowRemoteControlRuntimeSlot(GamePlayerControlSource.Local, null, null, null),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    public GamePlayerControlSource GetPortControlSource(string portId) =>
+        _slotsByPortId.TryGetValue(portId, out var slot) ? slot.ControlSource : GamePlayerControlSource.Local;
 
     public GameWindowRemoteControlRuntimeViewState BuildViewState(GameWindowRemoteControlStateController stateController)
     {
+        var slotStates = new ReadOnlyDictionary<string, GameWindowRemoteControlSlotState>(
+            _supportedPortIds.ToDictionary(
+                static portId => portId,
+                portId => ToSlotState(_slotsByPortId[portId]),
+                StringComparer.OrdinalIgnoreCase));
+
         return new GameWindowRemoteControlRuntimeViewState(
-            _player1Slot.ControlSource,
-            _player2Slot.ControlSource,
-            stateController.BuildRemoteControlStatusText(
-                ToSlotState(_player1Slot),
-                ToSlotState(_player2Slot)));
+            stateController.BuildRemoteControlStatusText(slotStates));
     }
 
-    public bool TryGetSlotState(
-        GameWindowRemoteControlStateController stateController,
-        int player,
-        out GameWindowRemoteControlSlotState slotState)
+    public bool TryGetSlotState(string portId, out GameWindowRemoteControlSlotState slotState) =>
+        TryGetSlot(portId, out var slot, out slotState);
+
+    public void SetRemoteOwner(string portId, string clientIp, string? clientName, DateTime heartbeatUtc) =>
+        SetSlot(portId, GamePlayerControlSource.Remote, clientIp, clientName, heartbeatUtc);
+
+    public bool TryReleaseToLocal(string portId, out bool hadRemoteControl)
     {
-        if (!stateController.IsSupportedPlayer(player))
-        {
-            slotState = default;
-            return false;
-        }
-
-        slotState = ToSlotState(player == 0 ? _player1Slot : _player2Slot);
-        return true;
-    }
-
-    public void SetRemoteOwner(int player, string clientIp, string? clientName, DateTime heartbeatUtc) =>
-        SetSlot(player, GamePlayerControlSource.Remote, clientIp, clientName, heartbeatUtc);
-
-    public bool TryReleaseToLocal(
-        GameWindowRemoteControlStateController stateController,
-        int player,
-        out bool hadRemoteControl)
-    {
-        if (!stateController.IsSupportedPlayer(player))
+        if (!TryGetSlot(portId, out var slot, out _))
         {
             hadRemoteControl = false;
             return false;
         }
 
-        hadRemoteControl = GetPlayerControlSource(player) == GamePlayerControlSource.Remote;
-        SetSlot(player, GamePlayerControlSource.Local, null, null, null);
+        hadRemoteControl = slot.ControlSource == GamePlayerControlSource.Remote;
+        SetSlot(portId, GamePlayerControlSource.Local, null, null, null);
         return true;
     }
 
-    public bool TrySetHeartbeat(
-        GameWindowRemoteControlStateController stateController,
-        int player,
-        DateTime heartbeatUtc)
+    public bool TrySetHeartbeat(string portId, DateTime heartbeatUtc)
     {
-        if (!stateController.IsSupportedPlayer(player))
+        if (!_slotsByPortId.TryGetValue(portId, out var slot))
             return false;
 
-        if (player == 0)
-            _player1Slot = _player1Slot with { HeartbeatUtc = heartbeatUtc };
-        else
-            _player2Slot = _player2Slot with { HeartbeatUtc = heartbeatUtc };
+        _slotsByPortId[portId] = slot with { HeartbeatUtc = heartbeatUtc };
         return true;
     }
 
     private void SetSlot(
-        int player,
+        string portId,
         GamePlayerControlSource controlSource,
         string? clientIp,
         string? clientName,
         DateTime? heartbeatUtc)
     {
-        if (player == 0)
-            _player1Slot = new GameWindowRemoteControlRuntimeSlot(controlSource, clientIp, clientName, heartbeatUtc);
-        else
-            _player2Slot = new GameWindowRemoteControlRuntimeSlot(controlSource, clientIp, clientName, heartbeatUtc);
+        _slotsByPortId[portId] = new GameWindowRemoteControlRuntimeSlot(controlSource, clientIp, clientName, heartbeatUtc);
+    }
+
+    private bool TryGetSlot(
+        string portId,
+        out GameWindowRemoteControlRuntimeSlot slot,
+        out GameWindowRemoteControlSlotState slotState)
+    {
+        if (!_slotsByPortId.TryGetValue(portId, out slot))
+        {
+            slotState = default;
+            return false;
+        }
+
+        slotState = ToSlotState(slot);
+        return true;
     }
 
     private static GameWindowRemoteControlSlotState ToSlotState(GameWindowRemoteControlRuntimeSlot slot) =>

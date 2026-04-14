@@ -34,10 +34,8 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private readonly GameWindowFramePresenterController _framePresenter;
     private readonly CoreInputBindingSchema _inputBindingSchema;
     private readonly GameWindowInputStateController _inputState;
-    private readonly GameWindowRemoteControlWorkflowController _remoteControlWorkflow =
-        new(RemoteControlStateController);
-    private readonly GameWindowRemoteControlRuntimeController _remoteControlRuntime =
-        new(RemoteControlStateController);
+    private readonly GameWindowRemoteControlWorkflowController _remoteControlWorkflow;
+    private readonly GameWindowRemoteControlRuntimeController _remoteControlRuntime;
     private readonly GameWindowRenderDiagnosticsStateController _renderDiagnostics = new();
     private readonly GameWindowSessionRuntimeController _sessionRuntime;
     private readonly GameWindowSaveStateWorkflowController _saveStateWorkflow;
@@ -91,8 +89,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     private bool _profileTrustInitialized;
     private bool _turboPulseActive;
     private readonly Dictionary<Key, int> _turboTickCounters = new();
-    private GamePlayerControlSource _player1ControlSource;
-    private GamePlayerControlSource _player2ControlSource;
+    private int _remoteControlPortsVersion;
     private string _transientMessage = "";
     private string _remoteControlStatusText = "";
     private string _timelinePositionText = "时间线位置: 帧 0";
@@ -136,6 +133,9 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
     {
         _coreSession = coreSession;
         _inputBindingSchema = CoreInputBindingSchema.Create(coreSession.InputSchema);
+        var remoteControlStateController = new GameWindowRemoteControlStateController(_inputBindingSchema.GetSupportedPorts());
+        _remoteControlWorkflow = new GameWindowRemoteControlWorkflowController(remoteControlStateController);
+        _remoteControlRuntime = new GameWindowRemoteControlRuntimeController(remoteControlStateController);
         _inputState = new GameWindowInputStateController(_inputBindingSchema);
         _timeTravelService = CoreSessionCapabilityResolver.ResolveTimeTravelService(coreSession);
         var inputStateWriter = CoreSessionCapabilityResolver.ResolveInputStateWriter(coreSession);
@@ -437,16 +437,10 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
         private set => SetProperty(ref _isOverlayVisible, value);
     }
 
-    public GamePlayerControlSource Player1ControlSource
+    public int RemoteControlPortsVersion
     {
-        get => _player1ControlSource;
-        private set => SetProperty(ref _player1ControlSource, value);
-    }
-
-    public GamePlayerControlSource Player2ControlSource
-    {
-        get => _player2ControlSource;
-        private set => SetProperty(ref _player2ControlSource, value);
+        get => _remoteControlPortsVersion;
+        private set => SetProperty(ref _remoteControlPortsVersion, value);
     }
 
     internal IReadOnlyList<GameSessionControlPortDto> BuildRemoteControlPortSummaries() =>
@@ -454,7 +448,7 @@ public sealed partial class GameWindowViewModel : ViewModelBase, IDisposable
             .Select(port => new GameSessionControlPortDto(
                 port.PortId,
                 port.DisplayName,
-                MapControlSource(_remoteControlRuntime.GetPlayerControlSource(port.PlayerIndex))))
+                MapControlSource(_remoteControlRuntime.GetPortControlSource(port.PortId))))
             .ToArray();
 
     private static ControlPortSourceDto MapControlSource(GamePlayerControlSource source) =>

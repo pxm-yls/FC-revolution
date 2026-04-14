@@ -56,7 +56,7 @@ internal sealed class MainWindowSessionLifecycleController
     }
 
     internal static bool IsRemoteControlTrackedProperty(string? propertyName) =>
-        propertyName is "RemoteControlStatusText" or "Player1ControlSource" or "Player2ControlSource";
+        propertyName is "RemoteControlStatusText" or "RemoteControlPortsVersion";
 
     public void CancelReplaceGameSession(Action clearPendingLaunchRom, Action<bool> setIsReplacingGameSession)
     {

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Models;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -11,7 +14,43 @@ internal readonly record struct GameWindowRemoteControlSlotState(
 
 internal sealed class GameWindowRemoteControlStateController
 {
-    public bool IsSupportedPlayer(int player) => player is 0 or 1;
+    private static readonly IReadOnlyList<InputPortDescriptor> DefaultPorts =
+    [
+        new("p1", "1P", 0),
+        new("p2", "2P", 1)
+    ];
+
+    private readonly IReadOnlyList<InputPortDescriptor> _supportedPorts;
+    private readonly IReadOnlyDictionary<string, InputPortDescriptor> _portsById;
+
+    public GameWindowRemoteControlStateController(IReadOnlyList<InputPortDescriptor>? supportedPorts = null)
+    {
+        var normalizedPorts = (supportedPorts ?? DefaultPorts)
+            .Where(static port => !string.IsNullOrWhiteSpace(port.PortId))
+            .Select(static port => new InputPortDescriptor(port.PortId.Trim(), ResolveDisplayName(port), port.PlayerIndex))
+            .OrderBy(static port => port.PlayerIndex)
+            .ThenBy(static port => port.PortId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _supportedPorts = normalizedPorts;
+        _portsById = new ReadOnlyDictionary<string, InputPortDescriptor>(
+            normalizedPorts.ToDictionary(static port => port.PortId, StringComparer.OrdinalIgnoreCase));
+    }
+
+    public IReadOnlyList<InputPortDescriptor> GetSupportedPorts() => _supportedPorts;
+
+    public bool TryNormalizePortId(string? portId, out string normalizedPortId)
+    {
+        normalizedPortId = string.Empty;
+        if (string.IsNullOrWhiteSpace(portId) ||
+            !_portsById.TryGetValue(portId.Trim(), out var port))
+        {
+            return false;
+        }
+
+        normalizedPortId = port.PortId;
+        return true;
+    }
 
     public bool CanAcquireRemoteControl(
         GameWindowRemoteControlSlotState slotState,
@@ -49,31 +88,35 @@ internal sealed class GameWindowRemoteControlStateController
         return IsSameRemoteOwner(slotState, clientIp, clientName);
     }
 
-    public string BuildRemoteControlStatusText(
-        GameWindowRemoteControlSlotState player1SlotState,
-        GameWindowRemoteControlSlotState player2SlotState)
+    public string BuildRemoteControlStatusText(IReadOnlyDictionary<string, GameWindowRemoteControlSlotState> slotStates)
     {
-        var statuses = new List<string>(2);
-        AppendRemoteStatus(statuses, player: 0, player1SlotState);
-        AppendRemoteStatus(statuses, player: 1, player2SlotState);
+        var statuses = new List<string>(_supportedPorts.Count);
+        foreach (var port in _supportedPorts)
+        {
+            if (!slotStates.TryGetValue(port.PortId, out var slotState))
+                continue;
+
+            AppendRemoteStatus(statuses, port, slotState);
+        }
+
         return string.Join(" | ", statuses);
     }
 
-    public string BuildRemoteConnectedToast(int player, string clientIp) =>
-        $"{GetPlayerSlotLabel(player)} 已切换为 {clientIp} 网页控制";
+    public string BuildRemoteConnectedToast(string portId, string clientIp) =>
+        $"{GetPortLabel(portId)} 已切换为 {clientIp} 网页控制";
 
-    public string BuildLocalControlRestoredToast(int player) =>
-        $"{GetPlayerSlotLabel(player)} 已恢复本地控制";
+    public string BuildLocalControlRestoredToast(string portId) =>
+        $"{GetPortLabel(portId)} 已恢复本地控制";
 
     private static void AppendRemoteStatus(
         ICollection<string> statuses,
-        int player,
+        InputPortDescriptor port,
         GameWindowRemoteControlSlotState slotState)
     {
         if (slotState.ControlSource != GamePlayerControlSource.Remote)
             return;
 
-        statuses.Add($"{GetPlayerSlotLabel(player)} 正通过 {GetRemoteClientDisplay(slotState)} 网页控制");
+        statuses.Add($"{ResolveDisplayName(port)} 正通过 {GetRemoteClientDisplay(slotState)} 网页控制");
     }
 
     private static string GetRemoteClientDisplay(GameWindowRemoteControlSlotState slotState)
@@ -93,5 +136,11 @@ internal sealed class GameWindowRemoteControlStateController
                string.Equals(slotState.ClientName ?? string.Empty, clientName ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetPlayerSlotLabel(int player) => player == 0 ? "1P" : "2P";
+    private string GetPortLabel(string portId) =>
+        _portsById.TryGetValue(portId, out var port)
+            ? ResolveDisplayName(port)
+            : portId;
+
+    private static string ResolveDisplayName(InputPortDescriptor port) =>
+        string.IsNullOrWhiteSpace(port.DisplayName) ? port.PortId : port.DisplayName.Trim();
 }

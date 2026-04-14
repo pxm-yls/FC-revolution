@@ -51,10 +51,6 @@ var DEFAULT_KEY_BINDINGS = {
   Select: 'Space',
   Start: 'Enter'
 };
-var DEFAULT_CONTROL_PORTS = [
-  { portId: 'p1', displayName: '1P', controlSource: 0 },
-  { portId: 'p2', displayName: '2P', controlSource: 0 }
-];
 var KEYBIND_STORAGE_KEY = 'fc-revolution-webpad-keybinds-v1';
 var INPUT_WATCHDOG_INTERVAL_MS = 250;
 var CONTROLLER_CHROME_HIDE_DELAY_MS = 2000;
@@ -105,7 +101,7 @@ var state = {
 var dom = {
   topbar: document.querySelector('.topbar'),
   statusBar: document.getElementById('statusBar'),
-  playerSelect: document.getElementById('playerSelect'),
+  controlPortSelect: document.getElementById('controlPortSelect'),
   clientName: document.getElementById('clientName'),
   selectionTitle: document.getElementById('selectionTitle'),
   selectionMeta: document.getElementById('selectionMeta'),
@@ -168,9 +164,9 @@ var dom = {
 // --- 工具函数 ---
 function setStatus(text) { dom.statusBar.textContent = text || ''; }
 function getSessionControlPorts(session) {
-  var source = session && Array.isArray(session.controlPorts) && session.controlPorts.length > 0
+  var source = session && Array.isArray(session.controlPorts)
     ? session.controlPorts
-    : DEFAULT_CONTROL_PORTS;
+    : [];
 
   return source
     .filter(function(port) {
@@ -193,34 +189,47 @@ function getAvailableControlPorts() {
 
 function syncControlPortOptions() {
   var ports = getAvailableControlPorts();
-  var preferredPortId = state.claimedPortId || dom.playerSelect.value;
+  var preferredPortId = state.claimedPortId || dom.controlPortSelect.value;
+
+  dom.controlPortSelect.innerHTML = '';
+  if (ports.length === 0) {
+    var placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = state.selectedSessionId ? '无可用控制端口' : '先选择游戏窗口';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    dom.controlPortSelect.appendChild(placeholder);
+    dom.controlPortSelect.disabled = true;
+    return;
+  }
+
+  dom.controlPortSelect.disabled = false;
   var selectedPortId = ports.some(function(port) { return port.portId === preferredPortId; })
     ? preferredPortId
     : ports[0].portId;
 
-  dom.playerSelect.innerHTML = '';
   ports.forEach(function(port) {
     var option = document.createElement('option');
     option.value = port.portId;
     option.textContent = port.displayName;
     option.selected = port.portId === selectedPortId;
-    dom.playerSelect.appendChild(option);
+    dom.controlPortSelect.appendChild(option);
   });
 }
 
-function playerLabel() {
+function selectedControlPortLabel() {
   syncControlPortOptions();
-  var selectedIndex = dom.playerSelect.selectedIndex;
+  var selectedIndex = dom.controlPortSelect.selectedIndex;
   if (selectedIndex < 0)
     return '当前端口';
 
-  var option = dom.playerSelect.options[selectedIndex];
-  return option && option.text ? option.text : '当前端口';
+  var option = dom.controlPortSelect.options[selectedIndex];
+  return option && option.value && option.text ? option.text : '当前端口';
 }
 
 function getSelectedPortId() {
   syncControlPortOptions();
-  return dom.playerSelect.value || null;
+  return dom.controlPortSelect.value || null;
 }
 function wsUrl() { return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'; }
 function sessionPreviewUrl(sessionId, tick) { return '/api/sessions/' + sessionId + '/preview?v=' + (tick || state.sessionPreviewVersion); }
@@ -1053,9 +1062,9 @@ function updateSelectionSummary() {
 
   if (state.selectedSessionId) {
     dom.selectionTitle.textContent = state.selectedSessionName || '已选择游戏窗口';
-    dom.selectionMeta.textContent = '当前将接管 ' + playerLabel() + '。画面为该窗口实时串流。';
+    dom.selectionMeta.textContent = '当前将接管 ' + selectedControlPortLabel() + '。画面为该窗口实时串流。';
     dom.mobileSelectionTitle.textContent = state.selectedSessionName || '已选择游戏窗口';
-    dom.mobileSelectionMeta.textContent = '当前控制 ' + playerLabel();
+    dom.mobileSelectionMeta.textContent = '当前控制 ' + selectedControlPortLabel();
     // 视频可见性由 StreamManager._connect / stop() 管理，此处只设置连接中的提示文本
     if (!StreamManager._ws) {
       dom.selectionPreviewEmpty.classList.remove('hidden');
@@ -1094,7 +1103,7 @@ function updateSelectionSummary() {
 function updateControllerSummary() {
   dom.controllerTitle.textContent = state.selectedSessionName || '等待接入';
   dom.controllerMeta.textContent = state.selectedSessionId
-    ? ('正在控制 ' + playerLabel() + ' / 会话 ' + state.selectedSessionId)
+    ? ('正在控制 ' + selectedControlPortLabel() + ' / 会话 ' + state.selectedSessionId)
     : '当前未接入任何会话';
 }
 
@@ -1871,9 +1880,13 @@ async function ensureSocketClaim() {
   if (!state.selectedSessionId)
     throw new Error('当前没有可接管的游戏窗口');
 
+  var selectedPortId = getSelectedPortId();
+  if (!selectedPortId)
+    throw new Error('当前会话未提供可控制端口');
+
   if (state.controlSocket &&
       state.controlSocket.readyState === WebSocket.OPEN &&
-      state.claimedPortId === getSelectedPortId() &&
+      state.claimedPortId === selectedPortId &&
       state.claimedSessionId === state.selectedSessionId)
     return;
 
@@ -1893,7 +1906,7 @@ async function ensureSocketClaim() {
       socket.send(JSON.stringify({
         action: 'claim',
         sessionId: claimSessionId,
-        portId: getSelectedPortId(),
+        portId: selectedPortId,
         clientName: dom.clientName.value.trim() || null
       }));
     };
@@ -1902,7 +1915,7 @@ async function ensureSocketClaim() {
       var msg = JSON.parse(event.data);
       if (msg.type === 'claimed') {
         settled = true;
-        state.claimedPortId = typeof msg.portId === 'string' ? msg.portId : getSelectedPortId();
+        state.claimedPortId = typeof msg.portId === 'string' ? msg.portId : selectedPortId;
         state.claimedSessionId = msg.sessionId || state.selectedSessionId;
         startHeartbeat();
         updateSelectionSummary();
@@ -2014,7 +2027,7 @@ async function releaseControl() {
   clearClaimedControlState();
 }
 
-async function handlePlayerSelectionChanged() {
+async function handleControlPortSelectionChanged() {
   updateSelectionSummary();
   updateControllerSummary();
 
@@ -2035,9 +2048,9 @@ async function handlePlayerSelectionChanged() {
     if (isControllerViewVisible() && state.selectedSessionId) {
       await ensureSocketClaim();
       updateControllerSummary();
-      setStatus('已切换到 ' + playerLabel() + ' 控制');
+      setStatus('已切换到 ' + selectedControlPortLabel() + ' 控制');
     } else {
-      setStatus('已切换当前目标端口为 ' + playerLabel());
+      setStatus('已切换当前目标端口为 ' + selectedControlPortLabel());
     }
 
     await refreshSessions();
@@ -2179,7 +2192,7 @@ function setupEventListeners() {
       }
       updateControllerSummary();
       showControllerView();
-      setStatus('已接入 ' + playerLabel() + ' 控制');
+      setStatus('已接入 ' + selectedControlPortLabel() + ' 控制');
     } catch (error) {
       setStatus(error.message);
     }
@@ -2345,8 +2358,8 @@ function setupEventListeners() {
   };
 
   // 玩家选择
-  dom.playerSelect.onchange = function() {
-    handlePlayerSelectionChanged().catch(function(error) {
+  dom.controlPortSelect.onchange = function() {
+    handleControlPortSelectionChanged().catch(function(error) {
       setStatus(error.message);
     });
   };

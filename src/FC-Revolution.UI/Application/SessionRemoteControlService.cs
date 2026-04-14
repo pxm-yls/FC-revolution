@@ -21,7 +21,7 @@ public sealed class SessionRemoteControlService
 
         var claimed = _gameSessionService.TryAcquireRemoteControl(sessionId, portId, request.ClientIp, request.ClientName);
         if (claimed)
-            _reportStatus($"已分配远程控制: {sessionId} / {GetPortLabel(portId)}");
+            _reportStatus($"已分配远程控制: {sessionId} / {portId}");
         return claimed;
     }
 
@@ -31,7 +31,7 @@ public sealed class SessionRemoteControlService
             return;
 
         _gameSessionService.ReleaseRemoteControl(sessionId, portId, request.Reason);
-        _reportStatus($"已释放远程控制: {sessionId} / {GetPortLabel(portId)}");
+        _reportStatus($"已释放远程控制: {sessionId} / {portId}");
     }
 
     public void RefreshHeartbeat(Guid sessionId, RefreshHeartbeatRequest request)
@@ -65,11 +65,4 @@ public sealed class SessionRemoteControlService
         resolvedPortId = string.IsNullOrWhiteSpace(portId) ? string.Empty : portId.Trim();
         return !string.IsNullOrWhiteSpace(resolvedPortId);
     }
-
-    private static string GetPortLabel(string portId) => portId switch
-    {
-        "p1" => "1P",
-        "p2" => "2P",
-        _ => portId
-    };
 }

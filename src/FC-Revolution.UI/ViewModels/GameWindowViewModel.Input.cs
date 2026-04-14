@@ -9,8 +9,6 @@ namespace FC_Revolution.UI.ViewModels;
 
 public sealed partial class GameWindowViewModel
 {
-    private static readonly GameWindowRemoteControlStateController RemoteControlStateController = new();
-
     public void ApplyShortcutBindings(IReadOnlyDictionary<string, ShortcutGesture> shortcutBindings)
     {
         _shortcutRouter.ApplyShortcutBindings(shortcutBindings);
@@ -95,55 +93,48 @@ public sealed partial class GameWindowViewModel
         _shortcutRouter.ShouldHandleKey(key, modifiers) ||
         GetHandledKeys().Contains(key);
 
-    public bool AcquireRemoteControl(int player, string clientIp, string? clientName = null)
+    public bool AcquireRemoteControl(string portId, string clientIp, string? clientName = null)
     {
-        if (!_remoteControlRuntime.TryAcquire(player, clientIp, clientName, DateTime.UtcNow, out var viewState))
+        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
+            !_remoteControlRuntime.TryAcquire(normalizedPortId, clientIp, clientName, DateTime.UtcNow, out var viewState))
+        {
             return false;
+        }
 
         ApplyRemoteControlWorkflowDecision(
             player,
             viewState,
             _remoteControlWorkflow.BuildAcquireDecision(
                 acquired: true,
-                player,
+                normalizedPortId,
                 clientIp));
         return true;
     }
 
-    public bool AcquireRemoteControl(string portId, string clientIp, string? clientName = null) =>
-        _inputBindingSchema.TryGetPlayer(portId, out var player) &&
-        AcquireRemoteControl(player, clientIp, clientName);
-
-    public void ReleaseRemoteControl(int player, string? reason = null)
-    {
-        if (!_remoteControlRuntime.TryRelease(player, out var hadRemoteControl, out var viewState))
-            return;
-
-        ApplyRemoteControlWorkflowDecision(
-            player,
-            viewState,
-            _remoteControlWorkflow.BuildReleaseDecision(player, hadRemoteControl, reason));
-    }
-
     public void ReleaseRemoteControl(string portId, string? reason = null)
     {
-        if (_inputBindingSchema.TryGetPlayer(portId, out var player))
-            ReleaseRemoteControl(player, reason);
-    }
+        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId) ||
+            !_remoteControlRuntime.TryRelease(normalizedPortId, out var hadRemoteControl, out var viewState))
+        {
+            return;
+        }
 
-    public void RefreshRemoteHeartbeat(int player)
-    {
-        var refreshed = _remoteControlRuntime.TryRefreshHeartbeat(player, DateTime.UtcNow, out var viewState);
         ApplyRemoteControlWorkflowDecision(
             player,
             viewState,
-            _remoteControlWorkflow.BuildHeartbeatDecision(refreshed));
+            _remoteControlWorkflow.BuildReleaseDecision(normalizedPortId, hadRemoteControl, reason));
     }
 
     public void RefreshRemoteHeartbeat(string portId)
     {
-        if (_inputBindingSchema.TryGetPlayer(portId, out var player))
-            RefreshRemoteHeartbeat(player);
+        if (!_inputBindingSchema.TryResolvePort(portId, out var player, out var normalizedPortId))
+            return;
+
+        var refreshed = _remoteControlRuntime.TryRefreshHeartbeat(normalizedPortId, DateTime.UtcNow, out var viewState);
+        ApplyRemoteControlWorkflowDecision(
+            player,
+            viewState,
+            _remoteControlWorkflow.BuildHeartbeatDecision(refreshed));
     }
 
     public bool SetRemoteInputState(string portId, string actionId, float value, string? clientIp = null, string? clientName = null)
@@ -157,7 +148,7 @@ public sealed partial class GameWindowViewModel
 
         var normalizedActionId = actionId.Trim();
         var authorized = _remoteControlRuntime.TryAuthorizeRemoteButtonState(
-            player,
+            normalizedPortId,
             clientIp,
             clientName,
             DateTime.UtcNow,
@@ -179,12 +170,9 @@ public sealed partial class GameWindowViewModel
         return true;
     }
 
-    public bool IsRemoteOwner(int player, string clientIp, string? clientName = null) =>
-        _remoteControlRuntime.IsRemoteOwner(player, clientIp, clientName);
-
     public bool IsRemoteOwner(string portId, string clientIp, string? clientName = null) =>
-        _inputBindingSchema.TryGetPlayer(portId, out var player) &&
-        IsRemoteOwner(player, clientIp, clientName);
+        _inputBindingSchema.TryNormalizePortId(portId, out var normalizedPortId) &&
+        _remoteControlRuntime.IsRemoteOwner(normalizedPortId, clientIp, clientName);
 
     public void ClearRemoteButtons(int player)
     {
@@ -195,7 +183,7 @@ public sealed partial class GameWindowViewModel
     }
 
     private bool CanAcceptLocalInput(int player) =>
-        _remoteControlRuntime.GetPlayerControlSource(player) == GamePlayerControlSource.Local;
+        _remoteControlRuntime.GetPortControlSource(_inputBindingSchema.GetPortId(player)) == GamePlayerControlSource.Local;
 
     private void SetActionState(int player, string actionId, bool pressed)
     {
@@ -328,9 +316,8 @@ public sealed partial class GameWindowViewModel
 
     private void ApplyRemoteControlViewState(GameWindowRemoteControlRuntimeViewState viewState)
     {
-        Player1ControlSource = viewState.Player1ControlSource;
-        Player2ControlSource = viewState.Player2ControlSource;
         RemoteControlStatusText = viewState.RemoteControlStatusText;
+        RemoteControlPortsVersion++;
     }
 
     internal byte GetCombinedInputMask(int player) => _inputState.GetCombinedMask(player);

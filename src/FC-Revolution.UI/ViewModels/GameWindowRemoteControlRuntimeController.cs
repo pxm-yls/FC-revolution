@@ -4,8 +4,6 @@ using FC_Revolution.UI.Models;
 namespace FC_Revolution.UI.ViewModels;
 
 internal readonly record struct GameWindowRemoteControlRuntimeViewState(
-    GamePlayerControlSource Player1ControlSource,
-    GamePlayerControlSource Player2ControlSource,
     string RemoteControlStatusText);
 
 internal readonly record struct GameWindowRemoteControlRuntimeSlot(
@@ -17,41 +15,45 @@ internal readonly record struct GameWindowRemoteControlRuntimeSlot(
 internal sealed class GameWindowRemoteControlRuntimeController
 {
     private readonly GameWindowRemoteControlStateController _stateController;
-    private readonly GameWindowRemoteControlRuntimeSlotStateController _slotStateController = new();
+    private readonly GameWindowRemoteControlRuntimeSlotStateController _slotStateController;
 
     public GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateController stateController)
     {
         ArgumentNullException.ThrowIfNull(stateController);
         _stateController = stateController;
+        _slotStateController = new GameWindowRemoteControlRuntimeSlotStateController(stateController.GetSupportedPorts());
     }
 
     public GameWindowRemoteControlRuntimeViewState CurrentViewState => BuildViewState();
 
     public bool TryAcquire(
-        int player,
+        string portId,
         string clientIp,
         string? clientName,
         DateTime heartbeatUtc,
         out GameWindowRemoteControlRuntimeViewState viewState)
     {
-        if (!_slotStateController.TryGetSlotState(_stateController, player, out var slotState) ||
+        if (!_stateController.TryNormalizePortId(portId, out var normalizedPortId) ||
+            !_slotStateController.TryGetSlotState(normalizedPortId, out var slotState) ||
             !_stateController.CanAcquireRemoteControl(slotState, clientIp, clientName))
         {
             viewState = BuildViewState();
             return false;
         }
 
-        _slotStateController.SetRemoteOwner(player, clientIp, clientName, heartbeatUtc);
+        _slotStateController.SetRemoteOwner(normalizedPortId, clientIp, clientName, heartbeatUtc);
         viewState = BuildViewState();
         return true;
     }
 
     public bool TryRelease(
-        int player,
+        string portId,
         out bool hadRemoteControl,
         out GameWindowRemoteControlRuntimeViewState viewState)
     {
-        if (!_slotStateController.TryReleaseToLocal(_stateController, player, out hadRemoteControl))
+        hadRemoteControl = false;
+        if (!_stateController.TryNormalizePortId(portId, out var normalizedPortId) ||
+            !_slotStateController.TryReleaseToLocal(normalizedPortId, out hadRemoteControl))
         {
             viewState = BuildViewState();
             return false;
@@ -62,11 +64,12 @@ internal sealed class GameWindowRemoteControlRuntimeController
     }
 
     public bool TryRefreshHeartbeat(
-        int player,
+        string portId,
         DateTime heartbeatUtc,
         out GameWindowRemoteControlRuntimeViewState viewState)
     {
-        if (!_slotStateController.TrySetHeartbeat(_stateController, player, heartbeatUtc))
+        if (!_stateController.TryNormalizePortId(portId, out var normalizedPortId) ||
+            !_slotStateController.TrySetHeartbeat(normalizedPortId, heartbeatUtc))
         {
             viewState = BuildViewState();
             return false;
@@ -77,32 +80,36 @@ internal sealed class GameWindowRemoteControlRuntimeController
     }
 
     public bool TryAuthorizeRemoteButtonState(
-        int player,
+        string portId,
         string? clientIp,
         string? clientName,
         DateTime heartbeatUtc,
         out GameWindowRemoteControlRuntimeViewState viewState)
     {
-        if (!_slotStateController.TryGetSlotState(_stateController, player, out var slotState) ||
+        if (!_stateController.TryNormalizePortId(portId, out var normalizedPortId) ||
+            !_slotStateController.TryGetSlotState(normalizedPortId, out var slotState) ||
             !_stateController.CanApplyRemoteButtonState(slotState, clientIp, clientName))
         {
             viewState = BuildViewState();
             return false;
         }
 
-        _ = _slotStateController.TrySetHeartbeat(_stateController, player, heartbeatUtc);
+        _ = _slotStateController.TrySetHeartbeat(normalizedPortId, heartbeatUtc);
         viewState = BuildViewState();
         return true;
     }
 
-    public bool IsRemoteOwner(int player, string clientIp, string? clientName)
+    public bool IsRemoteOwner(string portId, string clientIp, string? clientName)
     {
-        return _slotStateController.TryGetSlotState(_stateController, player, out var slotState) &&
+        return _stateController.TryNormalizePortId(portId, out var normalizedPortId) &&
+               _slotStateController.TryGetSlotState(normalizedPortId, out var slotState) &&
                _stateController.IsRemoteOwner(slotState, clientIp, clientName);
     }
 
-    public GamePlayerControlSource GetPlayerControlSource(int player) =>
-        _slotStateController.GetPlayerControlSource(player);
+    public GamePlayerControlSource GetPortControlSource(string portId) =>
+        _stateController.TryNormalizePortId(portId, out var normalizedPortId)
+            ? _slotStateController.GetPortControlSource(normalizedPortId)
+            : GamePlayerControlSource.Local;
 
     private GameWindowRemoteControlRuntimeViewState BuildViewState()
     {

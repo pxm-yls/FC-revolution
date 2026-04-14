@@ -9,7 +9,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     {
         var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
 
-        var decision = controller.BuildAcquireDecision(acquired: true, player: 0, clientIp: "127.0.0.1");
+        var decision = controller.BuildAcquireDecision(acquired: true, portId: "p1", clientIp: "127.0.0.1");
 
         Assert.True(decision.ShouldApplyViewState);
         Assert.True(decision.ShouldClearRemoteButtons);
@@ -26,7 +26,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     {
         var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
 
-        var decision = controller.BuildAcquireDecision(acquired: false, player: 0, clientIp: "127.0.0.1");
+        var decision = controller.BuildAcquireDecision(acquired: false, portId: "p1", clientIp: "127.0.0.1");
 
         Assert.False(decision.ShouldApplyViewState);
         Assert.False(decision.ShouldClearRemoteButtons);
@@ -38,7 +38,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     {
         var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
 
-        var decision = controller.BuildReleaseDecision(player: 1, hadRemoteControl: true, reason: "remote disconnected");
+        var decision = controller.BuildReleaseDecision(portId: "p2", hadRemoteControl: true, reason: "remote disconnected");
 
         Assert.True(decision.ShouldApplyViewState);
         Assert.True(decision.ShouldClearRemoteButtons);
@@ -55,7 +55,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     {
         var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
 
-        var decision = controller.BuildReleaseDecision(player: 0, hadRemoteControl: false, reason: "ignored");
+        var decision = controller.BuildReleaseDecision(portId: "p1", hadRemoteControl: false, reason: "ignored");
 
         Assert.True(decision.ShouldApplyViewState);
         Assert.True(decision.ShouldClearRemoteButtons);
@@ -65,13 +65,13 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     }
 
     [Fact]
-    public void BuildButtonStateDecision_WhenAuthorized_AppliesViewStateAndButtonState()
+    public void BuildButtonStateDecision_WhenAuthorized_KeepsSummaryStable()
     {
         var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
 
         var decision = controller.BuildButtonStateDecision(authorized: true);
 
-        Assert.True(decision.ShouldApplyViewState);
+        Assert.False(decision.ShouldApplyViewState);
         Assert.True(decision.ShouldApplyRequestedRemoteButtonState);
         Assert.False(decision.ShouldClearRemoteButtons);
         Assert.Empty(decision.ToastMessages);

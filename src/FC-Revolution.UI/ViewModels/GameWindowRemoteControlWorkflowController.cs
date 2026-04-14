@@ -21,7 +21,7 @@ internal sealed class GameWindowRemoteControlWorkflowController
         _stateController = stateController;
     }
 
-    public GameWindowRemoteControlWorkflowDecision BuildAcquireDecision(bool acquired, int player, string clientIp)
+    public GameWindowRemoteControlWorkflowDecision BuildAcquireDecision(bool acquired, string portId, string clientIp)
     {
         if (!acquired)
             return new(false, false, false, false, false, []);
@@ -32,15 +32,15 @@ internal sealed class GameWindowRemoteControlWorkflowController
             ShouldRebuildCombinedState: true,
             ShouldRefreshLocalInput: false,
             ShouldApplyRequestedRemoteButtonState: false,
-            ToastMessages: [_stateController.BuildRemoteConnectedToast(player, clientIp)]);
+            ToastMessages: [_stateController.BuildRemoteConnectedToast(portId, clientIp)]);
     }
 
-    public GameWindowRemoteControlWorkflowDecision BuildReleaseDecision(int player, bool hadRemoteControl, string? reason)
+    public GameWindowRemoteControlWorkflowDecision BuildReleaseDecision(string portId, bool hadRemoteControl, string? reason)
     {
         List<string> toastMessages = [];
         if (hadRemoteControl)
         {
-            toastMessages.Add(_stateController.BuildLocalControlRestoredToast(player));
+            toastMessages.Add(_stateController.BuildLocalControlRestoredToast(portId));
             if (!string.IsNullOrWhiteSpace(reason))
                 toastMessages.Add(reason!);
         }
@@ -57,7 +57,7 @@ internal sealed class GameWindowRemoteControlWorkflowController
     public GameWindowRemoteControlWorkflowDecision BuildHeartbeatDecision(bool refreshed) =>
         refreshed
             ? new(
-                ShouldApplyViewState: true,
+                ShouldApplyViewState: false,
                 ShouldClearRemoteButtons: false,
                 ShouldRebuildCombinedState: false,
                 ShouldRefreshLocalInput: false,
@@ -68,7 +68,7 @@ internal sealed class GameWindowRemoteControlWorkflowController
     public GameWindowRemoteControlWorkflowDecision BuildButtonStateDecision(bool authorized) =>
         authorized
             ? new(
-                ShouldApplyViewState: true,
+                ShouldApplyViewState: false,
                 ShouldClearRemoteButtons: false,
                 ShouldRebuildCombinedState: false,
                 ShouldRefreshLocalInput: false,

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -5,17 +6,6 @@ namespace FC_Revolution.UI.Tests;
 
 public sealed class GameWindowRemoteControlStateControllerTests
 {
-    [Fact]
-    public void IsSupportedPlayer_ReturnsTrueOnlyForPlayer1AndPlayer2()
-    {
-        var controller = new GameWindowRemoteControlStateController();
-
-        Assert.True(controller.IsSupportedPlayer(0));
-        Assert.True(controller.IsSupportedPlayer(1));
-        Assert.False(controller.IsSupportedPlayer(-1));
-        Assert.False(controller.IsSupportedPlayer(2));
-    }
-
     [Fact]
     public void CanAcquireRemoteControl_RejectsDifferentOwnerWhenAlreadyRemote()
     {
@@ -58,9 +48,24 @@ public sealed class GameWindowRemoteControlStateControllerTests
             ClientIp: null,
             ClientName: null);
 
-        var status = controller.BuildRemoteControlStatusText(player1, player2);
+        var status = controller.BuildRemoteControlStatusText(
+            new Dictionary<string, GameWindowRemoteControlSlotState>
+            {
+                ["p1"] = player1,
+                ["p2"] = player2
+            });
 
         Assert.Equal("1P 正通过 Tablet (10.0.0.2) 网页控制 | 2P 正通过 未知设备 网页控制", status);
+    }
+
+    [Fact]
+    public void TryNormalizePortId_ResolvesKnownPorts_AndRejectsUnknownPorts()
+    {
+        var controller = new GameWindowRemoteControlStateController();
+
+        Assert.True(controller.TryNormalizePortId(" P2 ", out var normalizedPortId));
+        Assert.Equal("p2", normalizedPortId);
+        Assert.False(controller.TryNormalizePortId("pad-west", out _));
     }
 
     [Fact]
@@ -68,7 +73,7 @@ public sealed class GameWindowRemoteControlStateControllerTests
     {
         var controller = new GameWindowRemoteControlStateController();
 
-        Assert.Equal("1P 已切换为 127.0.0.1 网页控制", controller.BuildRemoteConnectedToast(0, "127.0.0.1"));
-        Assert.Equal("2P 已恢复本地控制", controller.BuildLocalControlRestoredToast(1));
+        Assert.Equal("1P 已切换为 127.0.0.1 网页控制", controller.BuildRemoteConnectedToast("p1", "127.0.0.1"));
+        Assert.Equal("2P 已恢复本地控制", controller.BuildLocalControlRestoredToast("p2"));
     }
 }
