@@ -561,8 +561,8 @@ internal sealed class MainWindowInputBindingsController
 
         return overrideKey.Trim() switch
         {
-            "Player1" => inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(0), out portId),
-            "Player2" => inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(1), out portId),
+            "Player1" => TryResolveLegacyOrdinalPortId(0, inputBindingSchema, out portId),
+            "Player2" => TryResolveLegacyOrdinalPortId(1, inputBindingSchema, out portId),
             _ => false
         };
     }
@@ -575,11 +575,23 @@ internal sealed class MainWindowInputBindingsController
         if (inputBindingSchema.TryNormalizePortId(profile.PortId, out portId))
             return true;
 
-        if (profile.Player is 0 or 1)
-            return inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(profile.Player), out portId);
+        if (profile.Player >= 0)
+            return inputBindingSchema.TryGetPortId(profile.Player, out portId);
 
         portId = string.Empty;
         return false;
+    }
+
+    private static bool TryResolveLegacyOrdinalPortId(
+        int ordinal,
+        CoreInputBindingSchema inputBindingSchema,
+        out string portId)
+    {
+        portId = inputBindingSchema.GetSupportedPorts()
+            .ElementAtOrDefault(ordinal)
+            ?.PortId
+            ?? string.Empty;
+        return !string.IsNullOrWhiteSpace(portId);
     }
 
     private static string GetActionDisplayName(string actionId, CoreInputBindingSchema inputBindingSchema) =>

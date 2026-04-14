@@ -1,5 +1,6 @@
 using Avalonia.Input;
 using FCRevolution.Core.Input;
+using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
@@ -52,6 +53,25 @@ public sealed class MainWindowInputStateControllerTests
 
         Assert.Null(invalidKey);
         Assert.Null(invalidButtons);
+    }
+
+    [Fact]
+    public void ResolveExtraInputBinding_UsesSchemaPlayerIndexFallback_WhenPortIdMissing()
+    {
+        var controller = new MainWindowInputStateController();
+        var binding = controller.ResolveExtraInputBinding(
+            new ExtraInputBindingProfile
+            {
+                Player = 7,
+                Kind = ExtraInputBindingKind.Combo.ToString(),
+                Key = Key.Q.ToString(),
+                Buttons = ["shield"]
+            },
+            CoreInputBindingSchema.Create(new HighIndexInputSchema()));
+
+        Assert.NotNull(binding);
+        Assert.Equal("pad-east", binding!.PortId);
+        Assert.Equal("shield", Assert.Single(binding.ActionIds));
     }
 
     [Fact]
@@ -172,5 +192,20 @@ public sealed class MainWindowInputStateControllerTests
 
         Assert.True(activeTurbo.NextTurboPulseActive);
         Assert.True(activeTurbo.ShouldRefreshActiveInputState);
+    }
+
+    private sealed class HighIndexInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } =
+        [
+            new("pad-west", "West Pad", 4),
+            new("pad-east", "East Pad", 7)
+        ];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } =
+        [
+            new("fire", "Fire", "pad-west", InputValueKind.Digital),
+            new("shield", "Shield", "pad-east", InputValueKind.Digital)
+        ];
     }
 }

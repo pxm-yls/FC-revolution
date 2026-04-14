@@ -218,8 +218,8 @@ internal sealed class MainWindowInputStateController
         if (inputBindingSchema.TryNormalizePortId(profile.PortId, out portId))
             return true;
 
-        if (profile.Player is 0 or 1)
-            return inputBindingSchema.TryNormalizePortId(inputBindingSchema.GetPortId(profile.Player), out portId);
+        if (profile.Player >= 0)
+            return inputBindingSchema.TryGetPortId(profile.Player, out portId);
 
         portId = string.Empty;
         return false;

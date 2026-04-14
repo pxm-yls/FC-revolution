@@ -8,7 +8,7 @@ public sealed class GameWindowRemoteControlRuntimeControllerTests
     [Fact]
     public void TryAcquire_UpdatesViewState_AndExposesOwner()
     {
-        var controller = new GameWindowRemoteControlRuntimeController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var acquired = controller.TryAcquire("p1", "127.0.0.1", "remote-client", DateTime.UtcNow, out var viewState);
 
@@ -23,7 +23,7 @@ public sealed class GameWindowRemoteControlRuntimeControllerTests
     [Fact]
     public void TryAuthorizeRemoteButtonState_RequiresMatchingRemoteOwner()
     {
-        var controller = new GameWindowRemoteControlRuntimeController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
         controller.TryAcquire("p1", "127.0.0.1", "remote-client", DateTime.UtcNow, out _);
 
         Assert.True(controller.TryAuthorizeRemoteButtonState("p1", "127.0.0.1", "remote-client", DateTime.UtcNow, out _));
@@ -34,7 +34,7 @@ public sealed class GameWindowRemoteControlRuntimeControllerTests
     [Fact]
     public void TryRelease_RestoresLocalControl_AndClearsStatus()
     {
-        var controller = new GameWindowRemoteControlRuntimeController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
         controller.TryAcquire("p2", "127.0.0.1", "remote-client", DateTime.UtcNow, out _);
 
         var released = controller.TryRelease("p2", out var hadRemoteControl, out var viewState);
@@ -48,7 +48,7 @@ public sealed class GameWindowRemoteControlRuntimeControllerTests
     [Fact]
     public void TryAcquire_RejectsDifferentOwner_ButAllowsSameOwnerReacquire()
     {
-        var controller = new GameWindowRemoteControlRuntimeController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
         _ = controller.TryAcquire("p1", "127.0.0.1", "remote-client", DateTime.UtcNow, out _);
 
         var differentOwnerAcquire = controller.TryAcquire("p1", "127.0.0.2", "remote-client", DateTime.UtcNow, out _);
@@ -63,7 +63,7 @@ public sealed class GameWindowRemoteControlRuntimeControllerTests
     [Fact]
     public void TryRefreshHeartbeat_UnsupportedPort_ReturnsFalseWithoutChangingViewState()
     {
-        var controller = new GameWindowRemoteControlRuntimeController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlRuntimeController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
         _ = controller.TryAcquire("p1", "127.0.0.1", "remote-client", DateTime.UtcNow, out _);
 
         var refreshed = controller.TryRefreshHeartbeat("pad-west", DateTime.UtcNow, out var viewState);

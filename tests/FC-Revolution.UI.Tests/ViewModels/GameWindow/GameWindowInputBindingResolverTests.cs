@@ -60,6 +60,52 @@ public sealed class GameWindowInputBindingResolverTests
     }
 
     [Fact]
+    public void CoreInputBindingSchema_Create_UsesSchemaDeclaredPlayers_WithoutSynthesizingFallbackPorts()
+    {
+        var schema = CoreInputBindingSchema.Create(new HighIndexInputSchema());
+
+        Assert.Collection(
+            schema.GetSupportedPorts(),
+            port =>
+            {
+                Assert.Equal("pad-west", port.PortId);
+                Assert.Equal(4, port.PlayerIndex);
+            },
+            port =>
+            {
+                Assert.Equal("pad-east", port.PortId);
+                Assert.Equal(7, port.PlayerIndex);
+            });
+        Assert.True(schema.TryGetPortId(4, out var westPortId));
+        Assert.Equal("pad-west", westPortId);
+        Assert.True(schema.TryGetPortId(7, out var eastPortId));
+        Assert.Equal("pad-east", eastPortId);
+        Assert.False(schema.TryGetPortId(0, out _));
+        Assert.Equal(string.Empty, schema.GetPortId(0));
+    }
+
+    [Fact]
+    public void ResolveExtraInputBindings_UsesSchemaPlayerIndexFallback_WhenPortIdMissing()
+    {
+        var bindings = GameWindowInputBindingResolver.ResolveExtraInputBindings(
+            [
+                new ExtraInputBindingProfile
+                {
+                    Player = 7,
+                    Kind = ExtraInputBindingKind.Turbo.ToString(),
+                    Key = Key.Q.ToString(),
+                    Buttons = ["shield"]
+                }
+            ],
+            CoreInputBindingSchema.Create(new HighIndexInputSchema()));
+
+        var binding = Assert.Single(bindings);
+        Assert.Equal("pad-east", binding.PortId);
+        Assert.Equal(Key.Q, binding.Key);
+        Assert.Equal("shield", Assert.Single(binding.ActionIds));
+    }
+
+    [Fact]
     public void ResolveExtraInputBindings_FiltersInvalidProfiles_AndNormalizesKindButtonsAndTurbo()
     {
         var profiles = new[]
@@ -139,6 +185,21 @@ public sealed class GameWindowInputBindingResolverTests
         [
             new("fire", "Fire", "pad-west", InputValueKind.Digital),
             new("jump", "Jump", "pad-east", InputValueKind.Digital)
+        ];
+    }
+
+    private sealed class HighIndexInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } =
+        [
+            new("pad-west", "West Pad", 4),
+            new("pad-east", "East Pad", 7)
+        ];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } =
+        [
+            new("fire", "Fire", "pad-west", InputValueKind.Digital),
+            new("shield", "Shield", "pad-east", InputValueKind.Digital)
         ];
     }
 }

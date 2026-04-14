@@ -9,44 +9,110 @@ namespace FC_Revolution.UI.Infrastructure;
 
 internal static class LegacyFeatureBridgeLoader
 {
-    private static readonly Lazy<ILegacyFeatureBridgeProvider> BridgeProvider = new(LoadProvider);
-    private static readonly Lazy<IReplayFrameRenderer> ReplayFrameRenderer = new(() => BridgeProvider.Value.CreateReplayFrameRenderer());
-    private static readonly Lazy<IRomMapperInfoInspector> RomMapperInfoInspector = new(() => BridgeProvider.Value.CreateRomMapperInfoInspector());
+    private static readonly Lazy<LegacyFeatureProviderLoadState> BridgeProvider = new(LoadProvider);
 
     public static ITimelineRepositoryBridge CreateTimelineRepositoryBridge() =>
-        BridgeProvider.Value.CreateTimelineRepositoryBridge();
+        TryCreateTimelineRepositoryBridge(out var timelineRepository, out var errorMessage)
+            ? timelineRepository
+            : throw new InvalidOperationException(errorMessage);
 
-    public static IReplayFrameRenderer GetReplayFrameRenderer() => ReplayFrameRenderer.Value;
+    public static IReplayFrameRenderer GetReplayFrameRenderer() =>
+        TryGetReplayFrameRenderer(out var replayFrameRenderer, out var errorMessage)
+            ? replayFrameRenderer
+            : throw new InvalidOperationException(errorMessage);
 
-    public static IRomMapperInfoInspector GetRomMapperInfoInspector() => RomMapperInfoInspector.Value;
+    public static IRomMapperInfoInspector GetRomMapperInfoInspector() =>
+        TryGetRomMapperInfoInspector(out var romMapperInfoInspector, out var errorMessage)
+            ? romMapperInfoInspector
+            : throw new InvalidOperationException(errorMessage);
 
-    private static ILegacyFeatureBridgeProvider LoadProvider()
+    public static bool TryCreateTimelineRepositoryBridge(
+        out ITimelineRepositoryBridge timelineRepository,
+        out string? errorMessage)
     {
-        var providerTypes = EnumerateCandidateAssemblies()
-            .SelectMany(GetProviderTypes)
-            .Distinct()
-            .ToList();
+        timelineRepository = null!;
+        if (!TryGetProvider(out var provider, out errorMessage))
+            return false;
 
-        if (providerTypes.Count == 0)
+        timelineRepository = provider.CreateTimelineRepositoryBridge();
+        return true;
+    }
+
+    public static bool TryGetReplayFrameRenderer(
+        out IReplayFrameRenderer replayFrameRenderer,
+        out string? errorMessage)
+    {
+        replayFrameRenderer = null!;
+        if (!TryGetProvider(out var provider, out errorMessage))
+            return false;
+
+        replayFrameRenderer = provider.CreateReplayFrameRenderer();
+        return true;
+    }
+
+    public static bool TryGetRomMapperInfoInspector(
+        out IRomMapperInfoInspector romMapperInfoInspector,
+        out string? errorMessage)
+    {
+        romMapperInfoInspector = null!;
+        if (!TryGetProvider(out var provider, out errorMessage))
+            return false;
+
+        romMapperInfoInspector = provider.CreateRomMapperInfoInspector();
+        return true;
+    }
+
+    private static bool TryGetProvider(
+        out ILegacyFeatureBridgeProvider provider,
+        out string? errorMessage)
+    {
+        var loadState = BridgeProvider.Value;
+        if (loadState.Provider is not null)
         {
-            throw new InvalidOperationException(
-                $"无法加载任何 {nameof(ILegacyFeatureBridgeProvider)} 实现。请确认 legacy feature provider 程序集已随应用输出。");
+            provider = loadState.Provider;
+            errorMessage = null;
+            return true;
         }
 
-        if (providerTypes.Count > 1)
-        {
-            throw new InvalidOperationException(
-                $"检测到多个 {nameof(ILegacyFeatureBridgeProvider)} 实现: {string.Join(", ", providerTypes.Select(type => type.FullName))}。当前 UI 只能装载一个 legacy feature provider。");
-        }
+        provider = null!;
+        errorMessage = loadState.ErrorMessage;
+        return false;
+    }
 
-        var providerType = providerTypes[0];
-        if (Activator.CreateInstance(providerType) is not ILegacyFeatureBridgeProvider provider)
+    private static LegacyFeatureProviderLoadState LoadProvider()
+    {
+        try
         {
-            throw new InvalidOperationException(
-                $"legacy feature provider 类型 {providerType.FullName} 未实现所需契约 {typeof(ILegacyFeatureBridgeProvider).FullName}。");
-        }
+            var providerTypes = EnumerateCandidateAssemblies()
+                .SelectMany(GetProviderTypes)
+                .Distinct()
+                .ToList();
 
-        return provider;
+            if (providerTypes.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    $"无法加载任何 {nameof(ILegacyFeatureBridgeProvider)} 实现。请确认 legacy feature provider 程序集已随应用输出。");
+            }
+
+            if (providerTypes.Count > 1)
+            {
+                throw new InvalidOperationException(
+                    $"检测到多个 {nameof(ILegacyFeatureBridgeProvider)} 实现: {string.Join(", ", providerTypes.Select(type => type.FullName))}。当前 UI 只能装载一个 legacy feature provider。");
+            }
+
+            var providerType = providerTypes[0];
+            if (Activator.CreateInstance(providerType) is not ILegacyFeatureBridgeProvider provider)
+            {
+                throw new InvalidOperationException(
+                    $"legacy feature provider 类型 {providerType.FullName} 未实现所需契约 {typeof(ILegacyFeatureBridgeProvider).FullName}。");
+            }
+
+            return LegacyFeatureProviderLoadState.Success(provider);
+        }
+        catch (Exception exception)
+        {
+            return LegacyFeatureProviderLoadState.Fail(exception.Message);
+        }
     }
 
     private static IEnumerable<Assembly> EnumerateCandidateAssemblies()
@@ -127,5 +193,16 @@ internal static class LegacyFeatureBridgeLoader
 
             yield return type;
         }
+    }
+
+    private sealed record LegacyFeatureProviderLoadState(
+        ILegacyFeatureBridgeProvider? Provider,
+        string? ErrorMessage)
+    {
+        public static LegacyFeatureProviderLoadState Success(ILegacyFeatureBridgeProvider provider) =>
+            new(provider, null);
+
+        public static LegacyFeatureProviderLoadState Fail(string errorMessage) =>
+            new(null, errorMessage);
     }
 }

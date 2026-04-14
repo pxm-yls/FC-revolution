@@ -10,8 +10,6 @@ namespace FC_Revolution.UI.Infrastructure;
 
 internal static class TimelineVideoExporter
 {
-    private static readonly IReplayFrameRenderer ReplayFrameRenderer = LegacyFeatureBridgeLoader.GetReplayFrameRenderer();
-
     internal readonly record struct ReplayInputRecord(long Frame, IReadOnlyDictionary<string, byte> MasksByPort)
     {
         public byte GetMask(string portId) =>
@@ -27,6 +25,23 @@ internal static class TimelineVideoExporter
         long startFrame,
         long endFrame,
         string outputPath)
+        => ExportMp4(
+            romPath,
+            snapshotPath,
+            inputLogPath,
+            startFrame,
+            endFrame,
+            outputPath,
+            LegacyFeatureRuntime.Current);
+
+    internal static string ExportMp4(
+        string romPath,
+        string snapshotPath,
+        string inputLogPath,
+        long startFrame,
+        long endFrame,
+        string outputPath,
+        ILegacyFeatureRuntime legacyFeatureRuntime)
     {
         if (endFrame < startFrame)
             throw new ArgumentOutOfRangeException(nameof(endFrame), "结束帧不能早于起始帧。");
@@ -34,8 +49,17 @@ internal static class TimelineVideoExporter
         if (!File.Exists(snapshotPath))
             throw new FileNotFoundException("未找到导出起点快照。", snapshotPath);
 
+        ArgumentNullException.ThrowIfNull(legacyFeatureRuntime);
+        if (!legacyFeatureRuntime.TryGetReplayFrameRenderer(out var replayFrameRenderer, out var errorMessage))
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(errorMessage)
+                    ? "当前应用未提供导出分支视频所需的 legacy 渲染能力。"
+                    : errorMessage);
+        }
+
         var snapshotBytes = File.ReadAllBytes(snapshotPath);
-        var frames = ReplayFrameRenderer.RenderFrameRange(
+        var frames = replayFrameRenderer.RenderFrameRange(
             romPath,
             snapshotBytes,
             inputLogPath,

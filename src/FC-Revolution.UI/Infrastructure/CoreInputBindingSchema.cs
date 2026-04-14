@@ -97,6 +97,7 @@ internal sealed class CoreInputBindingSchema
     private readonly IReadOnlyDictionary<string, string> _displayNamesByActionId;
     private readonly IReadOnlyDictionary<string, IReadOnlySet<string>> _supportedActionsByPort;
     private readonly IReadOnlyDictionary<string, (int Player, string PortId)> _portsById;
+    private readonly IReadOnlyList<int> _supportedPlayers;
     private readonly IReadOnlyList<InputPortDescriptor> _supportedPorts;
 
     private CoreInputBindingSchema(
@@ -110,6 +111,7 @@ internal sealed class CoreInputBindingSchema
         IReadOnlyDictionary<string, string> displayNamesByActionId,
         IReadOnlyDictionary<string, IReadOnlySet<string>> supportedActionsByPort,
         IReadOnlyDictionary<string, (int Player, string PortId)> portsById,
+        IReadOnlyList<int> supportedPlayers,
         IReadOnlyList<InputPortDescriptor> supportedPorts)
     {
         _actionsByPlayer = actionsByPlayer;
@@ -122,8 +124,9 @@ internal sealed class CoreInputBindingSchema
         _displayNamesByActionId = displayNamesByActionId;
         _supportedActionsByPort = supportedActionsByPort;
         _portsById = portsById;
+        _supportedPlayers = supportedPlayers;
         _supportedPorts = supportedPorts;
-        ExtraInputButtonOptions = BuildExtraInputButtonOptions(actionsByPlayer);
+        ExtraInputButtonOptions = BuildExtraInputButtonOptions(supportedPorts, actionsByPort);
     }
 
     public IReadOnlyList<ExtraInputButtonOption> ExtraInputButtonOptions { get; }
@@ -134,64 +137,80 @@ internal sealed class CoreInputBindingSchema
     {
         ArgumentNullException.ThrowIfNull(inputSchema);
 
-        var inputPortsById = inputSchema.Ports
-            .Where(static port => port.PlayerIndex is 0 or 1)
-            .ToDictionary(port => port.PortId, port => port, StringComparer.OrdinalIgnoreCase);
-        var actionsByPlayer = new Dictionary<int, List<CoreBindableInputAction>>
-        {
-            [0] = [],
-            [1] = []
-        };
-        var portIdsByPlayer = new Dictionary<int, string>()
-        {
-            [0] = "p1",
-            [1] = "p2"
-        };
-        var canonicalActionsByPlayer = new Dictionary<int, Dictionary<string, string>>
-        {
-            [0] = new(StringComparer.OrdinalIgnoreCase),
-            [1] = new(StringComparer.OrdinalIgnoreCase)
-        };
-        var legacyBitMasksByPlayer = new Dictionary<int, Dictionary<string, byte>>
-        {
-            [0] = new(StringComparer.OrdinalIgnoreCase),
-            [1] = new(StringComparer.OrdinalIgnoreCase)
-        };
+        if (inputSchema is EmptyInputSchema)
+            return CreateFallbackSchema();
+
+        var supportedPorts = inputSchema.Ports
+            .Where(static port => !string.IsNullOrWhiteSpace(port.PortId))
+            .Select(static port => new InputPortDescriptor(
+                port.PortId.Trim(),
+                ResolvePortDisplayName(port),
+                port.PlayerIndex))
+            .GroupBy(static port => port.PortId, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
+            .OrderBy(static port => port.PlayerIndex)
+            .ThenBy(static port => port.PortId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var inputPortsById = supportedPorts.ToDictionary(static port => port.PortId, StringComparer.OrdinalIgnoreCase);
+        var actionsByPlayer = new Dictionary<int, List<CoreBindableInputAction>>();
+        var actionsByPort = new Dictionary<string, List<CoreBindableInputAction>>(StringComparer.OrdinalIgnoreCase);
+        var portIdsByPlayer = new Dictionary<int, string>();
+        var canonicalActionsByPlayer = new Dictionary<int, Dictionary<string, string>>();
+        var canonicalActionsByPort = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+        var legacyBitMasksByPlayer = new Dictionary<int, Dictionary<string, byte>>();
+        var legacyBitMasksByPort = new Dictionary<string, Dictionary<string, byte>>(StringComparer.OrdinalIgnoreCase);
         var displayNamesByActionId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var supportedActionsByPort = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var port in inputPortsById.Values)
-            portIdsByPlayer[port.PlayerIndex] = port.PortId;
+        foreach (var port in supportedPorts)
+        {
+            if (!actionsByPlayer.ContainsKey(port.PlayerIndex))
+                actionsByPlayer[port.PlayerIndex] = [];
+
+            if (!portIdsByPlayer.ContainsKey(port.PlayerIndex))
+                portIdsByPlayer[port.PlayerIndex] = port.PortId;
+
+            if (!canonicalActionsByPlayer.ContainsKey(port.PlayerIndex))
+                canonicalActionsByPlayer[port.PlayerIndex] = new(StringComparer.OrdinalIgnoreCase);
+
+            if (!legacyBitMasksByPlayer.ContainsKey(port.PlayerIndex))
+                legacyBitMasksByPlayer[port.PlayerIndex] = new(StringComparer.OrdinalIgnoreCase);
+
+            actionsByPort[port.PortId] = [];
+            canonicalActionsByPort[port.PortId] = new(StringComparer.OrdinalIgnoreCase);
+            legacyBitMasksByPort[port.PortId] = new(StringComparer.OrdinalIgnoreCase);
+            supportedActionsByPort[port.PortId] = new(StringComparer.OrdinalIgnoreCase);
+        }
 
         foreach (var action in inputSchema.Actions)
         {
             if (action.ValueKind != InputValueKind.Digital ||
-                !inputPortsById.TryGetValue(action.PortId, out var port))
+                string.IsNullOrWhiteSpace(action.PortId) ||
+                !inputPortsById.TryGetValue(action.PortId.Trim(), out var port))
             {
                 continue;
             }
 
-            if (!supportedActionsByPort.TryGetValue(action.PortId, out var supportedActions))
-            {
-                supportedActions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                supportedActionsByPort[action.PortId] = supportedActions;
-            }
-
+            var supportedActions = supportedActionsByPort[port.PortId];
             supportedActions.Add(action.ActionId);
 
             var canonicalActionId = ResolveCanonicalActionId(action);
             if (!string.IsNullOrWhiteSpace(canonicalActionId))
             {
                 canonicalActionsByPlayer[port.PlayerIndex][action.ActionId] = canonicalActionId;
+                canonicalActionsByPort[port.PortId][action.ActionId] = canonicalActionId;
 
                 if (action.LegacyBitMask is { } legacyBitMask)
+                {
                     legacyBitMasksByPlayer[port.PlayerIndex][canonicalActionId] = legacyBitMask;
+                    legacyBitMasksByPort[port.PortId][canonicalActionId] = legacyBitMask;
+                }
             }
 
             if (!action.IsBindable || string.IsNullOrWhiteSpace(canonicalActionId))
                 continue;
 
-            if (actionsByPlayer[port.PlayerIndex].Any(existing =>
+            if (actionsByPort[port.PortId].Any(existing =>
                     existing.ActionId.Equals(canonicalActionId, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
@@ -199,56 +218,27 @@ internal sealed class CoreInputBindingSchema
 
             var bindableAction = new CoreBindableInputAction(
                 port.PlayerIndex,
-                action.PortId,
+                port.PortId,
                 canonicalActionId,
                 action.DisplayName);
-            actionsByPlayer[port.PlayerIndex].Add(bindableAction);
+            actionsByPort[port.PortId].Add(bindableAction);
+            if (!actionsByPlayer[port.PlayerIndex].Any(existing =>
+                    existing.ActionId.Equals(canonicalActionId, StringComparison.OrdinalIgnoreCase)))
+            {
+                actionsByPlayer[port.PlayerIndex].Add(bindableAction);
+            }
+
             displayNamesByActionId[canonicalActionId] = action.DisplayName;
         }
 
-        if (actionsByPlayer.Values.All(static actions => actions.Count == 0))
-        {
-            foreach (var fallbackAction in FallbackActions)
-            {
-                actionsByPlayer[fallbackAction.Player].Add(fallbackAction);
-                canonicalActionsByPlayer[fallbackAction.Player][fallbackAction.ActionId] = fallbackAction.ActionId;
-                displayNamesByActionId[fallbackAction.ActionId] = fallbackAction.DisplayName;
-                if (FallbackLegacyBits.TryGetValue(fallbackAction.ActionId, out var bit))
-                    legacyBitMasksByPlayer[fallbackAction.Player][fallbackAction.ActionId] = bit;
-            }
-        }
-
-        var portsById = portIdsByPlayer.ToDictionary(
-            pair => pair.Value,
-            pair => (pair.Key, pair.Value),
+        var portsById = supportedPorts.ToDictionary(
+            static port => port.PortId,
+            static port => (port.PlayerIndex, port.PortId),
             StringComparer.OrdinalIgnoreCase);
-        var actionsByPort = portIdsByPlayer.ToDictionary(
-            pair => pair.Value,
-            pair => (IReadOnlyList<CoreBindableInputAction>)actionsByPlayer[pair.Key],
-            StringComparer.OrdinalIgnoreCase);
-        var canonicalActionsByPort = portIdsByPlayer.ToDictionary(
-            pair => pair.Value,
-            pair => (IReadOnlyDictionary<string, string>)new ReadOnlyDictionary<string, string>(canonicalActionsByPlayer[pair.Key]),
-            StringComparer.OrdinalIgnoreCase);
-        var legacyBitMasksByPort = portIdsByPlayer.ToDictionary(
-            pair => pair.Value,
-            pair => (IReadOnlyDictionary<string, byte>)new ReadOnlyDictionary<string, byte>(legacyBitMasksByPlayer[pair.Key]),
-            StringComparer.OrdinalIgnoreCase);
-        var supportedPorts = portIdsByPlayer
-            .OrderBy(pair => pair.Key)
-            .Select(pair =>
-            {
-                var matchingPort = inputPortsById.Values.FirstOrDefault(port => port.PlayerIndex == pair.Key);
-                var displayName = matchingPort?.DisplayName;
-                if (string.IsNullOrWhiteSpace(displayName))
-                {
-                    displayName = FallbackPortDisplayNames.TryGetValue(pair.Key, out var fallbackDisplayName)
-                        ? fallbackDisplayName
-                        : pair.Value;
-                }
-
-                return new InputPortDescriptor(pair.Value, displayName, pair.Key);
-            })
+        var supportedPlayers = supportedPorts
+            .Select(static port => port.PlayerIndex)
+            .Distinct()
+            .OrderBy(static player => player)
             .ToArray();
 
         return new CoreInputBindingSchema(
@@ -256,24 +246,34 @@ internal sealed class CoreInputBindingSchema
                 pair => pair.Key,
                 pair => (IReadOnlyList<CoreBindableInputAction>)pair.Value,
                 EqualityComparer<int>.Default),
-            new ReadOnlyDictionary<string, IReadOnlyList<CoreBindableInputAction>>(actionsByPort),
+            actionsByPort.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<CoreBindableInputAction>)pair.Value,
+                StringComparer.OrdinalIgnoreCase),
             new ReadOnlyDictionary<int, string>(portIdsByPlayer),
             canonicalActionsByPlayer.ToDictionary(
                 pair => pair.Key,
                 pair => (IReadOnlyDictionary<string, string>)new ReadOnlyDictionary<string, string>(pair.Value),
                 EqualityComparer<int>.Default),
-            new ReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>(canonicalActionsByPort),
+            canonicalActionsByPort.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyDictionary<string, string>)new ReadOnlyDictionary<string, string>(pair.Value),
+                StringComparer.OrdinalIgnoreCase),
             legacyBitMasksByPlayer.ToDictionary(
                 pair => pair.Key,
                 pair => (IReadOnlyDictionary<string, byte>)new ReadOnlyDictionary<string, byte>(pair.Value),
                 EqualityComparer<int>.Default),
-            new ReadOnlyDictionary<string, IReadOnlyDictionary<string, byte>>(legacyBitMasksByPort),
+            legacyBitMasksByPort.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyDictionary<string, byte>)new ReadOnlyDictionary<string, byte>(pair.Value),
+                StringComparer.OrdinalIgnoreCase),
             new ReadOnlyDictionary<string, string>(displayNamesByActionId),
             supportedActionsByPort.ToDictionary(
                 pair => pair.Key,
                 pair => (IReadOnlySet<string>)pair.Value,
                 StringComparer.OrdinalIgnoreCase),
             new ReadOnlyDictionary<string, (int Player, string PortId)>(portsById),
+            supportedPlayers,
             supportedPorts);
     }
 
@@ -282,7 +282,7 @@ internal sealed class CoreInputBindingSchema
         ArgumentNullException.ThrowIfNull(configurableKeys);
 
         var defaultKeyMaps = new Dictionary<int, IReadOnlyDictionary<string, Key>>();
-        foreach (var player in GetSupportedPlayers())
+        foreach (var player in _supportedPlayers)
         {
             var usedKeys = new HashSet<Key>();
             var playerDefaultKeyMap = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase);
@@ -353,7 +353,19 @@ internal sealed class CoreInputBindingSchema
         GetBindableActions(portId).Select(static action => action.ActionId).ToArray();
 
     public string GetPortId(int player) =>
-        _portIdsByPlayer.TryGetValue(player, out var portId) ? portId : $"p{player + 1}";
+        _portIdsByPlayer.TryGetValue(player, out var portId) ? portId : string.Empty;
+
+    public bool TryGetPortId(int player, out string portId)
+    {
+        if (_portIdsByPlayer.TryGetValue(player, out var resolvedPortId))
+        {
+            portId = resolvedPortId;
+            return true;
+        }
+
+        portId = string.Empty;
+        return false;
+    }
 
     public string GetPortDisplayName(string? portId)
     {
@@ -484,11 +496,13 @@ internal sealed class CoreInputBindingSchema
         supportedActions.Contains(actionId.Trim());
 
     private static IReadOnlyList<ExtraInputButtonOption> BuildExtraInputButtonOptions(
-        IReadOnlyDictionary<int, IReadOnlyList<CoreBindableInputAction>> actionsByPlayer)
+        IReadOnlyList<InputPortDescriptor> supportedPorts,
+        IReadOnlyDictionary<string, IReadOnlyList<CoreBindableInputAction>> actionsByPort)
     {
-        var sourceActions = actionsByPlayer.TryGetValue(0, out var player1Actions) && player1Actions.Count > 0
-            ? player1Actions
-            : actionsByPlayer.Values.SelectMany(static actions => actions)
+        var sourceActions = supportedPorts
+                .Select(port => actionsByPort.TryGetValue(port.PortId, out var portActions) ? portActions : Array.Empty<CoreBindableInputAction>())
+                .FirstOrDefault(static portActions => portActions.Count > 0)
+            ?? actionsByPort.Values.SelectMany(static actions => actions)
                 .GroupBy(static action => action.ActionId, StringComparer.OrdinalIgnoreCase)
                 .Select(static group => group.First())
                 .ToArray();
@@ -506,10 +520,14 @@ internal sealed class CoreInputBindingSchema
         return null;
     }
 
-    private static IEnumerable<int> GetSupportedPlayers()
+    private static string ResolvePortDisplayName(InputPortDescriptor port)
     {
-        yield return 0;
-        yield return 1;
+        if (!string.IsNullOrWhiteSpace(port.DisplayName))
+            return port.DisplayName.Trim();
+
+        return FallbackPortDisplayNames.TryGetValue(port.PlayerIndex, out var fallbackDisplayName)
+            ? fallbackDisplayName
+            : port.PortId.Trim();
     }
 
     private static bool TryGetPreferredKey(
@@ -524,6 +542,78 @@ internal sealed class CoreInputBindingSchema
             preferredKeyMap.TryGetValue(actionId, out preferredKey) &&
             configurableKeys.Contains(preferredKey) &&
             usedKeys.Add(preferredKey);
+    }
+
+    private static CoreInputBindingSchema CreateFallbackSchema()
+    {
+        var supportedPorts = new[]
+        {
+            new InputPortDescriptor("p1", "1P", 0),
+            new InputPortDescriptor("p2", "2P", 1)
+        };
+        var actionsByPlayer = new Dictionary<int, IReadOnlyList<CoreBindableInputAction>>
+        {
+            [0] = FallbackActions.Where(static action => action.Player == 0).ToArray(),
+            [1] = FallbackActions.Where(static action => action.Player == 1).ToArray()
+        };
+        var actionsByPort = new Dictionary<string, IReadOnlyList<CoreBindableInputAction>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["p1"] = actionsByPlayer[0],
+            ["p2"] = actionsByPlayer[1]
+        };
+        var canonicalActionsByPlayer = new Dictionary<int, IReadOnlyDictionary<string, string>>
+        {
+            [0] = new ReadOnlyDictionary<string, string>(
+                actionsByPlayer[0].ToDictionary(static action => action.ActionId, static action => action.ActionId, StringComparer.OrdinalIgnoreCase)),
+            [1] = new ReadOnlyDictionary<string, string>(
+                actionsByPlayer[1].ToDictionary(static action => action.ActionId, static action => action.ActionId, StringComparer.OrdinalIgnoreCase))
+        };
+        var canonicalActionsByPort = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["p1"] = canonicalActionsByPlayer[0],
+            ["p2"] = canonicalActionsByPlayer[1]
+        };
+        var legacyBitMasksByPlayer = new Dictionary<int, IReadOnlyDictionary<string, byte>>
+        {
+            [0] = new ReadOnlyDictionary<string, byte>(
+                actionsByPlayer[0]
+                    .Where(action => FallbackLegacyBits.ContainsKey(action.ActionId))
+                    .ToDictionary(static action => action.ActionId, action => FallbackLegacyBits[action.ActionId], StringComparer.OrdinalIgnoreCase)),
+            [1] = new ReadOnlyDictionary<string, byte>(
+                actionsByPlayer[1]
+                    .Where(action => FallbackLegacyBits.ContainsKey(action.ActionId))
+                    .ToDictionary(static action => action.ActionId, action => FallbackLegacyBits[action.ActionId], StringComparer.OrdinalIgnoreCase))
+        };
+        var legacyBitMasksByPort = new Dictionary<string, IReadOnlyDictionary<string, byte>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["p1"] = legacyBitMasksByPlayer[0],
+            ["p2"] = legacyBitMasksByPlayer[1]
+        };
+        var displayNamesByActionId = new ReadOnlyDictionary<string, string>(
+            FallbackActions
+                .GroupBy(static action => action.ActionId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(static group => group.Key, static group => group.First().DisplayName, StringComparer.OrdinalIgnoreCase));
+        var supportedActionsByPort = new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["p1"] = new HashSet<string>(actionsByPlayer[0].Select(static action => action.ActionId), StringComparer.OrdinalIgnoreCase),
+            ["p2"] = new HashSet<string>(actionsByPlayer[1].Select(static action => action.ActionId), StringComparer.OrdinalIgnoreCase)
+        };
+        var portsById = new ReadOnlyDictionary<string, (int Player, string PortId)>(
+            supportedPorts.ToDictionary(static port => port.PortId, static port => (port.PlayerIndex, port.PortId), StringComparer.OrdinalIgnoreCase));
+
+        return new CoreInputBindingSchema(
+            new ReadOnlyDictionary<int, IReadOnlyList<CoreBindableInputAction>>(actionsByPlayer),
+            new ReadOnlyDictionary<string, IReadOnlyList<CoreBindableInputAction>>(actionsByPort),
+            new ReadOnlyDictionary<int, string>(new Dictionary<int, string> { [0] = "p1", [1] = "p2" }),
+            new ReadOnlyDictionary<int, IReadOnlyDictionary<string, string>>(canonicalActionsByPlayer),
+            new ReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>(canonicalActionsByPort),
+            new ReadOnlyDictionary<int, IReadOnlyDictionary<string, byte>>(legacyBitMasksByPlayer),
+            new ReadOnlyDictionary<string, IReadOnlyDictionary<string, byte>>(legacyBitMasksByPort),
+            displayNamesByActionId,
+            new ReadOnlyDictionary<string, IReadOnlySet<string>>(supportedActionsByPort),
+            portsById,
+            [0, 1],
+            supportedPorts);
     }
 
     private sealed class EmptyInputSchema : IInputSchema

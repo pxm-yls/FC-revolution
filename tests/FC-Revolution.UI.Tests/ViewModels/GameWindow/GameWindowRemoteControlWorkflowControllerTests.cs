@@ -7,7 +7,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     [Fact]
     public void BuildAcquireDecision_WhenAcquired_ClearsRemoteStateAndShowsConnectedToast()
     {
-        var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlWorkflowController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var decision = controller.BuildAcquireDecision(acquired: true, portId: "p1", clientIp: "127.0.0.1");
 
@@ -24,7 +24,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     [Fact]
     public void BuildAcquireDecision_WhenRejected_ReturnsNoOp()
     {
-        var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlWorkflowController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var decision = controller.BuildAcquireDecision(acquired: false, portId: "p1", clientIp: "127.0.0.1");
 
@@ -36,7 +36,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     [Fact]
     public void BuildReleaseDecision_WhenRemoteOwned_AppendsRestoredAndReasonToasts()
     {
-        var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlWorkflowController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var decision = controller.BuildReleaseDecision(portId: "p2", hadRemoteControl: true, reason: "remote disconnected");
 
@@ -53,7 +53,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     [Fact]
     public void BuildReleaseDecision_WhenAlreadyLocal_StillResyncsWithoutToast()
     {
-        var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlWorkflowController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var decision = controller.BuildReleaseDecision(portId: "p1", hadRemoteControl: false, reason: "ignored");
 
@@ -67,7 +67,7 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
     [Fact]
     public void BuildButtonStateDecision_WhenAuthorized_KeepsSummaryStable()
     {
-        var controller = new GameWindowRemoteControlWorkflowController(new GameWindowRemoteControlStateController());
+        var controller = new GameWindowRemoteControlWorkflowController(GameWindowRemoteControlStateControllerTestsAccessor.CreateDefault());
 
         var decision = controller.BuildButtonStateDecision(authorized: true);
 
@@ -76,4 +76,14 @@ public sealed class GameWindowRemoteControlWorkflowControllerTests
         Assert.False(decision.ShouldClearRemoteButtons);
         Assert.Empty(decision.ToastMessages);
     }
+}
+
+internal static class GameWindowRemoteControlStateControllerTestsAccessor
+{
+    public static GameWindowRemoteControlStateController CreateDefault() =>
+        new(
+        [
+            new FCRevolution.Emulation.Abstractions.InputPortDescriptor("p1", "1P", 0),
+            new FCRevolution.Emulation.Abstractions.InputPortDescriptor("p2", "2P", 1)
+        ]);
 }

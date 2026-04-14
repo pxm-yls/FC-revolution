@@ -46,6 +46,22 @@ public sealed class RomMapperInspectorTests
         }
     }
 
+    [Fact]
+    public void Inspect_ReturnsUnavailableInfo_WhenLegacyInspectorIsMissing()
+    {
+        var mapper = RomMapperInspector.Inspect(
+            "/tmp/missing.nes",
+            new FakeLegacyFeatureRuntime
+            {
+                ErrorMessage = "legacy bridge missing"
+            });
+
+        Assert.False(mapper.IsSupported);
+        Assert.Equal(-1, mapper.Number);
+        Assert.Equal("Mapper 信息不可用", mapper.Name);
+        Assert.Equal("Mapper 信息不可用", mapper.DisplayLabel);
+    }
+
     private static byte[] BuildHeader(int mapperNumber)
     {
         var bytes = new byte[16];

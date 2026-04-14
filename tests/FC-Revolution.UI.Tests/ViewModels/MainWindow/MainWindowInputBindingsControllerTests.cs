@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Input;
+using FCRevolution.Emulation.Abstractions;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -233,6 +235,31 @@ public sealed class MainWindowInputBindingsControllerTests
         Assert.Equal(layout.BridgeY, state.InputBindingLayout.BridgeY, precision: 6);
     }
 
+    [Fact]
+    public void BuildInputMapsByPort_MapsLegacyPlayerOrdinals_ToSchemaPortOrder()
+    {
+        var controller = new MainWindowInputBindingsController();
+        var profile = new SystemConfigProfile
+        {
+            PlayerInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
+            {
+                ["Player1"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["fire"] = nameof(Key.Z)
+                },
+                ["Player2"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["jump"] = nameof(Key.X)
+                }
+            }
+        };
+
+        var maps = controller.BuildInputMapsByPort(profile, CoreInputBindingSchema.Create(new HighIndexInputSchema()));
+
+        Assert.Equal(Key.Z, maps["pad-west"]["fire"]);
+        Assert.Equal(Key.X, maps["pad-east"]["jump"]);
+    }
+
     private static InputBindingEntry CreateInputBinding(string portId, string actionId, string actionName, Key key) =>
         new(portId, GetPortLabel(portId), actionId, actionName, key, TestConfigurableKeys);
 
@@ -253,4 +280,19 @@ public sealed class MainWindowInputBindingsControllerTests
                 ["b"] = Key.S
             }
         };
+
+    private sealed class HighIndexInputSchema : IInputSchema
+    {
+        public IReadOnlyList<InputPortDescriptor> Ports { get; } =
+        [
+            new("pad-west", "West Pad", 4),
+            new("pad-east", "East Pad", 7)
+        ];
+
+        public IReadOnlyList<InputActionDescriptor> Actions { get; } =
+        [
+            new("fire", "Fire", "pad-west", InputValueKind.Digital),
+            new("jump", "Jump", "pad-east", InputValueKind.Digital)
+        ];
+    }
 }

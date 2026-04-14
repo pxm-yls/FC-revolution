@@ -14,20 +14,16 @@ internal readonly record struct GameWindowRemoteControlSlotState(
 
 internal sealed class GameWindowRemoteControlStateController
 {
-    private static readonly IReadOnlyList<InputPortDescriptor> DefaultPorts =
-    [
-        new("p1", "1P", 0),
-        new("p2", "2P", 1)
-    ];
-
     private readonly IReadOnlyList<InputPortDescriptor> _supportedPorts;
     private readonly IReadOnlyDictionary<string, InputPortDescriptor> _portsById;
 
     public GameWindowRemoteControlStateController(IReadOnlyList<InputPortDescriptor>? supportedPorts = null)
     {
-        var normalizedPorts = (supportedPorts ?? DefaultPorts)
+        var normalizedPorts = (supportedPorts ?? Array.Empty<InputPortDescriptor>())
             .Where(static port => !string.IsNullOrWhiteSpace(port.PortId))
             .Select(static port => new InputPortDescriptor(port.PortId.Trim(), ResolveDisplayName(port), port.PlayerIndex))
+            .GroupBy(static port => port.PortId, StringComparer.OrdinalIgnoreCase)
+            .Select(static group => group.First())
             .OrderBy(static port => port.PlayerIndex)
             .ThenBy(static port => port.PortId, StringComparer.OrdinalIgnoreCase)
             .ToArray();

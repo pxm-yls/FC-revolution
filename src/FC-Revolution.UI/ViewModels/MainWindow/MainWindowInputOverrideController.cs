@@ -632,7 +632,7 @@ internal sealed class MainWindowInputOverrideController
         if (_inputBindingSchema.TryNormalizePortId(requestedPortId, out var normalizedPortId))
             return normalizedPortId;
 
-        return _inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId ?? _inputBindingSchema.GetPortId(0);
+        return _inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId ?? string.Empty;
     }
 
     private string GetPortLabel(string portId) => _inputBindingSchema.GetPortDisplayName(portId);

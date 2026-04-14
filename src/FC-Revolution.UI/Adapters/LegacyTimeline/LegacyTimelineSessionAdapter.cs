@@ -14,7 +14,7 @@ internal readonly record struct LegacyTimelineSessionReloadState(
 
 internal sealed class LegacyTimelineSessionAdapter
 {
-    private readonly ITimelineRepositoryBridge _timelineRepository;
+    private readonly ITimelineRepositoryBridge? _timelineRepository;
     private readonly CoreBranchTree _branchTree;
     private ITimelineManifestHandle? _timelineManifest;
     private string? _displayName;
@@ -22,12 +22,25 @@ internal sealed class LegacyTimelineSessionAdapter
     private DateTime _manifestWriteTimeUtc;
 
     public LegacyTimelineSessionAdapter(CoreBranchTree branchTree)
-        : this(branchTree, LegacyFeatureBridgeLoader.CreateTimelineRepositoryBridge())
+        : this(branchTree, LegacyFeatureRuntime.Current)
     {
+    }
+
+    internal LegacyTimelineSessionAdapter(CoreBranchTree branchTree, ILegacyFeatureRuntime legacyFeatureRuntime)
+    {
+        ArgumentNullException.ThrowIfNull(branchTree);
+        ArgumentNullException.ThrowIfNull(legacyFeatureRuntime);
+
+        _branchTree = branchTree;
+        if (legacyFeatureRuntime.TryCreateTimelineRepositoryBridge(out var timelineRepository, out _))
+            _timelineRepository = timelineRepository;
     }
 
     internal LegacyTimelineSessionAdapter(CoreBranchTree branchTree, ITimelineRepositoryBridge timelineRepository)
     {
+        ArgumentNullException.ThrowIfNull(branchTree);
+        ArgumentNullException.ThrowIfNull(timelineRepository);
+
         _branchTree = branchTree;
         _timelineRepository = timelineRepository;
     }
@@ -53,7 +66,7 @@ internal sealed class LegacyTimelineSessionAdapter
         _branchTree.Clear();
         _manifestWriteTimeUtc = DateTime.MinValue;
 
-        if (!loadFullTimeline)
+        if (!loadFullTimeline || _timelineRepository is null)
             return new LegacyTimelineSessionLoadState(Array.Empty<BranchPreviewNode>());
 
         var loadState = GameWindowTimelinePersistenceController.LoadTimelineState(
@@ -93,7 +106,7 @@ internal sealed class LegacyTimelineSessionAdapter
         if (!TryRequireTimeline(out var timelineManifest))
             return;
 
-        _timelineRepository.PersistQuickSaveSnapshot(
+        _timelineRepository!.PersistQuickSaveSnapshot(
             timelineManifest,
             CurrentBranchId,
             frame,
@@ -106,7 +119,7 @@ internal sealed class LegacyTimelineSessionAdapter
         if (!TryRequireTimeline(out var timelineManifest))
             return;
 
-        _timelineRepository.SyncCurrentSnapshotFromManifest(timelineManifest, CurrentBranchId);
+        _timelineRepository!.SyncCurrentSnapshotFromManifest(timelineManifest, CurrentBranchId);
         UpdateManifestWriteTimeUtc();
     }
 
@@ -116,7 +129,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         GameWindowTimelinePersistenceController.PersistBranchPoint(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             romId,
             branchPoint,
@@ -131,7 +144,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         GameWindowTimelinePersistenceController.DeleteBranchPoint(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             romId,
             branchId);
@@ -145,7 +158,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         GameWindowTimelinePersistenceController.RenameBranchPoint(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             branchPoint);
         UpdateManifestWriteTimeUtc();
@@ -157,7 +170,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         CurrentBranchId = GameWindowTimelinePersistenceController.ActivateBranch(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             branchId);
         UpdateManifestWriteTimeUtc();
@@ -169,7 +182,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return Array.Empty<BranchPreviewNode>();
 
         var previewNodes = GameWindowTimelinePersistenceController.LoadPreviewNodes(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             previewWidth,
             previewHeight);
@@ -187,7 +200,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return null;
 
         var persistResult = GameWindowTimelinePersistenceController.TryPersistPreviewNode(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             romId,
             CurrentBranchId,
@@ -206,7 +219,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         _ = GameWindowTimelinePersistenceController.DeletePreviewNode(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             romId,
             previewNodeId);
@@ -219,7 +232,7 @@ internal sealed class LegacyTimelineSessionAdapter
             return;
 
         _ = GameWindowTimelinePersistenceController.RenamePreviewNode(
-            _timelineRepository,
+            _timelineRepository!,
             timelineManifest,
             romId,
             previewNodeId,
@@ -229,7 +242,8 @@ internal sealed class LegacyTimelineSessionAdapter
 
     public LegacyTimelineSessionReloadState? TryReload(int previewWidth, int previewHeight)
     {
-        if (!TryRequireTimeline(out _, out var romId) ||
+        if (_timelineRepository is null ||
+            !TryRequireTimeline(out _, out var romId) ||
             string.IsNullOrWhiteSpace(_displayName) ||
             string.IsNullOrWhiteSpace(_romPath))
         {
@@ -237,7 +251,7 @@ internal sealed class LegacyTimelineSessionAdapter
         }
 
         var reloadState = GameWindowTimelinePersistenceController.TryReloadTimelineState(
-            _timelineRepository,
+            _timelineRepository!,
             _branchTree,
             _manifestWriteTimeUtc,
             romId,
