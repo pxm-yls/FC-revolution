@@ -213,7 +213,7 @@ public sealed class MainWindowViewModelConfigurationTests
     }
 
     [Fact]
-    public void SystemConfigProfile_SaveLoad_PersistsManagedCoreProbePaths()
+    public void SystemConfigProfile_SaveLoad_PersistsCoreProbePaths()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-managed-core-probes-{Guid.NewGuid():N}");
@@ -226,12 +226,12 @@ public sealed class MainWindowViewModelConfigurationTests
             SystemConfigProfile.Save(new SystemConfigProfile
             {
                 ResourceRootPath = tempRoot,
-                ManagedCoreProbePaths = [" ", expectedPath, expectedPath]
+                CoreProbePaths = [" ", expectedPath, expectedPath]
             });
 
             var profile = SystemConfigProfile.Load();
 
-            Assert.Equal([Path.GetFullPath(expectedPath)], profile.ManagedCoreProbePaths);
+            Assert.Equal([Path.GetFullPath(expectedPath)], profile.CoreProbePaths);
         }
         finally
         {
@@ -417,7 +417,7 @@ public sealed class MainWindowViewModelConfigurationTests
     }
 
     [Fact]
-    public void MainWindowViewModel_ExposesEffectiveManagedCoreProbeDirectories()
+    public void MainWindowViewModel_ExposesEffectiveCoreProbeDirectories()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-managed-core-effective-dirs-{Guid.NewGuid():N}");
@@ -429,20 +429,20 @@ public sealed class MainWindowViewModelConfigurationTests
             SystemConfigProfile.Save(new SystemConfigProfile
             {
                 ResourceRootPath = tempRoot,
-                ManagedCoreProbePaths = [extraProbePath]
+                CoreProbePaths = [extraProbePath]
             });
 
             using var host = new MainWindowViewModelTestHost();
             var expectedDirectories = new[]
             {
                 Path.Combine(AppContext.BaseDirectory, "cores", "managed"),
-                AppObjectStorage.GetManagedCoreModulesDirectory(tempRoot),
+                AppObjectStorage.GetDevelopmentCoreModulesDirectory(tempRoot),
                 Path.GetFullPath(extraProbePath)
             };
 
-            Assert.Equal(expectedDirectories, host.ViewModel.EffectiveManagedCoreProbeDirectories);
+            Assert.Equal(expectedDirectories, host.ViewModel.EffectiveCoreProbeDirectories);
             foreach (var expectedDirectory in expectedDirectories)
-                Assert.Contains(expectedDirectory, host.ViewModel.EffectiveManagedCoreProbeDirectoriesSummary, StringComparison.Ordinal);
+                Assert.Contains(expectedDirectory, host.ViewModel.EffectiveCoreProbeDirectoriesSummary, StringComparison.Ordinal);
         }
         finally
         {
@@ -453,7 +453,7 @@ public sealed class MainWindowViewModelConfigurationTests
     }
 
     [Fact]
-    public void ApplyManagedCoreProbePathsCommand_PersistsNormalizedPaths_AndRefreshesInstalledCoreManifests()
+    public void ApplyCoreProbePathsCommand_PersistsNormalizedPaths_AndRefreshesInstalledCoreManifests()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-managed-core-apply-{Guid.NewGuid():N}");
@@ -469,16 +469,16 @@ public sealed class MainWindowViewModelConfigurationTests
             });
 
             using var host = new MainWindowViewModelTestHost();
-            host.ViewModel.ManagedCoreProbePathsInput = $" {sampleCoreProbePath} {Environment.NewLine}{sampleCoreProbePath}";
+            host.ViewModel.CoreProbePathsInput = $" {sampleCoreProbePath} {Environment.NewLine}{sampleCoreProbePath}";
 
-            host.ViewModel.ApplyManagedCoreProbePathsCommand.Execute(null);
+            host.ViewModel.ApplyCoreProbePathsCommand.Execute(null);
 
             var profile = SystemConfigProfile.Load();
             var normalizedProbePath = Path.GetFullPath(sampleCoreProbePath!);
 
-            Assert.Equal([normalizedProbePath], profile.ManagedCoreProbePaths);
-            Assert.Equal(normalizedProbePath, host.ViewModel.ManagedCoreProbePathsInput);
-            Assert.Contains(host.ViewModel.EffectiveManagedCoreProbeDirectories, path => string.Equals(path, normalizedProbePath, StringComparison.Ordinal));
+            Assert.Equal([normalizedProbePath], profile.CoreProbePaths);
+            Assert.Equal(normalizedProbePath, host.ViewModel.CoreProbePathsInput);
+            Assert.Contains(host.ViewModel.EffectiveCoreProbeDirectories, path => string.Equals(path, normalizedProbePath, StringComparison.Ordinal));
             Assert.Contains(host.ViewModel.InstalledCoreManifests, manifest => manifest.CoreId == SampleManagedCoreModule.CoreId);
         }
         finally
@@ -490,7 +490,7 @@ public sealed class MainWindowViewModelConfigurationTests
     }
 
     [Fact]
-    public void ReloadManagedCoreSourcesCommand_ReloadsPersistedProbePaths()
+    public void ReloadCoreSourcesCommand_ReloadsPersistedProbePaths()
     {
         var originalRoot = AppObjectStorage.GetResourceRoot();
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-managed-core-reload-{Guid.NewGuid():N}");
@@ -503,24 +503,24 @@ public sealed class MainWindowViewModelConfigurationTests
             SystemConfigProfile.Save(new SystemConfigProfile
             {
                 ResourceRootPath = tempRoot,
-                ManagedCoreProbePaths = [initialProbePath]
+                CoreProbePaths = [initialProbePath]
             });
 
             using var host = new MainWindowViewModelTestHost();
-            host.ViewModel.ManagedCoreProbePathsInput = string.Empty;
+            host.ViewModel.CoreProbePathsInput = string.Empty;
 
             SystemConfigProfile.Save(new SystemConfigProfile
             {
                 ResourceRootPath = tempRoot,
-                ManagedCoreProbePaths = [reloadedProbePath]
+                CoreProbePaths = [reloadedProbePath]
             });
 
-            host.ViewModel.ReloadManagedCoreSourcesCommand.Execute(null);
+            host.ViewModel.ReloadCoreSourcesCommand.Execute(null);
 
             var normalizedProbePath = Path.GetFullPath(reloadedProbePath);
-            Assert.Equal(normalizedProbePath, host.ViewModel.ManagedCoreProbePathsInput);
-            Assert.Contains(host.ViewModel.EffectiveManagedCoreProbeDirectories, path => string.Equals(path, normalizedProbePath, StringComparison.Ordinal));
-            Assert.DoesNotContain(host.ViewModel.EffectiveManagedCoreProbeDirectories, path => string.Equals(path, Path.GetFullPath(initialProbePath), StringComparison.Ordinal));
+            Assert.Equal(normalizedProbePath, host.ViewModel.CoreProbePathsInput);
+            Assert.Contains(host.ViewModel.EffectiveCoreProbeDirectories, path => string.Equals(path, normalizedProbePath, StringComparison.Ordinal));
+            Assert.DoesNotContain(host.ViewModel.EffectiveCoreProbeDirectories, path => string.Equals(path, Path.GetFullPath(initialProbePath), StringComparison.Ordinal));
         }
         finally
         {

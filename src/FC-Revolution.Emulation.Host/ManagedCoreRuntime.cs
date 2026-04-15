@@ -30,11 +30,11 @@ public static class ManagedCoreRuntime
     public static EmulatorCoreHost CreateHost(
         string? defaultCoreId = null,
         ManagedCoreRuntimeOptions? options = null,
-        IEnumerable<IManagedCoreModule>? additionalModules = null)
+        IEnumerable<IEmulatorCoreModule>? additionalModules = null)
     {
         var resolvedOptions = ResolveOptions(options);
 
-        var resolvedAdditionalModules = new List<IManagedCoreModule>();
+        var resolvedAdditionalModules = new List<IEmulatorCoreModule>();
         resolvedAdditionalModules.AddRange(LoadPackageModules(resolvedOptions.ResourceRootPath));
         resolvedAdditionalModules.AddRange(LoadProbeModules(resolvedOptions.ProbeDirectories));
 
@@ -51,7 +51,7 @@ public static class ManagedCoreRuntime
         out IEmulatorCoreSession? session,
         string? defaultCoreId = null,
         ManagedCoreRuntimeOptions? options = null,
-        IEnumerable<IManagedCoreModule>? additionalModules = null)
+        IEnumerable<IEmulatorCoreModule>? additionalModules = null)
     {
         var host = CreateHost(defaultCoreId, options, additionalModules);
         return host.TryCreateSession(request, out session);
@@ -120,7 +120,7 @@ public static class ManagedCoreRuntime
             probeDirectories);
     }
 
-    private static IReadOnlyList<IManagedCoreModule> LoadPackageModules(string? resourceRootPath)
+    private static IReadOnlyList<IEmulatorCoreModule> LoadPackageModules(string? resourceRootPath)
     {
         var packageSource = new RegistryManagedCoreModuleRegistrationSource(
             "managed-core-runtime-package-registry",
@@ -128,7 +128,7 @@ public static class ManagedCoreRuntime
         return packageSource.LoadModules();
     }
 
-    private static IReadOnlyList<IManagedCoreModule> LoadProbeModules(IReadOnlyList<string> probeDirectories)
+    private static IReadOnlyList<IEmulatorCoreModule> LoadProbeModules(IReadOnlyList<string> probeDirectories)
     {
         if (probeDirectories.Count == 0)
             return [];
@@ -149,10 +149,10 @@ public static class ManagedCoreRuntime
                 .GetTypes()
                 .Where(type =>
                     type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IManagedCoreModule).IsAssignableFrom(type) &&
+                    typeof(IEmulatorCoreModule).IsAssignableFrom(type) &&
                     type.GetConstructor(Type.EmptyTypes) != null)
                 .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IManagedCoreModule)Activator.CreateInstance(type)!).Manifest,
+                    ((IEmulatorCoreModule)Activator.CreateInstance(type)!).Manifest,
                     type.FullName ?? type.Name))
                 .ToList();
         }
@@ -161,10 +161,10 @@ public static class ManagedCoreRuntime
             return ex.Types
                 .Where(type =>
                     type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IManagedCoreModule).IsAssignableFrom(type) &&
+                    typeof(IEmulatorCoreModule).IsAssignableFrom(type) &&
                     type.GetConstructor(Type.EmptyTypes) != null)
                 .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IManagedCoreModule)Activator.CreateInstance(type!)!).Manifest,
+                    ((IEmulatorCoreModule)Activator.CreateInstance(type!)!).Manifest,
                     type!.FullName ?? type.Name))
                 .ToList();
         }

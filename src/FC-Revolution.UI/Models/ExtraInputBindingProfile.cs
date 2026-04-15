@@ -15,12 +15,6 @@ public sealed class ExtraInputBindingProfile
         set => _legacyPortOrdinal = value;
     }
 
-    public int Player
-    {
-        get => _legacyPortOrdinal;
-        set => _legacyPortOrdinal = value;
-    }
-
     public string Kind { get; set; } = ExtraInputBindingKind.Turbo.ToString();
 
     public string Key { get; set; } = Avalonia.Input.Key.None.ToString();

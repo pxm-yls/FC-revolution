@@ -74,9 +74,9 @@ public partial class MainWindowViewModel
                 OnPropertyChanged(nameof(ResourceLayoutSummary));
                 OnPropertyChanged(nameof(ManagedCoreInstallDirectory));
                 OnPropertyChanged(nameof(ManagedCoreInstallHint));
-                OnPropertyChanged(nameof(ManagedCoreSourceSummary));
-                OnPropertyChanged(nameof(EffectiveManagedCoreProbeDirectories));
-                OnPropertyChanged(nameof(EffectiveManagedCoreProbeDirectoriesSummary));
+                OnPropertyChanged(nameof(CoreSourceSummary));
+                OnPropertyChanged(nameof(EffectiveCoreProbeDirectories));
+                OnPropertyChanged(nameof(EffectiveCoreProbeDirectoriesSummary));
             }
         }
     }

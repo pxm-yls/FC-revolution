@@ -5,14 +5,14 @@ using System.Runtime.Loader;
 
 namespace FCRevolution.Emulation.Host;
 
-public interface IManagedCoreModuleRegistrationSource
+public interface IEmulatorCoreModuleRegistrationSource
 {
     string SourceId { get; }
 
-    IReadOnlyList<IManagedCoreModule> LoadModules();
+    IReadOnlyList<IEmulatorCoreModule> LoadModules();
 }
 
-public sealed class AssemblyManagedCoreModuleRegistrationSource : IManagedCoreModuleRegistrationSource
+public sealed class AssemblyManagedCoreModuleRegistrationSource : IEmulatorCoreModuleRegistrationSource
 {
     private readonly Func<IEnumerable<Assembly>> _getAssemblies;
 
@@ -26,7 +26,7 @@ public sealed class AssemblyManagedCoreModuleRegistrationSource : IManagedCoreMo
 
     public string SourceId { get; }
 
-    public IReadOnlyList<IManagedCoreModule> LoadModules() =>
+    public IReadOnlyList<IEmulatorCoreModule> LoadModules() =>
         _getAssemblies()
             .SelectMany(DefaultManagedCoreModuleCatalog.DiscoverModulesFromAssembly)
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
@@ -34,7 +34,7 @@ public sealed class AssemblyManagedCoreModuleRegistrationSource : IManagedCoreMo
             .ToList();
 }
 
-public sealed class DirectoryManagedCoreModuleRegistrationSource : IManagedCoreModuleRegistrationSource
+public sealed class DirectoryManagedCoreModuleRegistrationSource : IEmulatorCoreModuleRegistrationSource
 {
     private readonly Func<IEnumerable<string>> _getDirectories;
     private readonly string _searchPattern;
@@ -58,7 +58,7 @@ public sealed class DirectoryManagedCoreModuleRegistrationSource : IManagedCoreM
 
     public string SourceId { get; }
 
-    public IReadOnlyList<IManagedCoreModule> LoadModules() =>
+    public IReadOnlyList<IEmulatorCoreModule> LoadModules() =>
         EnumerateAssemblyPaths()
             .SelectMany(path => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(path))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
@@ -113,7 +113,7 @@ public sealed class DirectoryManagedCoreModuleRegistrationSource : IManagedCoreM
         : StringComparer.Ordinal;
 }
 
-public sealed class RegistryManagedCoreModuleRegistrationSource : IManagedCoreModuleRegistrationSource
+public sealed class RegistryManagedCoreModuleRegistrationSource : IEmulatorCoreModuleRegistrationSource
 {
     private readonly Func<string?> _getResourceRootPath;
     private readonly ManagedCorePackageService _packageService = new();
@@ -128,7 +128,7 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IManagedCoreMo
 
     public string SourceId { get; }
 
-    public IReadOnlyList<IManagedCoreModule> LoadModules() =>
+    public IReadOnlyList<IEmulatorCoreModule> LoadModules() =>
         _packageService
             .GetInstalledPackages(_getResourceRootPath())
             .SelectMany(package => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(package.EntryAssemblyPath, package.FactoryType))
@@ -139,7 +139,7 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IManagedCoreMo
 
 internal static class ManagedCoreAssemblyModuleLoader
 {
-    public static IReadOnlyList<IManagedCoreModule> LoadModulesFromAssemblyPath(string assemblyPath, string? moduleTypeName = null)
+    public static IReadOnlyList<IEmulatorCoreModule> LoadModulesFromAssemblyPath(string assemblyPath, string? moduleTypeName = null)
     {
         var assembly = TryResolveLoadedAssembly(assemblyPath) ?? TryLoadAssembly(assemblyPath);
         if (assembly is null)

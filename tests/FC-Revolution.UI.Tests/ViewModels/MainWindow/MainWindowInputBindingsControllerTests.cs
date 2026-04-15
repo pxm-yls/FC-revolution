@@ -282,7 +282,10 @@ public sealed class MainWindowInputBindingsControllerTests
 
             var profile = RomConfigProfile.Load(romPath);
             Assert.Empty(profile.PortInputOverrides);
-            Assert.Empty(profile.InputOverrides);
+            Assert.DoesNotContain(
+                "\"inputOverrides\"",
+                File.ReadAllText(RomConfigProfile.GetProfilePath(romPath)),
+                StringComparison.OrdinalIgnoreCase);
         }
         finally
         {

@@ -6,21 +6,21 @@ public sealed record CoreSessionLaunchRequest(string? CoreId = null, CoreSession
 
 public sealed class EmulatorCoreHost
 {
-    private readonly IReadOnlyDictionary<string, IManagedCoreModule> _managedModules;
+    private readonly IReadOnlyDictionary<string, IEmulatorCoreModule> _modules;
     private readonly string? _defaultCoreId;
 
-    public EmulatorCoreHost(IEnumerable<IManagedCoreModule> managedModules, string? defaultCoreId = null)
+    public EmulatorCoreHost(IEnumerable<IEmulatorCoreModule> modules, string? defaultCoreId = null)
     {
-        _managedModules = managedModules.ToDictionary(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase);
+        _modules = modules.ToDictionary(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase);
         _defaultCoreId = ResolveDefaultCoreId(defaultCoreId);
     }
 
-    public bool HasInstalledCores => _managedModules.Count > 0;
+    public bool HasInstalledCores => _modules.Count > 0;
 
     public string? DefaultCoreId => _defaultCoreId;
 
     public IReadOnlyList<CoreManifest> GetInstalledCoreManifests() =>
-        _managedModules.Values.Select(module => module.Manifest).OrderBy(manifest => manifest.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+        _modules.Values.Select(module => module.Manifest).OrderBy(manifest => manifest.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
 
     public IEmulatorCoreSession CreateSession(CoreSessionLaunchRequest request)
     {
@@ -47,33 +47,33 @@ public sealed class EmulatorCoreHost
         return true;
     }
 
-    private IManagedCoreModule? ResolveModule(string? requestedCoreId)
+    private IEmulatorCoreModule? ResolveModule(string? requestedCoreId)
     {
         if (!string.IsNullOrWhiteSpace(requestedCoreId) &&
-            _managedModules.TryGetValue(requestedCoreId, out var resolved))
+            _modules.TryGetValue(requestedCoreId, out var resolved))
             return resolved;
 
         if (!string.IsNullOrWhiteSpace(_defaultCoreId) &&
-            _managedModules.TryGetValue(_defaultCoreId, out var defaultModule))
+            _modules.TryGetValue(_defaultCoreId, out var defaultModule))
         {
             return defaultModule;
         }
 
-        if (_managedModules.Count == 0)
+        if (_modules.Count == 0)
             return null;
 
-        return _managedModules.Values.First();
+        return _modules.Values.First();
     }
 
     private string? ResolveDefaultCoreId(string? configuredDefaultCoreId)
     {
         if (!string.IsNullOrWhiteSpace(configuredDefaultCoreId) &&
-            _managedModules.ContainsKey(configuredDefaultCoreId))
+            _modules.ContainsKey(configuredDefaultCoreId))
         {
             return configuredDefaultCoreId;
         }
 
-        return _managedModules.Keys.FirstOrDefault();
+        return _modules.Keys.FirstOrDefault();
     }
 }
 
@@ -87,7 +87,7 @@ public static class DefaultEmulatorCoreHost
     public static EmulatorCoreHost Create(string? defaultCoreId, ManagedCoreRuntimeOptions? options) =>
         Create(defaultCoreId, options, additionalModules: null);
 
-    public static EmulatorCoreHost Create(string? defaultCoreId, IEnumerable<IManagedCoreModule>? additionalModules)
+    public static EmulatorCoreHost Create(string? defaultCoreId, IEnumerable<IEmulatorCoreModule>? additionalModules)
     {
         return Create(defaultCoreId, options: null, additionalModules);
     }
@@ -95,6 +95,6 @@ public static class DefaultEmulatorCoreHost
     public static EmulatorCoreHost Create(
         string? defaultCoreId,
         ManagedCoreRuntimeOptions? options,
-        IEnumerable<IManagedCoreModule>? additionalModules)
+        IEnumerable<IEmulatorCoreModule>? additionalModules)
         => ManagedCoreRuntime.CreateHost(defaultCoreId, options, additionalModules);
 }

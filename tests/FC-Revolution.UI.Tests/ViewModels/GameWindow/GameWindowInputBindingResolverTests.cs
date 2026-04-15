@@ -75,12 +75,6 @@ public sealed class GameWindowInputBindingResolverTests
                 Assert.Equal("pad-east", port.PortId);
                 Assert.Equal(7, port.PlayerIndex);
             });
-        Assert.True(schema.TryGetPortId(4, out var westPortId));
-        Assert.Equal("pad-west", westPortId);
-        Assert.True(schema.TryGetPortId(7, out var eastPortId));
-        Assert.Equal("pad-east", eastPortId);
-        Assert.False(schema.TryGetPortId(0, out _));
-        Assert.Equal(string.Empty, schema.GetPortId(0));
     }
 
     [Fact]
@@ -90,7 +84,7 @@ public sealed class GameWindowInputBindingResolverTests
             [
                 new ExtraInputBindingProfile
                 {
-                    Player = 7,
+                    LegacyPortOrdinal = 7,
                     Kind = ExtraInputBindingKind.Turbo.ToString(),
                     Key = Key.Q.ToString(),
                     Buttons = ["shield"]

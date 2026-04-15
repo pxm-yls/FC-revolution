@@ -6,16 +6,16 @@ namespace FCRevolution.Emulation.Host;
 public static class DefaultManagedCoreModuleCatalog
 {
     private static readonly Lock AdditionalModuleGate = new();
-    private static readonly Dictionary<string, IManagedCoreModule> AdditionalModules = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly Dictionary<string, IManagedCoreModuleRegistrationSource> AdditionalModuleSources = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, IEmulatorCoreModule> AdditionalModules = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, IEmulatorCoreModuleRegistrationSource> AdditionalModuleSources = new(StringComparer.OrdinalIgnoreCase);
 
-    public static void RegisterAdditionalModule(IManagedCoreModule module)
+    public static void RegisterAdditionalModule(IEmulatorCoreModule module)
     {
         lock (AdditionalModuleGate)
             AdditionalModules[module.Manifest.CoreId] = module;
     }
 
-    public static void RegisterAdditionalModules(IEnumerable<IManagedCoreModule> modules)
+    public static void RegisterAdditionalModules(IEnumerable<IEmulatorCoreModule> modules)
     {
         lock (AdditionalModuleGate)
         {
@@ -24,26 +24,26 @@ public static class DefaultManagedCoreModuleCatalog
         }
     }
 
-    public static IReadOnlyList<IManagedCoreModule> DiscoverModulesFromAssembly(Assembly assembly)
+    public static IReadOnlyList<IEmulatorCoreModule> DiscoverModulesFromAssembly(Assembly assembly)
     {
         var types = GetLoadableTypes(assembly);
         return types
             .Where(type =>
                 type is { IsAbstract: false, IsInterface: false } &&
-                typeof(IManagedCoreModule).IsAssignableFrom(type) &&
+                typeof(IEmulatorCoreModule).IsAssignableFrom(type) &&
                 type.GetConstructor(Type.EmptyTypes) != null)
-            .Select(type => (IManagedCoreModule)Activator.CreateInstance(type)!)
+            .Select(type => (IEmulatorCoreModule)Activator.CreateInstance(type)!)
             .ToList();
     }
 
-    public static IReadOnlyList<IManagedCoreModule> RegisterAdditionalModulesFromAssembly(Assembly assembly)
+    public static IReadOnlyList<IEmulatorCoreModule> RegisterAdditionalModulesFromAssembly(Assembly assembly)
     {
         var modules = DiscoverModulesFromAssembly(assembly);
         RegisterAdditionalModules(modules);
         return modules;
     }
 
-    public static IReadOnlyList<IManagedCoreModule> RegisterAdditionalModulesFromAssemblies(IEnumerable<Assembly> assemblies)
+    public static IReadOnlyList<IEmulatorCoreModule> RegisterAdditionalModulesFromAssemblies(IEnumerable<Assembly> assemblies)
     {
         var modules = assemblies
             .SelectMany(DiscoverModulesFromAssembly)
@@ -54,7 +54,7 @@ public static class DefaultManagedCoreModuleCatalog
         return modules;
     }
 
-    public static void RegisterAdditionalModuleSource(IManagedCoreModuleRegistrationSource source)
+    public static void RegisterAdditionalModuleSource(IEmulatorCoreModuleRegistrationSource source)
     {
         lock (AdditionalModuleGate)
             AdditionalModuleSources[source.SourceId] = source;
@@ -72,9 +72,9 @@ public static class DefaultManagedCoreModuleCatalog
             return AdditionalModules.Remove(coreId);
     }
 
-    public static IReadOnlyList<IManagedCoreModule> CreateModules(IEnumerable<IManagedCoreModule>? additionalModules = null)
+    public static IReadOnlyList<IEmulatorCoreModule> CreateModules(IEnumerable<IEmulatorCoreModule>? additionalModules = null)
     {
-        var modules = new Dictionary<string, IManagedCoreModule>(StringComparer.OrdinalIgnoreCase);
+        var modules = new Dictionary<string, IEmulatorCoreModule>(StringComparer.OrdinalIgnoreCase);
 
         lock (AdditionalModuleGate)
         {

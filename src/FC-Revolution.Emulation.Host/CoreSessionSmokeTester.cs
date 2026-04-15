@@ -7,7 +7,7 @@ public sealed record CoreSessionSmokeTestRequest(
     string? MediaPath = null,
     int? FramesToRun = null,
     ManagedCoreRuntimeOptions? RuntimeOptions = null,
-    IEnumerable<IManagedCoreModule>? AdditionalModules = null);
+    IEnumerable<IEmulatorCoreModule>? AdditionalModules = null);
 
 public sealed record CoreSessionSmokeTestResult(
     bool SessionCreated,

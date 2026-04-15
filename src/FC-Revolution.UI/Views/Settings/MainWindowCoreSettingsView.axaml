@@ -164,25 +164,25 @@
                     <TextBlock Classes="label"
                                FontSize="11"
                                Foreground="#A08060"
-                               Text="{Binding ManagedCoreProbePathsHint}"
+                               Text="{Binding CoreProbePathsHint}"
                                TextWrapping="Wrap"/>
                     <TextBox Width="560"
                              MinHeight="88"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
-                             Text="{Binding ManagedCoreProbePathsInput}"
+                             Text="{Binding CoreProbePathsInput}"
                              CaretBrush="#F7ECDD"
                              Background="#201612"
                              Foreground="#F7ECDD"
                              BorderBrush="#5A3F2E"/>
                     <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="subtle" Content="应用目录" Command="{Binding ApplyManagedCoreProbePathsCommand}"/>
-                        <Button Classes="subtle" Content="重新加载来源" Command="{Binding ReloadManagedCoreSourcesCommand}"/>
+                        <Button Classes="subtle" Content="应用目录" Command="{Binding ApplyCoreProbePathsCommand}"/>
+                        <Button Classes="subtle" Content="重新加载来源" Command="{Binding ReloadCoreSourcesCommand}"/>
                     </StackPanel>
                     <TextBlock Classes="label"
                                FontSize="11"
                                Foreground="#A08060"
-                               Text="{Binding ManagedCoreSourceSummary}"
+                               Text="{Binding CoreSourceSummary}"
                                TextWrapping="Wrap"/>
                     <TextBlock Classes="label"
                                FontSize="11"
@@ -191,7 +191,7 @@
                                TextWrapping="Wrap"/>
                     <TextBox Classes="label"
                              FontSize="11"
-                             Text="{Binding EffectiveManagedCoreProbeDirectoriesSummary}"
+                             Text="{Binding EffectiveCoreProbeDirectoriesSummary}"
                              IsReadOnly="True"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"

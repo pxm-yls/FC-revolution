@@ -169,7 +169,6 @@ internal sealed class MainWindowInputBindingsController
         profile.PortInputOverrides = inputOverride == null
             ? new Dictionary<string, Dictionary<string, string>>()
             : BuildPortInputOverrideProfiles(inputOverride, inputBindingSchema);
-        profile.InputOverrides = BuildLegacyPrimaryPortOverrides(profile.PortInputOverrides, inputBindingSchema);
         profile.ExtraInputBindings = romExtraInputOverrides.TryGetValue(romPath, out var extraBindings)
             ? extraBindings.Select(CloneExtraInputBindingProfile).ToList()
             : [];
@@ -519,19 +518,6 @@ internal sealed class MainWindowInputBindingsController
         return profiles;
     }
 
-    private static Dictionary<string, string> BuildLegacyPrimaryPortOverrides(
-        IReadOnlyDictionary<string, Dictionary<string, string>> portInputOverrides,
-        CoreInputBindingSchema inputBindingSchema)
-    {
-        var primaryPortId = inputBindingSchema.GetSupportedPorts().FirstOrDefault()?.PortId;
-        if (string.IsNullOrWhiteSpace(primaryPortId))
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        return portInputOverrides.TryGetValue(primaryPortId, out var primaryPortOverrides)
-            ? new Dictionary<string, string>(primaryPortOverrides, StringComparer.OrdinalIgnoreCase)
-            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    }
-
     private static Dictionary<string, Key> BuildNormalizedActionMap(
         IReadOnlyDictionary<string, string> source,
         string portId,
@@ -579,7 +565,13 @@ internal sealed class MainWindowInputBindingsController
             return true;
 
         if (profile.LegacyPortOrdinal >= 0)
-            return inputBindingSchema.TryGetPortId(profile.LegacyPortOrdinal, out portId);
+        {
+            portId = inputBindingSchema.GetSupportedPorts()
+                .FirstOrDefault(port => port.PlayerIndex == profile.LegacyPortOrdinal)
+                ?.PortId
+                ?? string.Empty;
+            return !string.IsNullOrWhiteSpace(portId);
+        }
 
         portId = string.Empty;
         return false;

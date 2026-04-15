@@ -230,11 +230,15 @@ public interface ITimeTravelService
     void ResumeRecording();
 }
 
-public interface IManagedCoreModule
+public interface IEmulatorCoreModule
 {
     CoreManifest Manifest { get; }
 
     IEmulatorCoreFactory CreateFactory();
+}
+
+public interface IManagedCoreModule : IEmulatorCoreModule
+{
 }
 
 public interface IEmulatorCoreFactory

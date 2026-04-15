@@ -500,11 +500,11 @@ public sealed class EmulatorCoreHostTests
         public IEmulatorCoreFactory CreateFactory() => new FakeEmulatorCoreFactory(DiscoverableManifest);
     }
 
-    private sealed class FixedManagedCoreModuleRegistrationSource : IManagedCoreModuleRegistrationSource
+    private sealed class FixedManagedCoreModuleRegistrationSource : IEmulatorCoreModuleRegistrationSource
     {
-        private readonly IReadOnlyList<IManagedCoreModule> _modules;
+        private readonly IReadOnlyList<IEmulatorCoreModule> _modules;
 
-        public FixedManagedCoreModuleRegistrationSource(string sourceId, IReadOnlyList<IManagedCoreModule> modules)
+        public FixedManagedCoreModuleRegistrationSource(string sourceId, IReadOnlyList<IEmulatorCoreModule> modules)
         {
             SourceId = sourceId;
             _modules = modules;
@@ -512,6 +512,6 @@ public sealed class EmulatorCoreHostTests
 
         public string SourceId { get; }
 
-        public IReadOnlyList<IManagedCoreModule> LoadModules() => _modules;
+        public IReadOnlyList<IEmulatorCoreModule> LoadModules() => _modules;
     }
 }

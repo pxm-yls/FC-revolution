@@ -73,4 +73,56 @@ public sealed class SystemConfigProfileTests
                 Directory.Delete(tempRoot, recursive: true);
         }
     }
+
+    [Fact]
+    public void SystemConfigProfile_Load_MigratesLegacyAliases_WithoutWritingThemBack()
+    {
+        var originalRoot = AppObjectStorage.GetResourceRoot();
+        var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-system-config-legacy-{Guid.NewGuid():N}");
+        var legacyProbePath = Path.Combine(tempRoot, "legacy-cores");
+
+        try
+        {
+            AppObjectStorage.ConfigureResourceRoot(tempRoot);
+            Directory.CreateDirectory(Path.GetDirectoryName(SystemConfigProfile.GetProfilePath())!);
+            File.WriteAllText(
+                SystemConfigProfile.GetProfilePath(),
+                $$"""
+                {
+                  "resourceRootPath": "{{tempRoot}}",
+                  "managedCoreProbePaths": ["{{legacyProbePath}}"],
+                  "playerInputOverrides": {
+                    "p1": {
+                      "a": "Z"
+                    }
+                  },
+                  "extraInputBindings": [
+                    {
+                      "player": 7,
+                      "kind": "Turbo",
+                      "key": "Q",
+                      "buttons": ["a"]
+                    }
+                  ]
+                }
+                """);
+
+            var loaded = SystemConfigProfile.Load();
+
+            Assert.Equal([Path.GetFullPath(legacyProbePath)], loaded.CoreProbePaths);
+            Assert.Equal("Z", loaded.PortInputOverrides["p1"]["a"]);
+            Assert.Equal(7, Assert.Single(loaded.ExtraInputBindings).LegacyPortOrdinal);
+
+            var migratedJson = File.ReadAllText(SystemConfigProfile.GetProfilePath());
+            Assert.DoesNotContain("\"managedCoreProbePaths\"", migratedJson, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"playerInputOverrides\"", migratedJson, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"player\"", migratedJson, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            AppObjectStorage.ConfigureResourceRoot(originalRoot);
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }

@@ -65,10 +65,10 @@ sealed class Program
     {
         var profile = Models.SystemConfigProfile.Load();
         AppObjectStorage.ConfigureResourceRoot(profile.ResourceRootPath);
-        var managedCoreProbePaths = ResolveManagedCoreProbePaths(profile).ToArray();
+        var coreProbePaths = ResolveCoreProbePaths(profile).ToArray();
         var runtimeOptions = new ManagedCoreRuntimeOptions(
             ResourceRootPath: profile.ResourceRootPath,
-            ProbeDirectories: managedCoreProbePaths);
+            ProbeDirectories: coreProbePaths);
 
         var installedCoreIds = ManagedCoreRuntime.LoadCatalogEntries(runtimeOptions)
             .Select(entry => entry.Manifest)
@@ -76,10 +76,10 @@ sealed class Program
             .ToArray();
         StartupDiagnostics.Write(
             "program",
-            $"core catalog initialized; sources=core-package-registry,development-core-probe-paths; probePaths={string.Join(", ", managedCoreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
+            $"core catalog initialized; sources=core-package-registry,development-core-probe-paths; probePaths={string.Join(", ", coreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
     }
 
-    private static IReadOnlyList<string> ResolveManagedCoreProbePaths(Models.SystemConfigProfile profile) =>
+    private static IReadOnlyList<string> ResolveCoreProbePaths(Models.SystemConfigProfile profile) =>
         profile.GetEffectiveCoreProbeDirectories();
 
     private static async Task<bool> TryRunLanProbeHost(string[] args)

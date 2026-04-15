@@ -12,7 +12,7 @@
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
 - 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、managed package-first 仍未扩展到 native loader、CLI checker 虽已落地但独立核心工具链仍未完成，以及外部核心仓库试点尚未验证”这四件事。
-- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。系统/ROM 配置主字段也已切到 `PortInputOverrides`，开发核心探测配置主字段已切到 `CoreProbePaths`；当前剩余输入兼容残留主要集中在旧 profile 读兼容别名与 fallback 路径，例如 `PlayerInputOverrides`、`RomConfigProfile.InputOverrides`、`ExtraInputBindingProfile.Player` 与 `CoreInputBindingSchema` 内部的 player ordinal 兼容映射。
+- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。系统/ROM 配置主字段也已切到 `PortInputOverrides`，开发核心探测配置主字段已切到 `CoreProbePaths`；旧的 `ManagedCoreProbePaths`、`InputOverrides`、`PlayerInputOverrides` 与 `ExtraInputBindingProfile.Player` 已不再作为活动模型字段写回磁盘，而是退化为 JSON 读阶段兼容迁移。`CoreInputBindingSchema` 的 player-based 公共辅助入口也已清理，当前剩余输入兼容残留主要集中在回放/时间线仍使用的 byte-mask bridge，以及本地输入运行时里的少量 legacy mirror 结构。
 - 此外，UI 当前对游戏介质文件的发现/导入已开始从 `CoreManifest.SupportedMediaFilePatterns` 聚合模式，不再把库扫描与文件选择器完全硬编码为 `*.nes`；这把“新增核心时 UI 至少不必再改一轮后缀判断”这件事前移到了 manifest 元数据层。
 - 渲染公共抽象也已经从 `nametable/patternTable/OAM/mirroring` 这类 NES/PPU 术语，收敛为 `backgroundPlane/tileGraphics/spriteBytes/backgroundPlaneLayout` 等 capability 语义；NES 专有 `PpuRenderStateSnapshot` 与 `MirroringMode` 现在只停留在 NES adapter 内部映射，不再直接泄漏到通用渲染抽象层。
 - `FC-Revolution.Storage` 的通用 `FrameInputRecord` 也已移除 `Player1ButtonsMask` / `Player2ButtonsMask` 公共便利属性；公共层现在只保留 `ButtonsByPort` 与 `GetButtonsMask(portId)`，NES 顺序化兼容只停留在 FC core / adapter 侧。
@@ -43,14 +43,14 @@
 
 这条链路当前的核心接口是：
 
-- `IManagedCoreModule`
+- `IEmulatorCoreModule`
 - `IEmulatorCoreFactory`
 - `IEmulatorCoreSession`
 - `CoreManifest`
 - `CoreCapabilitySet`
 - `IInputSchema`
 
-也就是说，当前“中间层”已经存在，而且已经是宿主的主通道，不再只是设想。
+也就是说，当前“中间层”已经存在，而且已经是宿主的主通道，不再只是设想。这里的宿主主线已经不再直接绑定 `IManagedCoreModule`；当前 remaining managed-only 残留主要集中在 package / discovery / runtime 内部实现，而不是 UI/Host 主表面。
 
 ### 2.2 当前中间层还不够彻底的地方
 
@@ -163,7 +163,8 @@
 
 当前真正跑通的是 managed core 路线：
 
-- `IManagedCoreModule`
+- Host 主线已抽到 `IEmulatorCoreModule`
+- managed package/discovery/runtime 仍是当前唯一已实现的 loader
 - assembly discovery
 - package install/export
 - package-first load
@@ -228,6 +229,7 @@
 4. 这一轮之后，`FC-Revolution.UI` 已不再直接引用 [FC-Revolution.Core.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Core/FC-Revolution.Core.FC/FC-Revolution.Core.csproj)，也已去掉对 [FC-Revolution.FC.LegacyAdapters.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj) 的编译期程序集引用；并且 UI build/publish 输出也不再直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`。显式 FC 兼容桥现通过 [LegacyFeatureBridgeLoader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Infrastructure/LegacyFeatureBridgeLoader.cs) 与 [LegacyFeatureRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Infrastructure/LegacyFeatureRuntime.cs) 以 provider 契约按需发现、并在缺失 provider 时 fail-soft，而不是把 FC adapter 继续当作主程序输出物前提。
    另外，timeline storage path 已迁到 [TimelineStoragePaths.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/TimelineStoragePaths.cs) 通用层，replay log 文件格式与快照基准帧读取也已迁到 [ReplayLogWriter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogWriter.cs)、[ReplayLogReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogReader.cs) 与 [StateSnapshotFrameReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/StateSnapshotFrameReader.cs)。
    此外，timeline bridge DTO / repository surface 也已经通用化到 [TimelineBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/TimelineBridgeContracts.cs)，ROM mapper 与 replay frame 渲染也已抽成 [LegacyFeatureBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/LegacyFeatureBridgeContracts.cs)；UI 不再直接吃 `LegacyTimelineManifestHandle` / `LegacyTimelinePreviewEntry` 这类 FC 命名 DTO，也不再直接引用 `NesReplayInterop` / `NesRomInspector`。
+   同时，系统/ROM 配置与 extra input binding 的旧字段兼容也已经退化成读时迁移：`ManagedCoreProbePaths`、`InputOverrides`、`PlayerInputOverrides` 与 `ExtraInputBindingProfile.Player` 不再回写到新配置文件，`CoreInputBindingSchema` 也不再保留 player-based 公共辅助入口。
    这说明“非核心项目直接编译依赖 `FCRevolution.Core.*` 私有实现”这件事已经继续收口，但 legacy timeline repository 实现、replay 渲染、mapper 检查与桥接加载入口仍然还是 FC/NES 专用逻辑，只是被限制在显式 adapter 包和 runtime bridge loader 后面。
 
 5. 共享运行时已经能承担 package/probe/catalog/session 与最小 smoke test，但图形化 workbench 和外部核心仓库试点还没完成，因此“独立打包”仍主要停留在 managed package 与主仓内验证阶段。
@@ -442,7 +444,7 @@ App startup
 
 1. `FC-Revolution.UI` 已改为通过显式 FC adapter/provider 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path、replay log 文件格式、snapshot base-frame 读取，以及 timeline bridge DTO / repository surface 已下沉到通用层，bridge loader 也不再硬编码 FC 类型名，但 repository 实现 / replay 渲染 / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
 2. preview 编码、preview asset 管理与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
-3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime 仍主要围绕 managed loader 组织，native loader 与外部核心仓库试点尚未落地。
+3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime/package/discovery 仍主要围绕 managed loader 组织，native loader 与外部核心仓库试点尚未落地。
 4. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
 5. `native-cabi` 路线还只是方案，不是代码能力。
 

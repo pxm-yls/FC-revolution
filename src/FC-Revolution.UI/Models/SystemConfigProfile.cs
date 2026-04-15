@@ -61,12 +61,6 @@ public sealed class SystemConfigProfile
         set => _coreProbePaths = NormalizeCoreProbePaths(value);
     }
 
-    public List<string> ManagedCoreProbePaths
-    {
-        get => _coreProbePaths;
-        set => _coreProbePaths = NormalizeCoreProbePaths(value);
-    }
-
     public string MacRenderUpscaleMode { get; set; } = "None";
 
     public string MacRenderUpscaleOutputResolution { get; set; } = "Hd1080";
@@ -102,12 +96,6 @@ public sealed class SystemConfigProfile
     public DebugWindowDisplaySettingsProfile DebugWindowDisplaySettings { get; set; } = new();
 
     public Dictionary<string, Dictionary<string, string>> PortInputOverrides
-    {
-        get => _portInputOverrides;
-        set => _portInputOverrides = NormalizePortInputOverrides(value);
-    }
-
-    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides
     {
         get => _portInputOverrides;
         set => _portInputOverrides = NormalizePortInputOverrides(value);
@@ -182,6 +170,10 @@ public sealed class SystemConfigProfile
                 root["lastUpdatedAtUtc"] = DateTime.UtcNow;
                 migrated = true;
             }
+
+            migrated |= MigrateLegacyCoreProbePathAliases(root);
+            migrated |= MigrateLegacyPortInputOverrideAliases(root);
+            migrated |= MigrateLegacyExtraInputBindingOrdinals(root);
 
             if ((root["previewGenerationParallelism"]?.GetValue<int?>() ?? 0) <= 0)
             {
@@ -329,14 +321,8 @@ public sealed class SystemConfigProfile
     public IReadOnlyList<string> GetEffectiveCoreProbePaths() =>
         ResolveCoreProbePaths(ResourceRootPath, CoreProbePaths);
 
-    public IReadOnlyList<string> GetEffectiveManagedCoreProbePaths() =>
-        GetEffectiveCoreProbePaths();
-
     public IReadOnlyList<string> GetEffectiveCoreProbeDirectories(string? appBaseDirectory = null) =>
         ResolveEffectiveCoreProbeDirectories(ResourceRootPath, CoreProbePaths, appBaseDirectory);
-
-    public IReadOnlyList<string> GetEffectiveManagedCoreProbeDirectories(string? appBaseDirectory = null) =>
-        GetEffectiveCoreProbeDirectories(appBaseDirectory);
 
     public static IReadOnlyList<string> ResolveCoreProbePaths(
         string? resourceRootPath,
@@ -350,11 +336,6 @@ public sealed class SystemConfigProfile
             ])
             .ToArray();
     }
-
-    public static IReadOnlyList<string> ResolveManagedCoreProbePaths(
-        string? resourceRootPath,
-        IEnumerable<string>? configuredProbePaths = null) =>
-        ResolveCoreProbePaths(resourceRootPath, configuredProbePaths);
 
     public static IReadOnlyList<string> ResolveEffectiveCoreProbeDirectories(
         string? resourceRootPath,
@@ -383,13 +364,6 @@ public sealed class SystemConfigProfile
 
         return directories;
     }
-
-    public static IReadOnlyList<string> ResolveEffectiveManagedCoreProbeDirectories(
-        string? resourceRootPath,
-        IEnumerable<string>? configuredProbePaths = null,
-        string? appBaseDirectory = null) =>
-        ResolveEffectiveCoreProbeDirectories(resourceRootPath, configuredProbePaths, appBaseDirectory);
-
     private static IEnumerable<string> EnumerateProfileProbePaths()
     {
         if (AppObjectStorage.HasEnvironmentResourceRootOverride())
@@ -457,6 +431,76 @@ public sealed class SystemConfigProfile
         }
 
         return true;
+    }
+
+    private static bool MigrateLegacyCoreProbePathAliases(JsonObject root)
+    {
+        if (FindProperty(root, "coreProbePaths", "CoreProbePaths") is not null ||
+            FindProperty(root, "managedCoreProbePaths", "ManagedCoreProbePaths") is not { } legacyProbePaths)
+        {
+            return false;
+        }
+
+        root[nameof(CoreProbePaths)] = legacyProbePaths.DeepClone();
+        return true;
+    }
+
+    private static bool MigrateLegacyPortInputOverrideAliases(JsonObject root)
+    {
+        if (FindProperty(root, "portInputOverrides", "PortInputOverrides") is not null ||
+            FindProperty(root, "playerInputOverrides", "PlayerInputOverrides") is not { } legacyPortOverrides)
+        {
+            return false;
+        }
+
+        root[nameof(PortInputOverrides)] = legacyPortOverrides.DeepClone();
+        return true;
+    }
+
+    private static bool MigrateLegacyExtraInputBindingOrdinals(JsonObject root)
+    {
+        var migrated = false;
+        JsonArray extraBindings;
+        if (FindProperty(root, nameof(ExtraInputBindings)) is JsonArray currentExtraBindings)
+        {
+            extraBindings = currentExtraBindings;
+        }
+        else if (FindProperty(root, "extraInputBindings") is JsonArray legacyExtraBindings)
+        {
+            root[nameof(ExtraInputBindings)] = legacyExtraBindings.DeepClone();
+            extraBindings = (JsonArray)root[nameof(ExtraInputBindings)]!;
+            migrated = true;
+        }
+        else
+        {
+            return false;
+        }
+
+        foreach (var node in extraBindings)
+        {
+            if (node is not JsonObject binding ||
+                FindProperty(binding, "legacyPortOrdinal", "LegacyPortOrdinal") is not null ||
+                FindProperty(binding, "player", "Player") is not { } legacyPlayer)
+            {
+                continue;
+            }
+
+            binding[nameof(ExtraInputBindingProfile.LegacyPortOrdinal)] = legacyPlayer.DeepClone();
+            migrated = true;
+        }
+
+        return migrated;
+    }
+
+    private static JsonNode? FindProperty(JsonObject root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetPropertyValue(name, out var value))
+                return value;
+        }
+
+        return null;
     }
 
     private static List<string> NormalizeCoreProbePaths(IEnumerable<string>? paths)

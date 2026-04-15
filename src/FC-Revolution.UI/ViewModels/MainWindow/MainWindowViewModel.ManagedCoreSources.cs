@@ -12,27 +12,27 @@ namespace FC_Revolution.UI.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    public string ManagedCoreProbePathsInput
+    public string CoreProbePathsInput
     {
         get => _managedCoreProbePathsInput;
         set => SetProperty(ref _managedCoreProbePathsInput, value);
     }
 
-    public string ManagedCoreProbePathsHint =>
+    public string CoreProbePathsHint =>
         "附加开发核心探测目录每行填写一个；兼容目录 cores/managed 与资源根目录下的开发核心目录会自动纳入。";
 
     public string ManagedCoreReloadHint =>
         "重新加载会刷新已安装核心包与开发探测目录，仅影响后续新建会话；已运行会话不会切换核心。";
 
-    public string ManagedCoreSourceSummary =>
-        $"当前已发现 {InstalledCoreManifests.Count} 个核心；附加开发目录 {_managedCoreProbePaths.Count} 个，有效探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。";
+    public string CoreSourceSummary =>
+        $"当前已发现 {InstalledCoreManifests.Count} 个核心；附加开发目录 {_managedCoreProbePaths.Count} 个，有效探测目录 {EffectiveCoreProbeDirectories.Count} 个。";
 
-    public IReadOnlyList<string> EffectiveManagedCoreProbeDirectories =>
+    public IReadOnlyList<string> EffectiveCoreProbeDirectories =>
         SystemConfigProfile.ResolveEffectiveCoreProbeDirectories(ResourceRootPath, _managedCoreProbePaths);
 
-    public string EffectiveManagedCoreProbeDirectoriesSummary => EffectiveManagedCoreProbeDirectories.Count == 0
+    public string EffectiveCoreProbeDirectoriesSummary => EffectiveCoreProbeDirectories.Count == 0
         ? "暂无有效核心探测目录。"
-        : string.Join(Environment.NewLine, EffectiveManagedCoreProbeDirectories.Select(path => $"- {path}"));
+        : string.Join(Environment.NewLine, EffectiveCoreProbeDirectories.Select(path => $"- {path}"));
 
     public bool CanOpenManagedCoreVersionManagement => false;
 
@@ -148,15 +148,15 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private void ApplyManagedCoreProbePaths()
+    private void ApplyCoreProbePaths()
     {
         try
         {
-            _managedCoreProbePaths = ParseManagedCoreProbePathsInput(ManagedCoreProbePathsInput);
-            ManagedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
+            _managedCoreProbePaths = ParseCoreProbePathsInput(CoreProbePathsInput);
+            CoreProbePathsInput = FormatCoreProbePathsInput(_managedCoreProbePaths);
             RefreshManagedCoreCatalogState();
             SaveSystemConfig();
-            StatusText = $"已更新开发核心来源，共 {EffectiveManagedCoreProbeDirectories.Count} 个有效探测目录；仅影响后续新建会话。";
+            StatusText = $"已更新开发核心来源，共 {EffectiveCoreProbeDirectories.Count} 个有效探测目录；仅影响后续新建会话。";
         }
         catch (Exception ex)
         {
@@ -165,15 +165,15 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private void ReloadManagedCoreSources()
+    private void ReloadCoreSources()
     {
         try
         {
             var profile = SystemConfigProfile.Load();
             _managedCoreProbePaths = [.. profile.CoreProbePaths];
-            ManagedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
+            CoreProbePathsInput = FormatCoreProbePathsInput(_managedCoreProbePaths);
             RefreshManagedCoreCatalogState();
-            StatusText = $"已重新加载核心来源，共 {EffectiveManagedCoreProbeDirectories.Count} 个有效探测目录；运行中的会话保持不变。";
+            StatusText = $"已重新加载核心来源，共 {EffectiveCoreProbeDirectories.Count} 个有效探测目录；运行中的会话保持不变。";
         }
         catch (Exception ex)
         {
@@ -184,7 +184,7 @@ public partial class MainWindowViewModel
     private void LoadManagedCoreSourceSettings(SystemConfigProfile profile)
     {
         _managedCoreProbePaths = [.. profile.CoreProbePaths];
-        ManagedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
+        CoreProbePathsInput = FormatCoreProbePathsInput(_managedCoreProbePaths);
         RefreshManagedCoreCatalogState();
     }
 
@@ -227,9 +227,9 @@ public partial class MainWindowViewModel
         if (!string.Equals(_defaultCoreId, normalizedDefaultCoreId, StringComparison.OrdinalIgnoreCase))
             _defaultCoreId = normalizedDefaultCoreId;
 
-        OnPropertyChanged(nameof(ManagedCoreSourceSummary));
-        OnPropertyChanged(nameof(EffectiveManagedCoreProbeDirectories));
-        OnPropertyChanged(nameof(EffectiveManagedCoreProbeDirectoriesSummary));
+        OnPropertyChanged(nameof(CoreSourceSummary));
+        OnPropertyChanged(nameof(EffectiveCoreProbeDirectories));
+        OnPropertyChanged(nameof(EffectiveCoreProbeDirectoriesSummary));
         OnPropertyChanged(nameof(InstalledCoreManifests));
         OnPropertyChanged(nameof(DefaultCoreId));
         OnPropertyChanged(nameof(SelectedDefaultCoreManifest));
@@ -253,16 +253,16 @@ public partial class MainWindowViewModel
         _managedCoreCatalogEntries.FirstOrDefault(entry =>
             string.Equals(entry.Manifest.CoreId, DefaultCoreId, StringComparison.OrdinalIgnoreCase));
 
-    private static string FormatManagedCoreProbePathsInput(IEnumerable<string> probePaths) =>
+    private static string FormatCoreProbePathsInput(IEnumerable<string> probePaths) =>
         string.Join(Environment.NewLine, probePaths);
 
-    private static List<string> ParseManagedCoreProbePathsInput(string? input)
+    private static List<string> ParseCoreProbePathsInput(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return [];
 
         var normalizedPaths = new List<string>();
-        var seen = new HashSet<string>(GetManagedCorePathComparer());
+        var seen = new HashSet<string>(GetCorePathComparer());
         foreach (var line in input.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmedLine = line.Trim();
@@ -277,7 +277,7 @@ public partial class MainWindowViewModel
         return normalizedPaths;
     }
 
-    private static StringComparer GetManagedCorePathComparer() => OperatingSystem.IsWindows()
+    private static StringComparer GetCorePathComparer() => OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 }

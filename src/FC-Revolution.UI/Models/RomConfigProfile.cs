@@ -29,15 +29,7 @@ public sealed class RomConfigProfile
 
     public bool AutoApplyModifiedMemoryOnLaunch { get; set; } = true;
 
-    public Dictionary<string, string> InputOverrides { get; set; } = new();
-
     public Dictionary<string, Dictionary<string, string>> PortInputOverrides
-    {
-        get => _portInputOverrides;
-        set => _portInputOverrides = NormalizePortInputOverrides(value);
-    }
-
-    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides
     {
         get => _portInputOverrides;
         set => _portInputOverrides = NormalizePortInputOverrides(value);
@@ -163,6 +155,9 @@ public sealed class RomConfigProfile
                 migrated = true;
             }
 
+            migrated |= MigrateLegacyInputOverrides(root);
+            migrated |= MigrateLegacyExtraInputBindingOrdinals(root);
+
             if (version > CurrentFcrVersion)
             {
                 var futureProfile = JsonSerializer.Deserialize<RomConfigProfile>(root.ToJsonString());
@@ -187,7 +182,6 @@ public sealed class RomConfigProfile
             profile.LastUpdatedAtUtc = profile.LastUpdatedAtUtc == DateTime.MinValue ? DateTime.UtcNow : profile.LastUpdatedAtUtc;
             profile.ExtraInputBindings ??= [];
             profile.PortInputOverrides = profile.PortInputOverrides;
-            migrated |= MigrateLegacyInputOverrides(profile);
             migrated |= SyncResourceManifest(romPath, profile);
 
             if (migrated)
@@ -279,17 +273,74 @@ public sealed class RomConfigProfile
         }
     }
 
-    private static bool MigrateLegacyInputOverrides(RomConfigProfile profile)
+    private static bool MigrateLegacyInputOverrides(JsonObject root)
     {
-        profile.PortInputOverrides = profile.PortInputOverrides;
-        profile.InputOverrides ??= new Dictionary<string, string>();
-        profile.ExtraInputBindings ??= [];
+        if (FindProperty(root, "portInputOverrides", "PortInputOverrides") is null)
+        {
+            if (FindProperty(root, "playerInputOverrides", "PlayerInputOverrides") is { } legacyPortOverrides)
+            {
+                root[nameof(PortInputOverrides)] = legacyPortOverrides.DeepClone();
+                return true;
+            }
 
-        if (profile.PortInputOverrides.Count > 0 || profile.InputOverrides.Count == 0)
+            if (FindProperty(root, "inputOverrides", "InputOverrides") is JsonObject inputOverrides &&
+                inputOverrides.Count > 0)
+            {
+                root[nameof(PortInputOverrides)] = new JsonObject
+                {
+                    ["Player1"] = inputOverrides.DeepClone()
+                };
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool MigrateLegacyExtraInputBindingOrdinals(JsonObject root)
+    {
+        var migrated = false;
+        JsonArray extraBindings;
+        if (FindProperty(root, nameof(ExtraInputBindings)) is JsonArray currentExtraBindings)
+        {
+            extraBindings = currentExtraBindings;
+        }
+        else if (FindProperty(root, "extraInputBindings") is JsonArray legacyExtraBindings)
+        {
+            root[nameof(ExtraInputBindings)] = legacyExtraBindings.DeepClone();
+            extraBindings = (JsonArray)root[nameof(ExtraInputBindings)]!;
+            migrated = true;
+        }
+        else
+        {
             return false;
+        }
 
-        profile.PortInputOverrides["Player1"] = new Dictionary<string, string>(profile.InputOverrides, StringComparer.OrdinalIgnoreCase);
-        return true;
+        foreach (var node in extraBindings)
+        {
+            if (node is not JsonObject binding ||
+                FindProperty(binding, "legacyPortOrdinal", "LegacyPortOrdinal") is not null ||
+                FindProperty(binding, "player", "Player") is not { } legacyPlayer)
+            {
+                continue;
+            }
+
+            binding[nameof(ExtraInputBindingProfile.LegacyPortOrdinal)] = legacyPlayer.DeepClone();
+            migrated = true;
+        }
+
+        return migrated;
+    }
+
+    private static JsonNode? FindProperty(JsonObject root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetPropertyValue(name, out var value))
+                return value;
+        }
+
+        return null;
     }
 
     private static Dictionary<string, Dictionary<string, string>> NormalizePortInputOverrides(

@@ -37,14 +37,14 @@ public sealed class MainWindowInputStateControllerTests
 
         var invalidKey = controller.ResolveExtraInputBinding(new ExtraInputBindingProfile
         {
-            Player = 0,
+            LegacyPortOrdinal = 0,
             Kind = ExtraInputBindingKind.Combo.ToString(),
             Key = "NotAKey",
             Buttons = [FallbackInputTestData.ActionA]
         });
         var invalidButtons = controller.ResolveExtraInputBinding(new ExtraInputBindingProfile
         {
-            Player = 0,
+            LegacyPortOrdinal = 0,
             Kind = ExtraInputBindingKind.Combo.ToString(),
             Key = Key.W.ToString(),
             Buttons = ["Nope"]
@@ -61,7 +61,7 @@ public sealed class MainWindowInputStateControllerTests
         var binding = controller.ResolveExtraInputBinding(
             new ExtraInputBindingProfile
             {
-                Player = 7,
+                LegacyPortOrdinal = 7,
                 Kind = ExtraInputBindingKind.Combo.ToString(),
                 Key = Key.Q.ToString(),
                 Buttons = ["shield"]

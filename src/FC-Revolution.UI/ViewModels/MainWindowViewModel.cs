@@ -332,7 +332,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _resourceRootPath = AppObjectStorage.GetResourceRoot();
         _resourceRootPathInput = _resourceRootPath;
         _managedCoreProbePaths = [.. bootstrapProfile.CoreProbePaths];
-        _managedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
+        _managedCoreProbePathsInput = FormatCoreProbePathsInput(_managedCoreProbePaths);
         _managedCoreCatalogController = new MainWindowManagedCoreCatalogController();
         _managedCoreInstallController = new MainWindowManagedCoreInstallController();
         _managedCoreExportController = new MainWindowManagedCoreExportController();
@@ -1423,8 +1423,8 @@ public partial class MainWindowViewModel : ViewModelBase
             : "当前未选择默认核心。";
 
     public string InstalledCoreCatalogSummary => InstalledCoreManifests.Count == 0
-        ? $"当前未发现核心；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。"
-        : $"已发现 {InstalledCoreManifests.Count} 个核心，当前默认 {DefaultCoreDisplayName}；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。";
+        ? $"当前未发现核心；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveCoreProbeDirectories.Count} 个。"
+        : $"已发现 {InstalledCoreManifests.Count} 个核心，当前默认 {DefaultCoreDisplayName}；已安装核心包目录 {ManagedCoreInstallDirectory}；附加开发探测目录 {EffectiveCoreProbeDirectories.Count} 个。";
 
     public string SelectedDefaultCoreSystemId =>
         SelectedDefaultCoreManifest?.SystemId ?? "none";
@@ -3612,7 +3612,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private ManagedCoreRuntimeOptions CreateManagedCoreRuntimeOptions() =>
         new(
             ResourceRootPath: ResourceRootPath,
-            ProbeDirectories: EffectiveManagedCoreProbeDirectories);
+            ProbeDirectories: EffectiveCoreProbeDirectories);
 
     private IEmulatorCoreSession CreateMainCoreSession() =>
         ManagedCoreRuntime.TryCreateSession(

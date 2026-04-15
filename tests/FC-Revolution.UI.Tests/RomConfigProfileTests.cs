@@ -100,24 +100,37 @@ public sealed class RomConfigProfileTests
             Directory.CreateDirectory(Path.GetDirectoryName(romPath)!);
             File.WriteAllBytes(romPath, [0x4E, 0x45, 0x53, 0x1A]);
 
-            var legacyProfile = new RomConfigProfile
-            {
-                InputOverrides = new Dictionary<string, string>
-                {
-                    ["A"] = "Z",
-                    ["Start"] = "Enter"
-                }
-            };
-
             var profilePath = RomConfigProfile.GetProfilePath(romPath);
             Directory.CreateDirectory(Path.GetDirectoryName(profilePath)!);
-            File.WriteAllText(profilePath, JsonSerializer.Serialize(legacyProfile, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(
+                profilePath,
+                """
+                {
+                  "inputOverrides": {
+                    "A": "Z",
+                    "Start": "Enter"
+                  },
+                  "extraInputBindings": [
+                    {
+                      "player": 7,
+                      "kind": "Turbo",
+                      "key": "Q",
+                      "buttons": ["A"]
+                    }
+                  ]
+                }
+                """);
 
             var loaded = RomConfigProfile.LoadValidated(romPath).Profile;
 
             Assert.True(loaded.PortInputOverrides.TryGetValue("Player1", out var player1Overrides));
             Assert.Equal("Z", player1Overrides["A"]);
             Assert.Equal("Enter", player1Overrides["Start"]);
+            Assert.Equal(7, Assert.Single(loaded.ExtraInputBindings).LegacyPortOrdinal);
+
+            var migratedJson = File.ReadAllText(profilePath);
+            Assert.DoesNotContain("\"inputOverrides\"", migratedJson, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("\"player\"", migratedJson, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
