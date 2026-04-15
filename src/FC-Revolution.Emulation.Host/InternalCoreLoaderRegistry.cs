@@ -46,6 +46,9 @@ internal static class InternalCoreLoaderRegistry
         return loader.DiscoverModules(target);
     }
 
+    public static bool SupportsBinaryKind(string? binaryKind) =>
+        !string.IsNullOrWhiteSpace(binaryKind) && Loaders.ContainsKey(binaryKind);
+
     private static bool TryGetLoader(string? binaryKind, out IInternalCoreLoader loader)
     {
         if (!string.IsNullOrWhiteSpace(binaryKind) &&

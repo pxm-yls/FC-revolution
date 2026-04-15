@@ -19,6 +19,8 @@ public sealed record ManagedCoreCatalogEntry(
     string? EntryPath,
     string? ActivationType,
     ManagedCoreCatalogSourceKind SourceKind,
+    bool IsLoadSupported,
+    string? LoadSupportReason,
     bool CanUninstall,
     string? InstallDirectory,
     string? ManifestPath)
@@ -84,6 +86,8 @@ public static class ManagedCoreRuntime
                     descriptor.LoadTarget.EntryPath,
                     descriptor.LoadTarget.ModuleTypeName,
                     ManagedCoreCatalogSourceKind.ProbeDirectory,
+                    IsLoadSupported: true,
+                    LoadSupportReason: null,
                     canUninstall,
                     InstallDirectory: null,
                     ManifestPath: null);
@@ -93,11 +97,16 @@ public static class ManagedCoreRuntime
         var packageService = new ManagedCorePackageService();
         foreach (var package in packageService.GetInstalledPackages(resolvedOptions.ResourceRootPath))
         {
+            var isLoadSupported = InternalCoreLoaderRegistry.SupportsBinaryKind(package.Manifest.BinaryKind);
             entries[package.Manifest.CoreId] = new ManagedCoreCatalogEntry(
                 package.Manifest,
                 package.EntryPath,
                 package.ActivationType,
                 package.IsBundled ? ManagedCoreCatalogSourceKind.BundledPackage : ManagedCoreCatalogSourceKind.InstalledPackage,
+                IsLoadSupported: isLoadSupported,
+                LoadSupportReason: isLoadSupported
+                    ? null
+                    : $"当前宿主尚未注册 binaryKind='{package.Manifest.BinaryKind}' 的核心 loader。",
                 CanUninstall: !package.IsBundled,
                 package.InstallDirectory,
                 package.ManifestPath);

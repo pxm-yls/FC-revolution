@@ -12,6 +12,8 @@ internal sealed record MainWindowManagedCoreCatalogEntry(
     string? AssemblyPath,
     string? ModuleTypeName,
     string SourceLabel,
+    bool IsLoadSupported,
+    string? LoadSupportReason,
     bool CanUninstall,
     string? InstallDirectory,
     string? ManifestPath);
@@ -50,7 +52,10 @@ internal sealed class MainWindowManagedCoreCatalogController
                 ? "入口程序集路径不可用"
                 : $"入口程序集：{entry.AssemblyPath}";
         var removableText = entry.CanUninstall ? "可卸载" : "不可卸载";
-        return $"来源：{entry.SourceLabel} · {removableText} · {locationText}";
+        var loaderText = entry.IsLoadSupported
+            ? "当前宿主可装载"
+            : entry.LoadSupportReason ?? "当前宿主缺少对应 loader";
+        return $"来源：{entry.SourceLabel} · {removableText} · {loaderText} · {locationText}";
     }
 
     private static MainWindowManagedCoreCatalogEntry MapEntry(ManagedCoreCatalogEntry entry)
@@ -67,6 +72,8 @@ internal sealed class MainWindowManagedCoreCatalogController
             entry.AssemblyPath,
             entry.ModuleTypeName,
             sourceLabel,
+            entry.IsLoadSupported,
+            entry.LoadSupportReason,
             entry.CanUninstall,
             entry.InstallDirectory,
             entry.ManifestPath);

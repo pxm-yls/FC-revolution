@@ -72,7 +72,7 @@ public static class CoreCheckerCli
         foreach (var entry in entries.OrderBy(entry => entry.Manifest.DisplayName, StringComparer.OrdinalIgnoreCase))
         {
             await stdout.WriteLineAsync(
-                $"- {entry.Manifest.CoreId} | {entry.Manifest.DisplayName} | system={entry.Manifest.SystemId} | version={entry.Manifest.Version} | source={FormatSourceKind(entry.SourceKind)}");
+                $"- {entry.Manifest.CoreId} | {entry.Manifest.DisplayName} | system={entry.Manifest.SystemId} | version={entry.Manifest.Version} | source={FormatSourceKind(entry.SourceKind)} | loader={(entry.IsLoadSupported ? "ready" : "missing")}");
 
             if (!string.IsNullOrWhiteSpace(entry.EntryPath))
                 await stdout.WriteLineAsync($"  entry: {entry.EntryPath}");
@@ -80,6 +80,8 @@ public static class CoreCheckerCli
                 await stdout.WriteLineAsync($"  manifest: {entry.ManifestPath}");
             if (!string.IsNullOrWhiteSpace(entry.InstallDirectory))
                 await stdout.WriteLineAsync($"  install-dir: {entry.InstallDirectory}");
+            if (!entry.IsLoadSupported && !string.IsNullOrWhiteSpace(entry.LoadSupportReason))
+                await stdout.WriteLineAsync($"  loader-status: {entry.LoadSupportReason}");
         }
 
         if (entries.Count == 0)
@@ -101,10 +103,27 @@ public static class CoreCheckerCli
             return ValidationFailureExitCode;
         }
 
-        if (!string.IsNullOrWhiteSpace(options.CoreId) &&
-            entries.All(entry => !string.Equals(entry.Manifest.CoreId, options.CoreId, StringComparison.OrdinalIgnoreCase)))
+        var requestedEntry = string.IsNullOrWhiteSpace(options.CoreId)
+            ? null
+            : entries.FirstOrDefault(entry => string.Equals(entry.Manifest.CoreId, options.CoreId, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(options.CoreId) && requestedEntry is null)
         {
             await stderr.WriteLineAsync($"Requested core '{options.CoreId}' was not discovered.");
+            return ValidationFailureExitCode;
+        }
+
+        if (requestedEntry is { IsLoadSupported: false })
+        {
+            await stderr.WriteLineAsync(requestedEntry.LoadSupportReason ??
+                                        $"Requested core '{requestedEntry.Manifest.CoreId}' is installed but cannot be loaded by the current host.");
+            return ValidationFailureExitCode;
+        }
+
+        if (string.IsNullOrWhiteSpace(options.CoreId) &&
+            entries.Count > 0 &&
+            entries.All(entry => !entry.IsLoadSupported))
+        {
+            await stderr.WriteLineAsync("Catalog entries were discovered, but the current host has no registered loader for any discovered binaryKind.");
             return ValidationFailureExitCode;
         }
 

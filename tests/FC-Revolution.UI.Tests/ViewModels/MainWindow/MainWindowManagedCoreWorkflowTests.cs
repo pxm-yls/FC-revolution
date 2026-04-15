@@ -208,6 +208,8 @@ public sealed class MainWindowManagedCoreWorkflowTests
                 GetSampleManagedCoreAssemblyPath(),
                 typeof(SampleManagedCoreModule).FullName,
                 "探测目录",
+                IsLoadSupported: true,
+                LoadSupportReason: null,
                 CanUninstall: false,
                 InstallDirectory: null,
                 ManifestPath: null);
@@ -246,6 +248,8 @@ public sealed class MainWindowManagedCoreWorkflowTests
                 typeof(NesManagedCoreModule).Assembly.Location,
                 typeof(NesManagedCoreModule).FullName,
                 "内置",
+                IsLoadSupported: true,
+                LoadSupportReason: null,
                 CanUninstall: false,
                 InstallDirectory: null,
                 ManifestPath: null);
@@ -278,6 +282,8 @@ public sealed class MainWindowManagedCoreWorkflowTests
             GetSampleManagedCoreAssemblyPath(),
             typeof(SampleManagedCoreModule).FullName,
             "探测目录",
+            IsLoadSupported: true,
+            LoadSupportReason: null,
             CanUninstall: false,
             InstallDirectory: null,
             ManifestPath: null);

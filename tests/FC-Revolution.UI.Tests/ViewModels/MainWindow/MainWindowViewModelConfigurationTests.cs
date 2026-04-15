@@ -760,6 +760,8 @@ public sealed class MainWindowViewModelConfigurationTests
             typeof(SampleManagedCoreModule).Assembly.Location,
             typeof(SampleManagedCoreModule).FullName,
             "探测目录",
+            IsLoadSupported: true,
+            LoadSupportReason: null,
             CanUninstall: false,
             InstallDirectory: null,
             ManifestPath: null);
