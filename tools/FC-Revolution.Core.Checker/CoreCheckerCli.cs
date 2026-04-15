@@ -74,8 +74,8 @@ public static class CoreCheckerCli
             await stdout.WriteLineAsync(
                 $"- {entry.Manifest.CoreId} | {entry.Manifest.DisplayName} | system={entry.Manifest.SystemId} | version={entry.Manifest.Version} | source={FormatSourceKind(entry.SourceKind)}");
 
-            if (!string.IsNullOrWhiteSpace(entry.AssemblyPath))
-                await stdout.WriteLineAsync($"  assembly: {entry.AssemblyPath}");
+            if (!string.IsNullOrWhiteSpace(entry.EntryPath))
+                await stdout.WriteLineAsync($"  entry: {entry.EntryPath}");
             if (!string.IsNullOrWhiteSpace(entry.ManifestPath))
                 await stdout.WriteLineAsync($"  manifest: {entry.ManifestPath}");
             if (!string.IsNullOrWhiteSpace(entry.InstallDirectory))

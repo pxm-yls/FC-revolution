@@ -11,7 +11,7 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、package-first 虽已具备内部 `binaryKind` loader dispatch 但仍未扩展到真正的 native loader、CLI checker 虽已落地但独立核心工具链仍未完成，以及外部核心仓库试点尚未验证”这四件事。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、package-first 虽已具备内部 `binaryKind` loader dispatch 且 package manifest/registry 已开始通用化为 `entryPath/activationType`，但仍未扩展到真正的 native loader、CLI checker 虽已落地但独立核心工具链仍未完成，以及外部核心仓库试点尚未验证”这四件事。
 - 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提，并且 bridge loader 已从“单个 provider 包办全部能力”推进到“按 capability 独立解析 provider，同时兼容旧的聚合 provider”。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。系统/ROM 配置主字段也已切到 `PortInputOverrides`，开发核心探测配置主字段已切到 `CoreProbePaths`；旧的 `ManagedCoreProbePaths`、`InputOverrides`、`PlayerInputOverrides` 与 `ExtraInputBindingProfile.Player` 已不再作为活动模型字段写回磁盘，而是退化为 JSON 读阶段兼容迁移。`CoreInputBindingSchema` 的 player-based 公共辅助入口，以及 `MainWindow/GameWindow` 中只被测试消费的输入 mask helper 面也已清理；当前剩余输入兼容残留主要集中在回放/时间线仍使用的 byte-mask bridge，以及已经被收口到专用 controller 的回放输入镜像。
 - 此外，UI 当前对游戏介质文件的发现/导入已开始从 `CoreManifest.SupportedMediaFilePatterns` 聚合模式，不再把库扫描与文件选择器完全硬编码为 `*.nes`；这把“新增核心时 UI 至少不必再改一轮后缀判断”这件事前移到了 manifest 元数据层。
 - 渲染公共抽象也已经从 `nametable/patternTable/OAM/mirroring` 这类 NES/PPU 术语，收敛为 `backgroundPlane/tileGraphics/spriteBytes/backgroundPlaneLayout` 等 capability 语义；NES 专有 `PpuRenderStateSnapshot` 与 `MirroringMode` 现在只停留在 NES adapter 内部映射，不再直接泄漏到通用渲染抽象层。
@@ -50,7 +50,7 @@
 - `CoreCapabilitySet`
 - `IInputSchema`
 
-也就是说，当前“中间层”已经存在，而且已经是宿主的主通道，不再只是设想。这里的宿主主线已经不再直接绑定 `IManagedCoreModule`；当前 runtime/discovery 内部也已经引入按 `binaryKind` 分派的 internal loader registry，remaining managed-only 残留主要收缩到 package schema、installed registry 形状和缺失的 native loader port，而不是 UI/Host 主表面。
+也就是说，当前“中间层”已经存在，而且已经是宿主的主通道，不再只是设想。这里的宿主主线已经不再直接绑定 `IManagedCoreModule`；当前 runtime/discovery 内部也已经引入按 `binaryKind` 分派的 internal loader registry，package manifest / installed registry 的入口点也已从 `assemblyPath/factoryType` 兼容扩展到通用 `entryPath/activationType`，并允许 `native-cabi` 包先进入安装/目录发现链路；remaining managed-only 残留主要收缩到 loose managed export helper、public 命名和缺失的 native loader port，而不是 UI/Host 主表面。
 
 ### 2.2 当前中间层还不够彻底的地方
 
@@ -444,7 +444,7 @@ App startup
 
 1. `FC-Revolution.UI` 已改为通过显式 FC adapter/provider 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path、replay log 文件格式、snapshot base-frame 读取，以及 timeline bridge DTO / repository surface 已下沉到通用层，bridge loader 也不再硬编码 FC 类型名，但 repository 实现 / replay 渲染 / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
 2. preview 编码、preview asset 管理与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
-3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime/package/discovery 虽已具备 internal loader dispatch，但 installed package schema、install/export/checker 仍主要围绕 managed loader 组织，native loader 与外部核心仓库试点尚未落地。
+3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime/package/discovery 虽已具备 internal loader dispatch，installed package schema 也已兼容通用 `entryPath/activationType` 并允许 native package 安装/列目录，但 loose export helper、真正的 native loader 与外部核心仓库试点尚未落地。
 4. 图形化 `Core Workbench` 尚未存在，外部核心仓库试点也还没有验证。
 5. `native-cabi` 路线还只是方案，不是代码能力。
 

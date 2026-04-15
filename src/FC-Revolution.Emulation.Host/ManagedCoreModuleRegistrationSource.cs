@@ -135,8 +135,8 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IEmulatorCoreM
             .SelectMany(package => InternalCoreLoaderRegistry.LoadModules(
                 new InternalCoreLoadTarget(
                     package.Manifest.BinaryKind,
-                    package.EntryAssemblyPath,
-                    package.FactoryType)))
+                    package.EntryPath,
+                    package.ActivationType)))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();

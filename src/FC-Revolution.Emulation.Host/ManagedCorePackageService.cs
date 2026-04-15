@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Storage;
 
@@ -52,9 +53,23 @@ public sealed class ManagedCorePackageManifestPayload
 
 public sealed class ManagedCorePackageEntryPoint
 {
-    public required string AssemblyPath { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EntryPath { get; init; }
 
-    public required string FactoryType { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ActivationType { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AssemblyPath { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FactoryType { get; init; }
+
+    public string? ResolveEntryPath() =>
+        string.IsNullOrWhiteSpace(EntryPath) ? AssemblyPath : EntryPath;
+
+    public string? ResolveActivationType() =>
+        string.IsNullOrWhiteSpace(ActivationType) ? FactoryType : ActivationType;
 }
 
 public sealed class ManagedCorePackageFileEntry
@@ -96,13 +111,27 @@ public sealed class ManagedCoreRegistryEntry
 
     public required string ManifestPath { get; init; }
 
-    public required string EntryAssemblyPath { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EntryPath { get; init; }
 
-    public required string FactoryType { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ActivationType { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EntryAssemblyPath { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FactoryType { get; init; }
 
     public bool IsBundled { get; init; }
 
     public DateTimeOffset InstalledAtUtc { get; init; } = DateTimeOffset.UtcNow;
+
+    public string? ResolveEntryPath() =>
+        string.IsNullOrWhiteSpace(EntryPath) ? EntryAssemblyPath : EntryPath;
+
+    public string? ResolveActivationType() =>
+        string.IsNullOrWhiteSpace(ActivationType) ? FactoryType : ActivationType;
 }
 
 public sealed record InstalledManagedCorePackage(
@@ -110,10 +139,15 @@ public sealed record InstalledManagedCorePackage(
     IReadOnlyList<string> SystemIds,
     string InstallDirectory,
     string ManifestPath,
-    string EntryAssemblyPath,
-    string FactoryType,
+    string EntryPath,
+    string? ActivationType,
     bool IsBundled,
-    DateTimeOffset InstalledAtUtc);
+    DateTimeOffset InstalledAtUtc)
+{
+    public string EntryAssemblyPath => EntryPath;
+
+    public string? FactoryType => ActivationType;
+}
 
 public sealed record ManagedCorePackageInstallResult(
     InstalledManagedCorePackage Package,
@@ -196,7 +230,7 @@ public sealed class ManagedCorePackageService
         var installed = GetInstalledPackages(normalizedResourceRoot).FirstOrDefault(package =>
             string.Equals(package.Manifest.CoreId, runtimeManifest.CoreId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(package.Manifest.Version, runtimeManifest.Version, StringComparison.OrdinalIgnoreCase) &&
-            File.Exists(package.EntryAssemblyPath) &&
+            File.Exists(package.EntryPath) &&
             package.IsBundled == isBundled);
         if (installed is not null)
             return installed;
@@ -338,8 +372,8 @@ public sealed class ManagedCorePackageService
                 BinaryKind = runtimeManifest.BinaryKind,
                 EntryPoint = new ManagedCorePackageEntryPoint
                 {
-                    AssemblyPath = entryAssemblyPath,
-                    FactoryType = moduleTypeName
+                    EntryPath = entryAssemblyPath,
+                    ActivationType = moduleTypeName
                 },
                 Files = fileEntries
             }
@@ -371,7 +405,9 @@ public sealed class ManagedCorePackageService
         var coresRootDirectory = AppObjectStorage.GetCoresRootDirectory(normalizedResourceRoot);
         var installRelativePath = Path.GetRelativePath(coresRootDirectory, installDirectory);
         var manifestRelativePath = Path.Combine(installRelativePath, ManifestFileName);
-        var entryAssemblyRelativePath = Path.Combine(installRelativePath, payload.EntryPoint.AssemblyPath);
+        var entryPath = payload.EntryPoint.ResolveEntryPath()
+            ?? throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.entryPath。");
+        var entryRelativePath = Path.Combine(installRelativePath, entryPath);
         var registryEntry = new ManagedCoreRegistryEntry
         {
             CoreId = payload.CoreId,
@@ -381,8 +417,8 @@ public sealed class ManagedCorePackageService
             BinaryKind = payload.BinaryKind,
             InstallPath = installRelativePath,
             ManifestPath = manifestRelativePath,
-            EntryAssemblyPath = entryAssemblyRelativePath,
-            FactoryType = payload.EntryPoint.FactoryType,
+            EntryPath = entryRelativePath,
+            ActivationType = payload.EntryPoint.ResolveActivationType(),
             IsBundled = isBundled,
             InstalledAtUtc = DateTimeOffset.UtcNow
         };
@@ -483,8 +519,9 @@ public sealed class ManagedCorePackageService
             systemIds,
             installDirectory,
             Path.Combine(installDirectory, ManifestFileName),
-            Path.Combine(installDirectory, manifestDocument.Payload.EntryPoint.AssemblyPath),
-            manifestDocument.Payload.EntryPoint.FactoryType,
+            Path.Combine(installDirectory, manifestDocument.Payload.EntryPoint.ResolveEntryPath()
+                ?? throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.entryPath。")),
+            manifestDocument.Payload.EntryPoint.ResolveActivationType(),
             entry.IsBundled,
             entry.InstalledAtUtc);
     }
@@ -537,17 +574,25 @@ public sealed class ManagedCorePackageService
             throw new InvalidOperationException("core-manifest.fcr 缺少 coreId。");
         if (string.IsNullOrWhiteSpace(payload.Version))
             throw new InvalidOperationException("core-manifest.fcr 缺少 version。");
-        if (!string.Equals(payload.BinaryKind, CoreBinaryKinds.ManagedDotNet, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException(
-                $"当前 Host/Checker 尚未支持 binaryKind='{payload.BinaryKind}' 的核心包；目前仅能装载 managed-dotnet，native loader 仍待实现。");
-        if (string.IsNullOrWhiteSpace(payload.EntryPoint?.AssemblyPath))
-            throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.assemblyPath。");
-        if (string.IsNullOrWhiteSpace(payload.EntryPoint.FactoryType))
-            throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.factoryType。");
+        if (string.IsNullOrWhiteSpace(payload.BinaryKind))
+            throw new InvalidOperationException("core-manifest.fcr 缺少 binaryKind。");
 
-        var entryAssemblyPath = ResolveManifestPath(rootDirectory, payload.EntryPoint.AssemblyPath);
-        if (!File.Exists(entryAssemblyPath))
-            throw new FileNotFoundException("core-manifest.fcr 指向的入口程序集不存在。", entryAssemblyPath);
+        var entryPoint = payload.EntryPoint
+            ?? throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint。");
+        var entryPath = entryPoint.ResolveEntryPath();
+        if (string.IsNullOrWhiteSpace(entryPath))
+            throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.entryPath（兼容 legacy assemblyPath）。");
+
+        var activationType = entryPoint.ResolveActivationType();
+        if (string.Equals(payload.BinaryKind, CoreBinaryKinds.ManagedDotNet, StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(activationType))
+        {
+            throw new InvalidOperationException("managed-dotnet 核心包缺少 entryPoint.activationType（兼容 legacy factoryType）。");
+        }
+
+        var resolvedEntryPath = ResolveManifestPath(rootDirectory, entryPath);
+        if (!File.Exists(resolvedEntryPath))
+            throw new FileNotFoundException("core-manifest.fcr 指向的入口文件不存在。", resolvedEntryPath);
 
         foreach (var fileEntry in payload.Files)
         {

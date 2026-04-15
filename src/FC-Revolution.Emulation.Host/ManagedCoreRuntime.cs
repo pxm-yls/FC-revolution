@@ -16,12 +16,17 @@ public enum ManagedCoreCatalogSourceKind
 
 public sealed record ManagedCoreCatalogEntry(
     CoreManifest Manifest,
-    string? AssemblyPath,
-    string? ModuleTypeName,
+    string? EntryPath,
+    string? ActivationType,
     ManagedCoreCatalogSourceKind SourceKind,
     bool CanUninstall,
     string? InstallDirectory,
-    string? ManifestPath);
+    string? ManifestPath)
+{
+    public string? AssemblyPath => EntryPath;
+
+    public string? ModuleTypeName => ActivationType;
+}
 
 public static class ManagedCoreRuntime
 {
@@ -90,8 +95,8 @@ public static class ManagedCoreRuntime
         {
             entries[package.Manifest.CoreId] = new ManagedCoreCatalogEntry(
                 package.Manifest,
-                package.EntryAssemblyPath,
-                package.FactoryType,
+                package.EntryPath,
+                package.ActivationType,
                 package.IsBundled ? ManagedCoreCatalogSourceKind.BundledPackage : ManagedCoreCatalogSourceKind.InstalledPackage,
                 CanUninstall: !package.IsBundled,
                 package.InstallDirectory,
