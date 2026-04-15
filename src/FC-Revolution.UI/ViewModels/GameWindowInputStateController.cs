@@ -26,8 +26,6 @@ internal sealed class GameWindowInputStateController
     {
     }
 
-    public byte GetCombinedMask(string portId) => BuildLegacyMask(portId, GetCombinedActions(portId));
-
     public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputActions(
         string portId,
         IReadOnlySet<string> desiredActions,
@@ -117,18 +115,6 @@ internal sealed class GameWindowInputStateController
             combinedActions.Remove(actionId);
 
         changes.Add(new GameWindowInputStateChange(portId, actionId, desired));
-    }
-
-    private byte BuildLegacyMask(string portId, IEnumerable<string> actionIds)
-    {
-        byte mask = 0;
-        foreach (var actionId in actionIds)
-        {
-            if (_inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
-                mask |= bit;
-        }
-
-        return mask;
     }
 
     private HashSet<string> GetCombinedActions(string portId) =>

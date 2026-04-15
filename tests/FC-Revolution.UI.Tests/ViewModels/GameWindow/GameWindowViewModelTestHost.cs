@@ -2,6 +2,7 @@ using Avalonia.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
+using FC_Revolution.UI.Infrastructure;
 using System.Reflection;
 
 namespace FC_Revolution.UI.Tests;
@@ -50,7 +51,37 @@ internal sealed class GameWindowViewModelTestHost : IDisposable
         });
     }
 
-    internal byte ReadCombinedInputMask(string portId) => ViewModel.GetCombinedInputMask(portId);
+    internal byte ReadCombinedInputMask(string portId)
+    {
+        var inputStateField = typeof(GameWindowViewModel).GetField(
+            "_inputState",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(inputStateField);
+        var inputState = Assert.IsType<GameWindowInputStateController>(inputStateField!.GetValue(ViewModel));
+
+        var schemaField = typeof(GameWindowViewModel).GetField(
+            "_inputBindingSchema",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(schemaField);
+        var inputBindingSchema = Assert.IsType<CoreInputBindingSchema>(schemaField!.GetValue(ViewModel));
+
+        var combinedActionsField = typeof(GameWindowInputStateController).GetField(
+            "_combinedActionsByPort",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(combinedActionsField);
+        var combinedActionsByPort = Assert.IsAssignableFrom<Dictionary<string, HashSet<string>>>(combinedActionsField!.GetValue(inputState));
+        if (!combinedActionsByPort.TryGetValue(portId, out var actions))
+            return 0;
+
+        byte mask = 0;
+        foreach (var actionId in actions)
+        {
+            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
+                mask |= bit;
+        }
+
+        return mask;
+    }
 
     internal static uint[] CreateSolidFrame(uint pixel)
     {

@@ -320,8 +320,6 @@ public sealed partial class GameWindowViewModel
         RemoteControlPortsVersion++;
     }
 
-    internal byte GetCombinedInputMask(string portId) => _inputState.GetCombinedMask(portId);
-
     private HashSet<Key> GetHandledKeys() =>
         GameWindowInputBindingResolver.BuildHandledKeys(_keyMap, _extraInputBindings);
 }

@@ -1,4 +1,7 @@
+using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using FCRevolution.Storage;
 using FC_Revolution.UI.Infrastructure;
 
@@ -17,11 +20,11 @@ public sealed class TimelineVideoExporterTests
             using (var writer = new ReplayLogWriter())
             {
                 writer.Open(inputLogPath, resetFile: true);
-                writer.Append(new FrameInputRecord(119, 0x01, 0x00));
-                writer.Append(new FrameInputRecord(120, 0x02, 0x00));
-                writer.Append(new FrameInputRecord(121, 0x03, 0x00));
-                writer.Append(new FrameInputRecord(124, 0x04, 0x00));
-                writer.Append(new FrameInputRecord(130, 0x05, 0x00));
+                writer.Append(CreateRecord(119, 0x01, 0x00));
+                writer.Append(CreateRecord(120, 0x02, 0x00));
+                writer.Append(CreateRecord(121, 0x03, 0x00));
+                writer.Append(CreateRecord(124, 0x04, 0x00));
+                writer.Append(CreateRecord(130, 0x05, 0x00));
                 writer.Flush();
             }
 
@@ -51,9 +54,9 @@ public sealed class TimelineVideoExporterTests
             using (var writer = new ReplayLogWriter())
             {
                 writer.Open(inputLogPath, resetFile: true);
-                writer.Append(new FrameInputRecord(59, 0x01, 0x00));
-                writer.Append(new FrameInputRecord(60, 0x02, 0x00));
-                writer.Append(new FrameInputRecord(61, 0x03, 0x00));
+                writer.Append(CreateRecord(59, 0x01, 0x00));
+                writer.Append(CreateRecord(60, 0x02, 0x00));
+                writer.Append(CreateRecord(61, 0x03, 0x00));
                 writer.Flush();
             }
 
@@ -110,4 +113,14 @@ public sealed class TimelineVideoExporterTests
         BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(6, 8), frame);
         return bytes;
     }
+
+    private static FrameInputRecord CreateRecord(long frame, byte player1ButtonsMask, byte player2ButtonsMask) =>
+        new(
+            frame,
+            new ReadOnlyDictionary<string, byte>(
+                new Dictionary<string, byte>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["p1"] = player1ButtonsMask,
+                    ["p2"] = player2ButtonsMask
+                }));
 }

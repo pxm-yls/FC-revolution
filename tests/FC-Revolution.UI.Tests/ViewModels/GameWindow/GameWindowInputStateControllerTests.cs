@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Reflection;
+using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.ViewModels;
 
 namespace FC_Revolution.UI.Tests;
@@ -30,7 +32,7 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.True(change.Pressed);
             });
 
-        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), controller.GetCombinedMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), ReadCombinedMask(controller, "p1"));
     }
 
     [Fact]
@@ -56,7 +58,7 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.False(change.Pressed);
             });
 
-        Assert.Equal(0, controller.GetCombinedMask("p1"));
+        Assert.Equal(0, ReadCombinedMask(controller, "p1"));
     }
 
     [Fact]
@@ -108,9 +110,35 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.True(change.Pressed);
             });
 
-        Assert.Equal(FallbackInputTestData.MaskA, controller.GetCombinedMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, ReadCombinedMask(controller, "p1"));
     }
 
     private static IReadOnlySet<string> ActionSet(params string[] actionIds) =>
         new HashSet<string>(actionIds, System.StringComparer.OrdinalIgnoreCase);
+
+    private static byte ReadCombinedMask(GameWindowInputStateController controller, string portId)
+    {
+        var schemaField = typeof(GameWindowInputStateController).GetField(
+            "_inputBindingSchema",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(schemaField);
+        var inputBindingSchema = Assert.IsType<CoreInputBindingSchema>(schemaField!.GetValue(controller));
+
+        var combinedActionsField = typeof(GameWindowInputStateController).GetField(
+            "_combinedActionsByPort",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(combinedActionsField);
+        var combinedActionsByPort = Assert.IsAssignableFrom<Dictionary<string, HashSet<string>>>(combinedActionsField!.GetValue(controller));
+        if (!combinedActionsByPort.TryGetValue(portId, out var actions))
+            return 0;
+
+        byte mask = 0;
+        foreach (var actionId in actions)
+        {
+            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
+                mask |= bit;
+        }
+
+        return mask;
+    }
 }

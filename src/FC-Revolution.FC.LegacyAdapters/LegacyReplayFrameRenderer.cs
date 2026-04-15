@@ -20,11 +20,17 @@ public sealed class LegacyReplayFrameRenderer : IReplayFrameRenderer
     }
 }
 
-public sealed class LegacyFeatureBridgeProvider : ILegacyFeatureBridgeProvider
+public sealed class LegacyTimelineRepositoryBridgeProvider : ITimelineRepositoryBridgeProvider
 {
     public ITimelineRepositoryBridge CreateTimelineRepositoryBridge() => new LegacyTimelineRepositoryAdapter();
+}
 
+public sealed class LegacyReplayFrameRendererProvider : IReplayFrameRendererProvider
+{
     public IReplayFrameRenderer CreateReplayFrameRenderer() => new LegacyReplayFrameRenderer();
+}
 
+public sealed class LegacyRomMapperInfoInspectorProvider : IRomMapperInfoInspectorProvider
+{
     public IRomMapperInfoInspector CreateRomMapperInfoInspector() => new LegacyRomMapperInspector();
 }
