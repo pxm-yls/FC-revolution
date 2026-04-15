@@ -78,11 +78,17 @@ internal sealed class MainWindowViewModelTestHost : IDisposable
     internal byte ReadInputMask(string portId)
     {
         var field = typeof(MainWindowViewModel).GetField(
-            "_inputMasksByPort",
+            "_legacyReplayInputMirror",
             BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);
-        var masksByPort = Assert.IsType<Dictionary<string, byte>>(field!.GetValue(ViewModel));
-        return masksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
+        var controller = field!.GetValue(ViewModel);
+        Assert.NotNull(controller);
+
+        var method = controller.GetType().GetMethod(
+            "GetMask",
+            BindingFlags.Instance | BindingFlags.Public);
+        Assert.NotNull(method);
+        return Assert.IsType<byte>(method!.Invoke(controller, [portId]));
     }
 
     internal string InvokeGetQuickSavePath()

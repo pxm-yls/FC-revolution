@@ -285,7 +285,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private volatile int _frameTimeMicros;
     private volatile bool _emuThreadAlive;
     private volatile uint[]? _pendingFrame;
-    private readonly Dictionary<string, byte> _inputMasksByPort = new(StringComparer.OrdinalIgnoreCase);
+    private readonly MainWindowLegacyReplayInputMirrorController _legacyReplayInputMirror = new();
     private uint[]? _lastFrame;
     private RomLibraryItem? _currentRom;
     private RomLibraryItem? _pendingLaunchRom;
@@ -2668,7 +2668,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 PreviewSourceWidth,
                 PreviewSourceHeight);
 
-            _inputMasksByPort.Clear();
+            _legacyReplayInputMirror.Reset();
             _activeInputRuntime.RefreshContext(isRomLoaded: false, activeRomPath: null);
             ApplyLegacyActiveInputRuntimeMirror(_activeInputWorkflowController.BuildLegacyMirror(_activeInputRuntime));
             ApplyTimelineMode();
@@ -2961,7 +2961,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (TimelineMode != TimelineModeOption.FullTimeline || !_replayLogWriter.IsOpen)
             return;
 
-        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _inputMasksByPort);
+        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _legacyReplayInputMirror.MasksByPort);
     }
 
     private void ReopenReplayLog(bool resetFile)
@@ -3171,17 +3171,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var allowedSeconds = ConvertFramesToSeconds(allowedFrames);
         StatusText = landed < 0 ? "无可用回溯快照" : $"已回退 {allowedSeconds:0.00} 秒（{allowedFrames} 帧）至帧 {landed}";
-    }
-
-    private void UpdateInputMask(string portId, string actionId, bool pressed)
-    {
-        if (!_inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
-            return;
-
-        var currentMask = _inputMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-        _inputMasksByPort[portId] = pressed
-            ? (byte)(currentMask | bit)
-            : (byte)(currentMask & ~bit);
     }
 
     private Task<string> ExportBranchRangeAsync(BranchCanvasNode startNode, long startFrame, long endFrame)

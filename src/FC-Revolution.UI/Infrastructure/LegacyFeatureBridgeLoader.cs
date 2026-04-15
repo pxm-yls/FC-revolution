@@ -9,7 +9,12 @@ namespace FC_Revolution.UI.Infrastructure;
 
 internal static class LegacyFeatureBridgeLoader
 {
-    private static readonly Lazy<LegacyFeatureProviderLoadState> BridgeProvider = new(LoadProvider);
+    private static readonly Lazy<LegacyFeatureProviderLoadState<ITimelineRepositoryBridgeProvider>> TimelineRepositoryProvider =
+        new(LoadTimelineRepositoryProvider);
+    private static readonly Lazy<LegacyFeatureProviderLoadState<IReplayFrameRendererProvider>> ReplayFrameRendererProvider =
+        new(LoadReplayFrameRendererProvider);
+    private static readonly Lazy<LegacyFeatureProviderLoadState<IRomMapperInfoInspectorProvider>> RomMapperInfoInspectorProvider =
+        new(LoadRomMapperInfoInspectorProvider);
 
     public static ITimelineRepositoryBridge CreateTimelineRepositoryBridge() =>
         TryCreateTimelineRepositoryBridge(out var timelineRepository, out var errorMessage)
@@ -31,7 +36,7 @@ internal static class LegacyFeatureBridgeLoader
         out string? errorMessage)
     {
         timelineRepository = null!;
-        if (!TryGetProvider(out var provider, out errorMessage))
+        if (!TryGetProvider(TimelineRepositoryProvider, out var provider, out errorMessage))
             return false;
 
         timelineRepository = provider.CreateTimelineRepositoryBridge();
@@ -43,7 +48,7 @@ internal static class LegacyFeatureBridgeLoader
         out string? errorMessage)
     {
         replayFrameRenderer = null!;
-        if (!TryGetProvider(out var provider, out errorMessage))
+        if (!TryGetProvider(ReplayFrameRendererProvider, out var provider, out errorMessage))
             return false;
 
         replayFrameRenderer = provider.CreateReplayFrameRenderer();
@@ -55,18 +60,20 @@ internal static class LegacyFeatureBridgeLoader
         out string? errorMessage)
     {
         romMapperInfoInspector = null!;
-        if (!TryGetProvider(out var provider, out errorMessage))
+        if (!TryGetProvider(RomMapperInfoInspectorProvider, out var provider, out errorMessage))
             return false;
 
         romMapperInfoInspector = provider.CreateRomMapperInfoInspector();
         return true;
     }
 
-    private static bool TryGetProvider(
-        out ILegacyFeatureBridgeProvider provider,
+    private static bool TryGetProvider<TProvider>(
+        Lazy<LegacyFeatureProviderLoadState<TProvider>> loadStateSource,
+        out TProvider provider,
         out string? errorMessage)
+        where TProvider : class
     {
-        var loadState = BridgeProvider.Value;
+        var loadState = loadStateSource.Value;
         if (loadState.Provider is not null)
         {
             provider = loadState.Provider;
@@ -79,39 +86,49 @@ internal static class LegacyFeatureBridgeLoader
         return false;
     }
 
-    private static LegacyFeatureProviderLoadState LoadProvider()
+    private static LegacyFeatureProviderLoadState<ITimelineRepositoryBridgeProvider> LoadTimelineRepositoryProvider() =>
+        LoadProvider<ITimelineRepositoryBridgeProvider>("timeline repository bridge");
+
+    private static LegacyFeatureProviderLoadState<IReplayFrameRendererProvider> LoadReplayFrameRendererProvider() =>
+        LoadProvider<IReplayFrameRendererProvider>("replay frame renderer");
+
+    private static LegacyFeatureProviderLoadState<IRomMapperInfoInspectorProvider> LoadRomMapperInfoInspectorProvider() =>
+        LoadProvider<IRomMapperInfoInspectorProvider>("ROM mapper inspector");
+
+    private static LegacyFeatureProviderLoadState<TProvider> LoadProvider<TProvider>(string capabilityDisplayName)
+        where TProvider : class
     {
         try
         {
             var providerTypes = EnumerateCandidateAssemblies()
-                .SelectMany(GetProviderTypes)
+                .SelectMany(GetProviderTypes<TProvider>)
                 .Distinct()
                 .ToList();
 
             if (providerTypes.Count == 0)
             {
                 throw new InvalidOperationException(
-                    $"无法加载任何 {nameof(ILegacyFeatureBridgeProvider)} 实现。请确认 legacy feature provider 程序集已随应用输出。");
+                    $"无法加载 {capabilityDisplayName} provider。请确认提供该能力的程序集已随应用输出。");
             }
 
             if (providerTypes.Count > 1)
             {
                 throw new InvalidOperationException(
-                    $"检测到多个 {nameof(ILegacyFeatureBridgeProvider)} 实现: {string.Join(", ", providerTypes.Select(type => type.FullName))}。当前 UI 只能装载一个 legacy feature provider。");
+                    $"检测到多个 {capabilityDisplayName} provider 实现: {string.Join(", ", providerTypes.Select(type => type.FullName))}。当前 UI 只能为该能力装载一个 provider。");
             }
 
             var providerType = providerTypes[0];
-            if (Activator.CreateInstance(providerType) is not ILegacyFeatureBridgeProvider provider)
+            if (Activator.CreateInstance(providerType) is not TProvider provider)
             {
                 throw new InvalidOperationException(
-                    $"legacy feature provider 类型 {providerType.FullName} 未实现所需契约 {typeof(ILegacyFeatureBridgeProvider).FullName}。");
+                    $"legacy feature provider 类型 {providerType.FullName} 未实现所需契约 {typeof(TProvider).FullName}。");
             }
 
-            return LegacyFeatureProviderLoadState.Success(provider);
+            return LegacyFeatureProviderLoadState<TProvider>.Success(provider);
         }
         catch (Exception exception)
         {
-            return LegacyFeatureProviderLoadState.Fail(exception.Message);
+            return LegacyFeatureProviderLoadState<TProvider>.Fail(exception.Message);
         }
     }
 
@@ -164,7 +181,8 @@ internal static class LegacyFeatureBridgeLoader
         }
     }
 
-    private static IEnumerable<Type> GetProviderTypes(Assembly assembly)
+    private static IEnumerable<Type> GetProviderTypes<TProvider>(Assembly assembly)
+        where TProvider : class
     {
         Type[] candidateTypes;
         try
@@ -185,7 +203,7 @@ internal static class LegacyFeatureBridgeLoader
             if (type.IsAbstract || type.IsInterface)
                 continue;
 
-            if (!typeof(ILegacyFeatureBridgeProvider).IsAssignableFrom(type))
+            if (!typeof(TProvider).IsAssignableFrom(type))
                 continue;
 
             if (type.GetConstructor(Type.EmptyTypes) == null)
@@ -195,14 +213,15 @@ internal static class LegacyFeatureBridgeLoader
         }
     }
 
-    private sealed record LegacyFeatureProviderLoadState(
-        ILegacyFeatureBridgeProvider? Provider,
+    private sealed record LegacyFeatureProviderLoadState<TProvider>(
+        TProvider? Provider,
         string? ErrorMessage)
+        where TProvider : class
     {
-        public static LegacyFeatureProviderLoadState Success(ILegacyFeatureBridgeProvider provider) =>
+        public static LegacyFeatureProviderLoadState<TProvider> Success(TProvider provider) =>
             new(provider, null);
 
-        public static LegacyFeatureProviderLoadState Fail(string errorMessage) =>
+        public static LegacyFeatureProviderLoadState<TProvider> Fail(string errorMessage) =>
             new(null, errorMessage);
     }
 }

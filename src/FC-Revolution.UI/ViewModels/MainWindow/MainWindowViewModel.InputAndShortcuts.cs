@@ -419,7 +419,8 @@ public partial class MainWindowViewModel
             _inputBindingSchema,
             _romLock,
             _inputStateWriter,
-            UpdateInputMask);
+            (portId, actionId, pressed) =>
+                _legacyReplayInputMirror.UpdateActionState(_inputBindingSchema, portId, actionId, pressed));
         ApplyLegacyActiveInputRuntimeMirror(refreshResult.LegacyMirrorBeforeApply);
         ApplyLegacyActiveInputRuntimeMirror(refreshResult.LegacyMirrorAfterApply);
     }

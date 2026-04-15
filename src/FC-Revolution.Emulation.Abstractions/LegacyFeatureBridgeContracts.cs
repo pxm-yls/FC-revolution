@@ -17,11 +17,24 @@ public interface IReplayFrameRenderer
         long endFrame);
 }
 
-public interface ILegacyFeatureBridgeProvider
+public interface ITimelineRepositoryBridgeProvider
 {
     ITimelineRepositoryBridge CreateTimelineRepositoryBridge();
+}
 
+public interface IReplayFrameRendererProvider
+{
     IReplayFrameRenderer CreateReplayFrameRenderer();
+}
 
+public interface IRomMapperInfoInspectorProvider
+{
     IRomMapperInfoInspector CreateRomMapperInfoInspector();
+}
+
+public interface ILegacyFeatureBridgeProvider :
+    ITimelineRepositoryBridgeProvider,
+    IReplayFrameRendererProvider,
+    IRomMapperInfoInspectorProvider
+{
 }
