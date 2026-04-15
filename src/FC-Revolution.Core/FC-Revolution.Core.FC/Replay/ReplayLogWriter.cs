@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using StorageFrameInputRecord = FCRevolution.Storage.FrameInputRecord;
 using StorageReplayLogWriter = FCRevolution.Storage.ReplayLogWriter;
 
@@ -15,7 +17,13 @@ public sealed class ReplayLogWriter : IDisposable
     public void Open(string path, bool resetFile) => _writer.Open(path, resetFile);
 
     public void Append(FrameInputRecord record) =>
-        _writer.Append(new StorageFrameInputRecord(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask));
+        _writer.Append(new StorageFrameInputRecord(
+            record.Frame,
+            new Dictionary<string, byte>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["p1"] = record.Player1ButtonsMask,
+                ["p2"] = record.Player2ButtonsMask
+            }));
 
     public void Flush() => _writer.Flush();
 

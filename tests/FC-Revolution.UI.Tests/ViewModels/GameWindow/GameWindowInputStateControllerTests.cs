@@ -1,4 +1,3 @@
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.ViewModels;
 
 namespace FC_Revolution.UI.Tests;
@@ -12,7 +11,7 @@ public sealed class GameWindowInputStateControllerTests
 
         var changes = controller.ApplyDesiredLocalInputMask(
             portId: "p1",
-            desiredMask: (byte)((byte)NesButton.A | (byte)NesButton.B),
+            desiredMask: (byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB),
             allowLocalInput: true);
 
         Assert.Collection(
@@ -20,30 +19,30 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionA, change.ActionId);
                 Assert.True(change.Pressed);
             },
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionB, change.ActionId);
                 Assert.True(change.Pressed);
             });
 
         var snapshot = controller.Snapshot;
-        Assert.Equal((byte)((byte)NesButton.A | (byte)NesButton.B), snapshot.GetCombinedMask("p1"));
-        Assert.Equal((byte)((byte)NesButton.A | (byte)NesButton.B), snapshot.GetLocalMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), snapshot.GetCombinedMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), snapshot.GetLocalMask("p1"));
     }
 
     [Fact]
     public void ApplyDesiredLocalInputMask_ClearsStoredLocalMask_WhenLocalInputBlocked()
     {
         var controller = new GameWindowInputStateController();
-        _ = controller.ApplyDesiredLocalInputMask("p1", (byte)NesButton.A, allowLocalInput: true);
+        _ = controller.ApplyDesiredLocalInputMask("p1", FallbackInputTestData.MaskA, allowLocalInput: true);
 
         var changes = controller.ApplyDesiredLocalInputMask(
             portId: "p1",
-            desiredMask: (byte)((byte)NesButton.A | (byte)NesButton.B),
+            desiredMask: (byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB),
             allowLocalInput: false);
 
         Assert.Collection(
@@ -51,7 +50,7 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionA, change.ActionId);
                 Assert.False(change.Pressed);
             });
 
@@ -64,7 +63,7 @@ public sealed class GameWindowInputStateControllerTests
     public void RemoteTransitions_RebuildCombinedMask_AcrossAcquireAndRelease()
     {
         var controller = new GameWindowInputStateController();
-        _ = controller.ApplyDesiredLocalInputMask("p1", (byte)NesButton.A, allowLocalInput: true);
+        _ = controller.ApplyDesiredLocalInputMask("p1", FallbackInputTestData.MaskA, allowLocalInput: true);
 
         var acquireChanges = controller.RebuildCombinedState("p1", allowLocalInput: false);
         Assert.Collection(
@@ -72,17 +71,17 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionA, change.ActionId);
                 Assert.False(change.Pressed);
             });
 
-        var remoteChanges = controller.SetRemoteActionState("p1", NesInputTestAdapter.ActionId(NesButton.B), pressed: true, allowLocalInput: false);
+        var remoteChanges = controller.SetRemoteActionState("p1", FallbackInputTestData.ActionB, pressed: true, allowLocalInput: false);
         Assert.Collection(
             remoteChanges,
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionB, change.ActionId);
                 Assert.True(change.Pressed);
             });
 
@@ -92,7 +91,7 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionB, change.ActionId);
                 Assert.False(change.Pressed);
             });
 
@@ -102,13 +101,13 @@ public sealed class GameWindowInputStateControllerTests
             change =>
             {
                 Assert.Equal("p1", change.PortId);
-                Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), change.ActionId);
+                Assert.Equal(FallbackInputTestData.ActionA, change.ActionId);
                 Assert.True(change.Pressed);
             });
 
         var snapshot = controller.Snapshot;
-        Assert.Equal((byte)NesButton.A, snapshot.GetCombinedMask("p1"));
-        Assert.Equal((byte)NesButton.A, snapshot.GetLocalMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, snapshot.GetCombinedMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, snapshot.GetLocalMask("p1"));
         Assert.Equal(0, snapshot.GetRemoteMask("p1"));
     }
 }

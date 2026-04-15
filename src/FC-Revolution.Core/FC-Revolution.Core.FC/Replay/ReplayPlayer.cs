@@ -50,8 +50,8 @@ public sealed class ReplayPlayer
             if (record.Frame > targetFrame)
                 break;
 
-            _console.SetControllerMask(0, record.Player1ButtonsMask);
-            _console.SetControllerMask(1, record.Player2ButtonsMask);
+            _console.SetControllerMask(0, record.GetButtonsMask("p1"));
+            _console.SetControllerMask(1, record.GetButtonsMask("p2"));
             lastFrameBuffer = _console.RunFrame();
         }
 
@@ -73,8 +73,8 @@ public sealed class ReplayPlayer
             if (record.Frame > endFrame)
                 break;
 
-            _console.SetControllerMask(0, record.Player1ButtonsMask);
-            _console.SetControllerMask(1, record.Player2ButtonsMask);
+            _console.SetControllerMask(0, record.GetButtonsMask("p1"));
+            _console.SetControllerMask(1, record.GetButtonsMask("p2"));
             var frameBuffer = _console.RunFrame();
             if (record.Frame >= startFrame)
                 frames.Add((uint[])frameBuffer.Clone());

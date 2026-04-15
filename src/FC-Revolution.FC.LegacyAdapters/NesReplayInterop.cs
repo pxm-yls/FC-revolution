@@ -21,7 +21,7 @@ public static class NesReplayInterop
             ? StateSnapshotFrameReader.ReadFrame(snapshotBytes)
             : startFrame;
         var legacyRecords = StorageReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame)
-            .Select(record => new CoreFrameInputRecord(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask))
+            .Select(record => new CoreFrameInputRecord(record.Frame, record.GetButtonsMask("p1"), record.GetButtonsMask("p2")))
             .ToArray();
         var player = new ReplayPlayer(romPath, snapshotBytes, legacyRecords);
         return player.RenderFrameRange(startFrame, endFrame);

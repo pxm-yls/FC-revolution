@@ -86,7 +86,7 @@ public sealed class RomConfigProfileTests
     }
 
     [Fact]
-    public void LoadValidated_MigratesLegacyInputOverrides_ToPlayer1Overrides()
+    public void LoadValidated_MigratesLegacyInputOverrides_ToPortOverrides()
     {
         var resourceRoot = CreateTempResourceRoot();
         var previousRoot = AppObjectStorage.GetResourceRoot();
@@ -115,7 +115,7 @@ public sealed class RomConfigProfileTests
 
             var loaded = RomConfigProfile.LoadValidated(romPath).Profile;
 
-            Assert.True(loaded.PlayerInputOverrides.TryGetValue("Player1", out var player1Overrides));
+            Assert.True(loaded.PortInputOverrides.TryGetValue("Player1", out var player1Overrides));
             Assert.Equal("Z", player1Overrides["A"]);
             Assert.Equal("Enter", player1Overrides["Start"]);
         }

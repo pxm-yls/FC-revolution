@@ -27,12 +27,12 @@ public class ReplayLogTests
                 first =>
                 {
                     Assert.Equal(1, first.Frame);
-                    Assert.Equal(0x01, first.Player1ButtonsMask);
+                    Assert.Equal(0x01, first.GetButtonsMask("p1"));
                 },
                 second =>
                 {
                     Assert.Equal(2, second.Frame);
-                    Assert.Equal(0x03, second.Player1ButtonsMask);
+                    Assert.Equal(0x03, second.GetButtonsMask("p1"));
                 });
         }
         finally
@@ -65,12 +65,12 @@ public class ReplayLogTests
                 first =>
                 {
                     Assert.Equal(2, first.Frame);
-                    Assert.Equal(0x02, first.Player1ButtonsMask);
+                    Assert.Equal(0x02, first.GetButtonsMask("p1"));
                 },
                 second =>
                 {
                     Assert.Equal(3, second.Frame);
-                    Assert.Equal(0x03, second.Player1ButtonsMask);
+                    Assert.Equal(0x03, second.GetButtonsMask("p1"));
                 });
         }
         finally

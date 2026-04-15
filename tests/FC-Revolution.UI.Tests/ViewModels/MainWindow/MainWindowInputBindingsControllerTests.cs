@@ -147,7 +147,7 @@ public sealed class MainWindowInputBindingsControllerTests
         var layout = InputBindingLayoutProfile.CreateDefault();
         var profile = new SystemConfigProfile
         {
-            PlayerInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
+            PortInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
             {
                 ["p1"] = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -241,7 +241,7 @@ public sealed class MainWindowInputBindingsControllerTests
         var controller = new MainWindowInputBindingsController();
         var profile = new SystemConfigProfile
         {
-            PlayerInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
+            PortInputOverrides = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal)
             {
                 ["Player1"] = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -281,7 +281,7 @@ public sealed class MainWindowInputBindingsControllerTests
                 CoreInputBindingSchema.Create(new EmptyInputSchema()));
 
             var profile = RomConfigProfile.Load(romPath);
-            Assert.Empty(profile.PlayerInputOverrides);
+            Assert.Empty(profile.PortInputOverrides);
             Assert.Empty(profile.InputOverrides);
         }
         finally

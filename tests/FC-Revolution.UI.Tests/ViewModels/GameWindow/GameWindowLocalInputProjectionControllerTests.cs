@@ -1,5 +1,4 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -13,8 +12,8 @@ public sealed class GameWindowLocalInputProjectionControllerTests
         var pressedKeys = new HashSet<Key> { Key.Z, Key.I };
         var keyMap = new Dictionary<Key, (string PortId, string ActionId)>
         {
-            [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A)),
-            [Key.I] = ("p2", NesInputTestAdapter.ActionId(NesButton.Up))
+            [Key.Z] = ("p1", FallbackInputTestData.ActionA),
+            [Key.I] = ("p2", FallbackInputTestData.ActionUp)
         };
 
         var result = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
@@ -23,8 +22,8 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             extraInputBindings: [],
             turboTickCounters: new Dictionary<Key, int>());
 
-        Assert.Equal((byte)NesButton.A, result.GetMask("p1"));
-        Assert.Equal((byte)NesButton.Up, result.GetMask("p2"));
+        Assert.Equal(FallbackInputTestData.MaskA, result.GetMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskUp, result.GetMask("p2"));
     }
 
     [Fact]
@@ -41,11 +40,14 @@ public sealed class GameWindowLocalInputProjectionControllerTests
                     PortId: "p1",
                     Key: Key.Q,
                     Kind: ExtraInputBindingKind.Combo,
-                    ActionIds: NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B, NesButton.A))
+                    ActionIds: FallbackInputTestData.ActionIds(
+                        FallbackInputTestData.ActionA,
+                        FallbackInputTestData.ActionB,
+                        FallbackInputTestData.ActionA))
             ],
             turboTickCounters: new Dictionary<Key, int>());
 
-        var expected = (byte)((byte)NesButton.A | (byte)NesButton.B);
+        var expected = (byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB);
         Assert.Equal(expected, result.GetMask("p1"));
         Assert.Equal(0, result.GetMask("p2"));
     }
@@ -58,7 +60,7 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             PortId: "p1",
             Key: Key.Q,
             Kind: ExtraInputBindingKind.Turbo,
-            ActionIds: NesInputTestAdapter.ActionIds(NesButton.A),
+            ActionIds: FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA),
             TurboHz: 10);
 
         var inOnWindow = GameWindowLocalInputProjectionController.BuildDesiredLocalInputMasks(
@@ -72,7 +74,7 @@ public sealed class GameWindowLocalInputProjectionControllerTests
             extraInputBindings: [turboBinding],
             turboTickCounters: new Dictionary<Key, int> { [Key.Q] = 6 });
 
-        Assert.Equal((byte)NesButton.A, inOnWindow.GetMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, inOnWindow.GetMask("p1"));
         Assert.Equal(0, inOffWindow.GetMask("p1"));
     }
 }

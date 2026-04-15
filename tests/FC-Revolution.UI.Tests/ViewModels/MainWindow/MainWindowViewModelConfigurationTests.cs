@@ -1,5 +1,4 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Core.Nes.Managed;
 using FCRevolution.Core.Sample.Managed;
 using FCRevolution.Storage;
@@ -594,7 +593,7 @@ public sealed class MainWindowViewModelConfigurationTests
             using var host = new MainWindowViewModelTestHost();
             var vm = host.ViewModel;
 
-            var actionIdA = NesInputTestAdapter.ActionId(NesButton.A);
+            var actionIdA = FallbackInputTestData.ActionA;
             var player1Group = Assert.Single(vm.GlobalInputPortGroups, group => group.PortId == "p1");
             var player1A = Assert.Single(player1Group.InputBindings, entry => entry.ActionId == actionIdA);
             Assert.True(player1A.TrySetSelectedKey(Key.Q));
@@ -614,7 +613,7 @@ public sealed class MainWindowViewModelConfigurationTests
             host.InvokeSaveSystemConfig();
 
             var profile = SystemConfigProfile.Load();
-            Assert.Equal(nameof(Key.Q), profile.PlayerInputOverrides["p1"][actionIdA]);
+            Assert.Equal(nameof(Key.Q), profile.PortInputOverrides["p1"][actionIdA]);
 
             var extra = Assert.Single(profile.ExtraInputBindings);
             Assert.Equal("p1", extra.PortId);

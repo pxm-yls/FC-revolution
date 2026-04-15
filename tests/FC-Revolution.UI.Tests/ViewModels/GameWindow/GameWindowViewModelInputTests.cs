@@ -1,6 +1,5 @@
 using Avalonia.Input;
 using FCRevolution.Contracts.Sessions;
-using FCRevolution.Core.Input;
 using FCRevolution.Core.Mappers;
 using FCRevolution.Core.PPU;
 using FCRevolution.Core.State;
@@ -102,13 +101,13 @@ public sealed class GameWindowViewModelInputTests
                     PortId = "p1",
                     Kind = ExtraInputBindingKind.Combo.ToString(),
                     Key = Key.Q.ToString(),
-                    Buttons = [NesInputTestAdapter.ActionId(NesButton.A), NesInputTestAdapter.ActionId(NesButton.B)]
+                    Buttons = [FallbackInputTestData.ActionA, FallbackInputTestData.ActionB]
                 }
             ]);
         var vm = host.ViewModel;
 
         vm.OnKeyDown(Key.Q);
-        Assert.Equal((byte)((byte)NesButton.A | (byte)NesButton.B), host.ReadCombinedInputMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), host.ReadCombinedInputMask("p1"));
 
         vm.OnKeyUp(Key.Q);
         Assert.Equal(0, host.ReadCombinedInputMask("p1"));
@@ -124,18 +123,18 @@ public sealed class GameWindowViewModelInputTests
                     PortId = "p1",
                     Kind = ExtraInputBindingKind.Turbo.ToString(),
                     Key = Key.Q.ToString(),
-                    Buttons = [NesInputTestAdapter.ActionId(NesButton.A)]
+                    Buttons = [FallbackInputTestData.ActionA]
                 }
             ]);
         var vm = host.ViewModel;
 
         vm.OnKeyDown(Key.Q);
-        Assert.Equal((byte)NesButton.A, host.ReadCombinedInputMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, host.ReadCombinedInputMask("p1"));
 
         for (var i = 0; i < 5; i++)
         {
             host.InvokeOnUiTick();
-            Assert.Equal((byte)NesButton.A, host.ReadCombinedInputMask("p1"));
+            Assert.Equal(FallbackInputTestData.MaskA, host.ReadCombinedInputMask("p1"));
         }
 
         host.InvokeOnUiTick();
@@ -149,7 +148,7 @@ public sealed class GameWindowViewModelInputTests
         var vm = host.ViewModel;
 
         vm.OnKeyDown(Key.Z);
-        Assert.Equal((byte)NesButton.A, host.ReadCombinedInputMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, host.ReadCombinedInputMask("p1"));
 
         var acquired = vm.AcquireRemoteControl("p1", "127.0.0.1", "remote-client");
         Assert.True(acquired);
@@ -171,19 +170,19 @@ public sealed class GameWindowViewModelInputTests
         Assert.Contains("remote-client (127.0.0.1)", vm.RemoteControlStatusText);
         Assert.Equal("Player 1 已切换为 127.0.0.1 网页控制", vm.TransientMessage);
 
-        var remoteApplied = vm.SetRemoteInputState("p1", NesInputTestAdapter.ActionId(NesButton.B), 1f, "127.0.0.1", "remote-client");
+        var remoteApplied = vm.SetRemoteInputState("p1", FallbackInputTestData.ActionB, 1f, "127.0.0.1", "remote-client");
         Assert.True(remoteApplied);
-        Assert.Equal((byte)NesButton.B, host.ReadCombinedInputMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskB, host.ReadCombinedInputMask("p1"));
 
         vm.OnKeyDown(Key.X);
-        Assert.Equal((byte)NesButton.B, host.ReadCombinedInputMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskB, host.ReadCombinedInputMask("p1"));
 
-        var remoteReleasedButton = vm.SetRemoteInputState("p1", NesInputTestAdapter.ActionId(NesButton.B), 0f, "127.0.0.1", "remote-client");
+        var remoteReleasedButton = vm.SetRemoteInputState("p1", FallbackInputTestData.ActionB, 0f, "127.0.0.1", "remote-client");
         Assert.True(remoteReleasedButton);
         Assert.Equal(0, host.ReadCombinedInputMask("p1"));
 
         vm.ReleaseRemoteControl("p1", "remote disconnected");
-        Assert.Equal((byte)((byte)NesButton.A | (byte)NesButton.B), host.ReadCombinedInputMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), host.ReadCombinedInputMask("p1"));
         Assert.All(vm.BuildRemoteControlPortSummaries(), port => Assert.Equal(ControlPortSourceDto.Local, port.ControlSource));
         Assert.Equal(2, vm.RemoteControlPortsVersion);
         Assert.False(vm.HasRemoteControlStatus);
@@ -202,7 +201,7 @@ public sealed class GameWindowViewModelInputTests
         var applied = vm.SetRemoteInputState("p1", "x", 1f, "127.0.0.1", "remote-client");
 
         Assert.True(applied);
-        Assert.Equal((byte)NesButton.A, host.ReadCombinedInputMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, host.ReadCombinedInputMask("p1"));
     }
 
     [Fact]

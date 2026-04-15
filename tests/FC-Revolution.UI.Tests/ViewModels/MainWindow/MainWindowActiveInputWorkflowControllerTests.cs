@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
@@ -43,11 +42,11 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             activeRomPath: null,
             effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", FallbackInputTestData.ActionA)
             },
             effectiveExtraBindings:
             [
-                new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))
+                new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA))
             ],
             inputBindingSchema);
 
@@ -75,7 +74,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             activeRomPath: "/tmp/demo.nes",
             effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", FallbackInputTestData.ActionA)
             },
             effectiveExtraBindings: [],
             inputBindingSchema);
@@ -115,7 +114,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             activeRomPath: "/tmp/demo.nes",
             effectiveKeyMap: new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", FallbackInputTestData.ActionA)
             },
             effectiveExtraBindings: [],
             inputBindingSchema,
@@ -145,7 +144,7 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
         var decision = workflowController.UpdateTurboPulse(
             runtimeController,
             inputStateController,
-            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
+            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA))]);
 
         Assert.True(decision.ShouldRefreshActiveInputState);
         Assert.True(decision.LegacyMirror.TurboPulseActive);

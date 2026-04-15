@@ -538,7 +538,8 @@ public sealed class ManagedCorePackageService
         if (string.IsNullOrWhiteSpace(payload.Version))
             throw new InvalidOperationException("core-manifest.fcr 缺少 version。");
         if (!string.Equals(payload.BinaryKind, CoreBinaryKinds.ManagedDotNet, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"当前仅支持 managed-dotnet 核心包，收到 {payload.BinaryKind}。");
+            throw new InvalidOperationException(
+                $"当前 Host/Checker 尚未支持 binaryKind='{payload.BinaryKind}' 的核心包；目前仅能装载 managed-dotnet，native loader 仍待实现。");
         if (string.IsNullOrWhiteSpace(payload.EntryPoint?.AssemblyPath))
             throw new InvalidOperationException("core-manifest.fcr 缺少 entryPoint.assemblyPath。");
         if (string.IsNullOrWhiteSpace(payload.EntryPoint.FactoryType))

@@ -58,7 +58,7 @@ public sealed class GameSessionRegistry
             var profile = SystemConfigProfile.Load();
             var runtimeOptions = new ManagedCoreRuntimeOptions(
                 ResourceRootPath: profile.ResourceRootPath,
-                ProbeDirectories: profile.GetEffectiveManagedCoreProbeDirectories());
+                ProbeDirectories: profile.GetEffectiveCoreProbeDirectories());
             if (!ManagedCoreRuntime.TryCreateSession(
                     new CoreSessionLaunchRequest(coreId),
                     out coreSession,

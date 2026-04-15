@@ -1,5 +1,4 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
@@ -22,14 +21,14 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
             inputStateController,
             new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", FallbackInputTestData.ActionA)
             },
             [],
             inputBindingSchema);
 
-        Assert.Equal((byte)NesButton.A, plan.DesiredLegacyMasksByPort["p1"]);
+        Assert.Equal(FallbackInputTestData.MaskA, plan.DesiredLegacyMasksByPort["p1"]);
         Assert.Equal((byte)0, plan.DesiredLegacyMasksByPort["p2"]);
-        Assert.Equal((byte)NesButton.A, plan.GetDesiredLegacyMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, plan.GetDesiredLegacyMask("p1"));
         Assert.Equal((byte)0, plan.GetDesiredLegacyMask("p2"));
         var write = Assert.Single(plan.WriteRequests);
         Assert.Equal("p1", write.PortId);
@@ -65,7 +64,7 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
             inputStateController,
             new Dictionary<Key, (string PortId, string ActionId)>
             {
-                [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+                [Key.Z] = ("p1", FallbackInputTestData.ActionA)
             },
             [],
             inputBindingSchema);
@@ -100,7 +99,7 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
         runtimeController.PressKey(Key.Q);
         runtimeController.UpdateTurboPulse(
             inputStateController,
-            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, NesInputTestAdapter.ActionIds(NesButton.A))]);
+            [new ResolvedExtraInputBinding("p1", Key.Q, ExtraInputBindingKind.Turbo, FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA))]);
 
         runtimeController.RefreshContext(isRomLoaded: true, activeRomPath: "/tmp/another.nes");
 

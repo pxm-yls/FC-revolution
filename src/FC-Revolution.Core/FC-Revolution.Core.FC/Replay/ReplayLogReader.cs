@@ -16,5 +16,5 @@ public static class ReplayLogReader
         => StorageReplayLogReader.ReadRange(stream, startExclusiveFrame, endInclusiveFrame).Select(ToCoreRecord);
 
     private static FrameInputRecord ToCoreRecord(FCRevolution.Storage.FrameInputRecord record) =>
-        new(record.Frame, record.Player1ButtonsMask, record.Player2ButtonsMask);
+        new(record.Frame, record.GetButtonsMask("p1"), record.GetButtonsMask("p2"));
 }

@@ -12,9 +12,10 @@
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
 - 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、managed package-first 仍未扩展到 native loader、CLI checker 虽已落地但独立核心工具链仍未完成，以及外部核心仓库试点尚未验证”这四件事。
-- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。当前剩余输入兼容残留主要集中在配置迁移字段与旧 profile 兼容路径，例如 `PlayerInputOverrides`、`ExtraInputBindingProfile.Player` 这类为旧配置读取保留的过渡字段。
+- 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。系统/ROM 配置主字段也已切到 `PortInputOverrides`，开发核心探测配置主字段已切到 `CoreProbePaths`；当前剩余输入兼容残留主要集中在旧 profile 读兼容别名与 fallback 路径，例如 `PlayerInputOverrides`、`RomConfigProfile.InputOverrides`、`ExtraInputBindingProfile.Player` 与 `CoreInputBindingSchema` 内部的 player ordinal 兼容映射。
 - 此外，UI 当前对游戏介质文件的发现/导入已开始从 `CoreManifest.SupportedMediaFilePatterns` 聚合模式，不再把库扫描与文件选择器完全硬编码为 `*.nes`；这把“新增核心时 UI 至少不必再改一轮后缀判断”这件事前移到了 manifest 元数据层。
 - 渲染公共抽象也已经从 `nametable/patternTable/OAM/mirroring` 这类 NES/PPU 术语，收敛为 `backgroundPlane/tileGraphics/spriteBytes/backgroundPlaneLayout` 等 capability 语义；NES 专有 `PpuRenderStateSnapshot` 与 `MirroringMode` 现在只停留在 NES adapter 内部映射，不再直接泄漏到通用渲染抽象层。
+- `FC-Revolution.Storage` 的通用 `FrameInputRecord` 也已移除 `Player1ButtonsMask` / `Player2ButtonsMask` 公共便利属性；公共层现在只保留 `ButtonsByPort` 与 `GetButtonsMask(portId)`，NES 顺序化兼容只停留在 FC core / adapter 侧。
 
 ## 1. 当前判断总览
 

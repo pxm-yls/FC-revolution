@@ -19,7 +19,7 @@ public partial class MainWindowViewModel
     }
 
     public string ManagedCoreProbePathsHint =>
-        "附加开发核心探测目录每行填写一个；程序目录 cores/managed 与资源根目录 cores/managed 会继续作为开发调试入口自动纳入。";
+        "附加开发核心探测目录每行填写一个；兼容目录 cores/managed 与资源根目录下的开发核心目录会自动纳入。";
 
     public string ManagedCoreReloadHint =>
         "重新加载会刷新已安装核心包与开发探测目录，仅影响后续新建会话；已运行会话不会切换核心。";
@@ -28,10 +28,10 @@ public partial class MainWindowViewModel
         $"当前已发现 {InstalledCoreManifests.Count} 个核心；附加开发目录 {_managedCoreProbePaths.Count} 个，有效探测目录 {EffectiveManagedCoreProbeDirectories.Count} 个。";
 
     public IReadOnlyList<string> EffectiveManagedCoreProbeDirectories =>
-        SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(ResourceRootPath, _managedCoreProbePaths);
+        SystemConfigProfile.ResolveEffectiveCoreProbeDirectories(ResourceRootPath, _managedCoreProbePaths);
 
     public string EffectiveManagedCoreProbeDirectoriesSummary => EffectiveManagedCoreProbeDirectories.Count == 0
-        ? "暂无有效 managed core 探测目录。"
+        ? "暂无有效核心探测目录。"
         : string.Join(Environment.NewLine, EffectiveManagedCoreProbeDirectories.Select(path => $"- {path}"));
 
     public bool CanOpenManagedCoreVersionManagement => false;
@@ -170,7 +170,7 @@ public partial class MainWindowViewModel
         try
         {
             var profile = SystemConfigProfile.Load();
-            _managedCoreProbePaths = [.. profile.ManagedCoreProbePaths];
+            _managedCoreProbePaths = [.. profile.CoreProbePaths];
             ManagedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
             RefreshManagedCoreCatalogState();
             StatusText = $"已重新加载核心来源，共 {EffectiveManagedCoreProbeDirectories.Count} 个有效探测目录；运行中的会话保持不变。";
@@ -183,7 +183,7 @@ public partial class MainWindowViewModel
 
     private void LoadManagedCoreSourceSettings(SystemConfigProfile profile)
     {
-        _managedCoreProbePaths = [.. profile.ManagedCoreProbePaths];
+        _managedCoreProbePaths = [.. profile.CoreProbePaths];
         ManagedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
         RefreshManagedCoreCatalogState();
     }

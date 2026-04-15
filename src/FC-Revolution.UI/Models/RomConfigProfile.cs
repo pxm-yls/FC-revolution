@@ -15,6 +15,7 @@ public sealed class RomConfigProfile
     public const int CurrentFcrVersion = 3;
     public const string ProfileKindValue = "FC-Revolution-ROM-Config";
     private const string InstanceIdFileName = ".fc-revolution.instance";
+    private Dictionary<string, Dictionary<string, string>> _portInputOverrides = new(StringComparer.Ordinal);
 
     public int FcrVersion { get; set; } = CurrentFcrVersion;
 
@@ -30,7 +31,17 @@ public sealed class RomConfigProfile
 
     public Dictionary<string, string> InputOverrides { get; set; } = new();
 
-    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> PortInputOverrides
+    {
+        get => _portInputOverrides;
+        set => _portInputOverrides = NormalizePortInputOverrides(value);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides
+    {
+        get => _portInputOverrides;
+        set => _portInputOverrides = NormalizePortInputOverrides(value);
+    }
 
     public List<ExtraInputBindingProfile> ExtraInputBindings { get; set; } = [];
 
@@ -175,6 +186,7 @@ public sealed class RomConfigProfile
             profile.CreatedAtUtc = profile.CreatedAtUtc == DateTime.MinValue ? DateTime.UtcNow : profile.CreatedAtUtc;
             profile.LastUpdatedAtUtc = profile.LastUpdatedAtUtc == DateTime.MinValue ? DateTime.UtcNow : profile.LastUpdatedAtUtc;
             profile.ExtraInputBindings ??= [];
+            profile.PortInputOverrides = profile.PortInputOverrides;
             migrated |= MigrateLegacyInputOverrides(profile);
             migrated |= SyncResourceManifest(romPath, profile);
 
@@ -201,6 +213,7 @@ public sealed class RomConfigProfile
         profile.CreatedAtUtc = profile.CreatedAtUtc == DateTime.MinValue ? DateTime.UtcNow : profile.CreatedAtUtc;
         profile.LastUpdatedAtUtc = DateTime.UtcNow;
         profile.ExtraInputBindings ??= [];
+        profile.PortInputOverrides = profile.PortInputOverrides;
         SyncResourceManifest(romPath, profile);
         Directory.CreateDirectory(Path.GetDirectoryName(GetProfilePath(romPath))!);
         var json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
@@ -268,15 +281,37 @@ public sealed class RomConfigProfile
 
     private static bool MigrateLegacyInputOverrides(RomConfigProfile profile)
     {
-        profile.PlayerInputOverrides ??= new Dictionary<string, Dictionary<string, string>>();
+        profile.PortInputOverrides = profile.PortInputOverrides;
         profile.InputOverrides ??= new Dictionary<string, string>();
         profile.ExtraInputBindings ??= [];
 
-        if (profile.PlayerInputOverrides.Count > 0 || profile.InputOverrides.Count == 0)
+        if (profile.PortInputOverrides.Count > 0 || profile.InputOverrides.Count == 0)
             return false;
 
-        profile.PlayerInputOverrides["Player1"] = new Dictionary<string, string>(profile.InputOverrides);
+        profile.PortInputOverrides["Player1"] = new Dictionary<string, string>(profile.InputOverrides, StringComparer.OrdinalIgnoreCase);
         return true;
+    }
+
+    private static Dictionary<string, Dictionary<string, string>> NormalizePortInputOverrides(
+        Dictionary<string, Dictionary<string, string>>? source)
+    {
+        var normalized = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        if (source == null)
+            return normalized;
+
+        foreach (var portEntry in source)
+        {
+            if (string.IsNullOrWhiteSpace(portEntry.Key))
+                continue;
+
+            normalized[portEntry.Key.Trim()] = portEntry.Value?.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return normalized;
     }
 
     private static bool SyncResourceManifest(string romPath, RomConfigProfile profile)

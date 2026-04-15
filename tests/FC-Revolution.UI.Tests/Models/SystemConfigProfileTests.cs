@@ -30,13 +30,13 @@ public sealed class SystemConfigProfileTests
     }
 
     [Fact]
-    public void ResolveManagedCoreProbePaths_IncludesResourceRootManagedCoreDirectory_AndConfiguredPaths()
+    public void ResolveCoreProbePaths_IncludesResourceRootDevelopmentCoreDirectory_AndConfiguredPaths()
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-system-core-probes-{Guid.NewGuid():N}");
-        var expectedDefaultPath = AppObjectStorage.GetManagedCoreModulesDirectory(tempRoot);
+        var expectedDefaultPath = AppObjectStorage.GetDevelopmentCoreModulesDirectory(tempRoot);
         var expectedCustomPath = Path.Combine(tempRoot, "external-cores");
 
-        var resolved = SystemConfigProfile.ResolveManagedCoreProbePaths(
+        var resolved = SystemConfigProfile.ResolveCoreProbePaths(
             tempRoot,
             [" ", expectedCustomPath, expectedCustomPath]);
 

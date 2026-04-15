@@ -17,6 +17,8 @@ public sealed class SystemConfigProfile
     private const int EmulatorFramesPerSecond = 60;
     private const double MinShortRewindSeconds = 1d;
     private const double MaxShortRewindSeconds = 30d;
+    private List<string> _coreProbePaths = [];
+    private Dictionary<string, Dictionary<string, string>> _portInputOverrides = new(StringComparer.Ordinal);
     public int FcrVersion { get; set; } = CurrentFcrVersion;
 
     public string ProfileKind { get; set; } = ProfileKindValue;
@@ -53,7 +55,17 @@ public sealed class SystemConfigProfile
 
     public string DefaultCoreId { get; set; } = string.Empty;
 
-    public List<string> ManagedCoreProbePaths { get; set; } = [];
+    public List<string> CoreProbePaths
+    {
+        get => _coreProbePaths;
+        set => _coreProbePaths = NormalizeCoreProbePaths(value);
+    }
+
+    public List<string> ManagedCoreProbePaths
+    {
+        get => _coreProbePaths;
+        set => _coreProbePaths = NormalizeCoreProbePaths(value);
+    }
 
     public string MacRenderUpscaleMode { get; set; } = "None";
 
@@ -89,7 +101,17 @@ public sealed class SystemConfigProfile
 
     public DebugWindowDisplaySettingsProfile DebugWindowDisplaySettings { get; set; } = new();
 
-    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> PortInputOverrides
+    {
+        get => _portInputOverrides;
+        set => _portInputOverrides = NormalizePortInputOverrides(value);
+    }
+
+    public Dictionary<string, Dictionary<string, string>> PlayerInputOverrides
+    {
+        get => _portInputOverrides;
+        set => _portInputOverrides = NormalizePortInputOverrides(value);
+    }
 
     public List<ExtraInputBindingProfile> ExtraInputBindings { get; set; } = [];
 
@@ -222,16 +244,16 @@ public sealed class SystemConfigProfile
             if (!string.Equals(profile.DefaultCoreId, normalizedDefaultCoreId, StringComparison.Ordinal))
                 migrated = true;
             profile.DefaultCoreId = normalizedDefaultCoreId;
-            var normalizedManagedCoreProbePaths = NormalizeManagedCoreProbePaths(profile.ManagedCoreProbePaths);
-            if (!PathsEqual(profile.ManagedCoreProbePaths, normalizedManagedCoreProbePaths))
+            var normalizedCoreProbePaths = NormalizeCoreProbePaths(profile.CoreProbePaths);
+            if (!PathsEqual(profile.CoreProbePaths, normalizedCoreProbePaths))
                 migrated = true;
-            profile.ManagedCoreProbePaths = normalizedManagedCoreProbePaths;
+            profile.CoreProbePaths = normalizedCoreProbePaths;
             if (string.IsNullOrWhiteSpace(profile.MacRenderUpscaleMode))
                 profile.MacRenderUpscaleMode = "None";
             if (string.IsNullOrWhiteSpace(profile.MacRenderUpscaleOutputResolution))
                 profile.MacRenderUpscaleOutputResolution = "Hd1080";
             profile.DebugWindowDisplaySettings ??= new DebugWindowDisplaySettingsProfile();
-            profile.PlayerInputOverrides ??= new Dictionary<string, Dictionary<string, string>>();
+            profile.PortInputOverrides = profile.PortInputOverrides;
             profile.ExtraInputBindings ??= [];
             profile.ShortcutBindings ??= new Dictionary<string, ShortcutBindingProfile>();
             profile.InputBindingLayout ??= InputBindingLayoutProfile.CreateDefault();
@@ -265,7 +287,7 @@ public sealed class SystemConfigProfile
         profile.DefaultCoreId = string.IsNullOrWhiteSpace(profile.DefaultCoreId)
             ? string.Empty
             : profile.DefaultCoreId.Trim();
-        profile.ManagedCoreProbePaths = NormalizeManagedCoreProbePaths(profile.ManagedCoreProbePaths);
+        profile.CoreProbePaths = NormalizeCoreProbePaths(profile.CoreProbePaths);
         profile.ShortRewindFrames = profile.ShortRewindFrames > 0
             ? Math.Clamp(
                 profile.ShortRewindFrames,
@@ -290,7 +312,7 @@ public sealed class SystemConfigProfile
         if (string.IsNullOrWhiteSpace(profile.MacRenderUpscaleOutputResolution))
             profile.MacRenderUpscaleOutputResolution = "Hd1080";
         profile.DebugWindowDisplaySettings ??= new DebugWindowDisplaySettingsProfile();
-        profile.PlayerInputOverrides ??= new Dictionary<string, Dictionary<string, string>>();
+        profile.PortInputOverrides = profile.PortInputOverrides;
         profile.ExtraInputBindings ??= [];
         profile.ShortcutBindings ??= new Dictionary<string, ShortcutBindingProfile>();
         profile.InputBindingLayout ??= InputBindingLayoutProfile.CreateDefault();
@@ -304,26 +326,37 @@ public sealed class SystemConfigProfile
         }
     }
 
+    public IReadOnlyList<string> GetEffectiveCoreProbePaths() =>
+        ResolveCoreProbePaths(ResourceRootPath, CoreProbePaths);
+
     public IReadOnlyList<string> GetEffectiveManagedCoreProbePaths() =>
-        ResolveManagedCoreProbePaths(ResourceRootPath, ManagedCoreProbePaths);
+        GetEffectiveCoreProbePaths();
+
+    public IReadOnlyList<string> GetEffectiveCoreProbeDirectories(string? appBaseDirectory = null) =>
+        ResolveEffectiveCoreProbeDirectories(ResourceRootPath, CoreProbePaths, appBaseDirectory);
 
     public IReadOnlyList<string> GetEffectiveManagedCoreProbeDirectories(string? appBaseDirectory = null) =>
-        ResolveEffectiveManagedCoreProbeDirectories(ResourceRootPath, ManagedCoreProbePaths, appBaseDirectory);
+        GetEffectiveCoreProbeDirectories(appBaseDirectory);
 
-    public static IReadOnlyList<string> ResolveManagedCoreProbePaths(
+    public static IReadOnlyList<string> ResolveCoreProbePaths(
         string? resourceRootPath,
         IEnumerable<string>? configuredProbePaths = null)
     {
         var normalizedResourceRoot = AppObjectStorage.NormalizeConfiguredResourceRoot(resourceRootPath);
         return DistinctPaths(
             [
-                AppObjectStorage.GetManagedCoreModulesDirectory(normalizedResourceRoot),
-                .. NormalizeManagedCoreProbePaths(configuredProbePaths)
+                AppObjectStorage.GetDevelopmentCoreModulesDirectory(normalizedResourceRoot),
+                .. NormalizeCoreProbePaths(configuredProbePaths)
             ])
             .ToArray();
     }
 
-    public static IReadOnlyList<string> ResolveEffectiveManagedCoreProbeDirectories(
+    public static IReadOnlyList<string> ResolveManagedCoreProbePaths(
+        string? resourceRootPath,
+        IEnumerable<string>? configuredProbePaths = null) =>
+        ResolveCoreProbePaths(resourceRootPath, configuredProbePaths);
+
+    public static IReadOnlyList<string> ResolveEffectiveCoreProbeDirectories(
         string? resourceRootPath,
         IEnumerable<string>? configuredProbePaths = null,
         string? appBaseDirectory = null)
@@ -345,11 +378,17 @@ public sealed class SystemConfigProfile
             ? AppContext.BaseDirectory
             : appBaseDirectory;
         AddPath(Path.Combine(normalizedAppBaseDirectory, "cores", "managed"));
-        foreach (var path in ResolveManagedCoreProbePaths(resourceRootPath, configuredProbePaths))
+        foreach (var path in ResolveCoreProbePaths(resourceRootPath, configuredProbePaths))
             AddPath(path);
 
         return directories;
     }
+
+    public static IReadOnlyList<string> ResolveEffectiveManagedCoreProbeDirectories(
+        string? resourceRootPath,
+        IEnumerable<string>? configuredProbePaths = null,
+        string? appBaseDirectory = null) =>
+        ResolveEffectiveCoreProbeDirectories(resourceRootPath, configuredProbePaths, appBaseDirectory);
 
     private static IEnumerable<string> EnumerateProfileProbePaths()
     {
@@ -420,7 +459,7 @@ public sealed class SystemConfigProfile
         return true;
     }
 
-    private static List<string> NormalizeManagedCoreProbePaths(IEnumerable<string>? paths)
+    private static List<string> NormalizeCoreProbePaths(IEnumerable<string>? paths)
     {
         var normalizedPaths = new List<string>();
         if (paths == null)
@@ -438,6 +477,28 @@ public sealed class SystemConfigProfile
         }
 
         return normalizedPaths;
+    }
+
+    private static Dictionary<string, Dictionary<string, string>> NormalizePortInputOverrides(
+        Dictionary<string, Dictionary<string, string>>? source)
+    {
+        var normalized = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+        if (source == null)
+            return normalized;
+
+        foreach (var portEntry in source)
+        {
+            if (string.IsNullOrWhiteSpace(portEntry.Key))
+                continue;
+
+            normalized[portEntry.Key.Trim()] = portEntry.Value?.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value,
+                StringComparer.OrdinalIgnoreCase)
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return normalized;
     }
 
     private static StringComparer GetPathComparer() => OperatingSystem.IsWindows()

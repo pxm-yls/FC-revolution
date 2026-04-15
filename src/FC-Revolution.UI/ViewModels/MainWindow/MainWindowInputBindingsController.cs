@@ -166,10 +166,10 @@ internal sealed class MainWindowInputBindingsController
         CoreInputBindingSchema inputBindingSchema)
     {
         var profile = RomConfigProfile.Load(romPath);
-        profile.PlayerInputOverrides = inputOverride == null
+        profile.PortInputOverrides = inputOverride == null
             ? new Dictionary<string, Dictionary<string, string>>()
             : BuildPortInputOverrideProfiles(inputOverride, inputBindingSchema);
-        profile.InputOverrides = BuildLegacyPrimaryPortOverrides(profile.PlayerInputOverrides, inputBindingSchema);
+        profile.InputOverrides = BuildLegacyPrimaryPortOverrides(profile.PortInputOverrides, inputBindingSchema);
         profile.ExtraInputBindings = romExtraInputOverrides.TryGetValue(romPath, out var extraBindings)
             ? extraBindings.Select(CloneExtraInputBindingProfile).ToList()
             : [];
@@ -382,7 +382,7 @@ internal sealed class MainWindowInputBindingsController
     public Dictionary<string, Dictionary<string, Key>> BuildInputMapsByPort(SystemConfigProfile profile, CoreInputBindingSchema inputBindingSchema)
     {
         var maps = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var overrideEntry in profile.PlayerInputOverrides)
+        foreach (var overrideEntry in profile.PortInputOverrides)
         {
             if (!TryResolveOverridePortId(overrideEntry.Key, inputBindingSchema, out var portId))
                 continue;
@@ -401,7 +401,7 @@ internal sealed class MainWindowInputBindingsController
     public Dictionary<string, Dictionary<string, Key>> BuildInputMapsByPort(RomConfigProfile profile, CoreInputBindingSchema inputBindingSchema)
     {
         var maps = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var overrideEntry in profile.PlayerInputOverrides)
+        foreach (var overrideEntry in profile.PortInputOverrides)
         {
             if (!TryResolveOverridePortId(overrideEntry.Key, inputBindingSchema, out var portId))
                 continue;
@@ -420,7 +420,7 @@ internal sealed class MainWindowInputBindingsController
     public ExtraInputBindingProfile CloneExtraInputBindingProfile(ExtraInputBindingProfile profile) => new()
     {
         PortId = profile.PortId,
-        Player = profile.Player,
+        LegacyPortOrdinal = profile.LegacyPortOrdinal,
         Kind = profile.Kind,
         Key = profile.Key,
         Buttons = [.. profile.Buttons],
@@ -578,8 +578,8 @@ internal sealed class MainWindowInputBindingsController
         if (inputBindingSchema.TryNormalizePortId(profile.PortId, out portId))
             return true;
 
-        if (profile.Player >= 0)
-            return inputBindingSchema.TryGetPortId(profile.Player, out portId);
+        if (profile.LegacyPortOrdinal >= 0)
+            return inputBindingSchema.TryGetPortId(profile.LegacyPortOrdinal, out portId);
 
         portId = string.Empty;
         return false;

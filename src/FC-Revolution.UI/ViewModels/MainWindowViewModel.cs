@@ -331,7 +331,7 @@ public partial class MainWindowViewModel : ViewModelBase
         AppObjectStorage.ConfigureResourceRoot(bootstrapProfile.ResourceRootPath);
         _resourceRootPath = AppObjectStorage.GetResourceRoot();
         _resourceRootPathInput = _resourceRootPath;
-        _managedCoreProbePaths = [.. bootstrapProfile.ManagedCoreProbePaths];
+        _managedCoreProbePaths = [.. bootstrapProfile.CoreProbePaths];
         _managedCoreProbePathsInput = FormatManagedCoreProbePathsInput(_managedCoreProbePaths);
         _managedCoreCatalogController = new MainWindowManagedCoreCatalogController();
         _managedCoreInstallController = new MainWindowManagedCoreInstallController();
@@ -1805,7 +1805,7 @@ public partial class MainWindowViewModel : ViewModelBase
             profile.SortDescending = SortDescending;
             profile.GameAspectRatioMode = GameAspectRatioMode.ToString();
             profile.DefaultCoreId = DefaultCoreId;
-            profile.ManagedCoreProbePaths = [.. _managedCoreProbePaths];
+            profile.CoreProbePaths = [.. _managedCoreProbePaths];
             profile.MacRenderUpscaleMode = _macUpscaleMode.ToString();
             profile.MacRenderUpscaleOutputResolution = _macUpscaleOutputResolution.ToString();
             profile.TimelineMode = TimelineMode.ToString();
@@ -1826,7 +1826,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 _shortcutBindings,
                 _inputBindingLayout,
                 _inputBindingSchema);
-            profile.PlayerInputOverrides = inputConfigSaveState.PortInputOverrides;
+            profile.PortInputOverrides = inputConfigSaveState.PortInputOverrides;
             profile.ExtraInputBindings = inputConfigSaveState.ExtraInputBindings;
             profile.ShortcutBindings = inputConfigSaveState.ShortcutBindings;
             profile.InputBindingLayout = inputConfigSaveState.InputBindingLayout;

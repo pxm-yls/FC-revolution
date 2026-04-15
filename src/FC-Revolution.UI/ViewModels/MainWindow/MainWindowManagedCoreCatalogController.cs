@@ -26,7 +26,7 @@ internal sealed class MainWindowManagedCoreCatalogController
         string? resourceRootPath,
         IReadOnlyList<string>? managedCoreProbePaths)
     {
-        var effectiveProbeDirectories = SystemConfigProfile.ResolveEffectiveManagedCoreProbeDirectories(resourceRootPath, managedCoreProbePaths);
+        var effectiveProbeDirectories = SystemConfigProfile.ResolveEffectiveCoreProbeDirectories(resourceRootPath, managedCoreProbePaths);
         var entries = ManagedCoreRuntime.LoadCatalogEntries(new ManagedCoreRuntimeOptions(
                 ResourceRootPath: resourceRootPath,
                 ProbeDirectories: effectiveProbeDirectories))

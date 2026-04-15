@@ -76,11 +76,11 @@ sealed class Program
             .ToArray();
         StartupDiagnostics.Write(
             "program",
-            $"managed core catalog initialized; sources=managed-core-package-registry,managed-core-probe-paths; probePaths={string.Join(", ", managedCoreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
+            $"core catalog initialized; sources=core-package-registry,development-core-probe-paths; probePaths={string.Join(", ", managedCoreProbePaths)}; installed={string.Join(", ", installedCoreIds)}");
     }
 
     private static IReadOnlyList<string> ResolveManagedCoreProbePaths(Models.SystemConfigProfile profile) =>
-        profile.GetEffectiveManagedCoreProbeDirectories();
+        profile.GetEffectiveCoreProbeDirectories();
 
     private static async Task<bool> TryRunLanProbeHost(string[] args)
     {

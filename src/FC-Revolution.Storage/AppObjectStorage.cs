@@ -97,6 +97,12 @@ public static class AppObjectStorage
     public static string GetManagedCoreModulesDirectory(string resourceRootPath) =>
         AppStorageLayoutPolicy.GetManagedCoreModulesDirectory(resourceRootPath);
 
+    public static string GetDevelopmentCoreModulesDirectory() =>
+        GetDevelopmentCoreModulesDirectory(GetResourceRoot());
+
+    public static string GetDevelopmentCoreModulesDirectory(string resourceRootPath) =>
+        GetManagedCoreModulesDirectory(resourceRootPath);
+
     public static string GetCoresRootDirectory() =>
         GetCoresRootDirectory(GetResourceRoot());
 
@@ -184,7 +190,7 @@ public static class AppObjectStorage
         Directory.CreateDirectory(GetCorePackagesDirectory());
         Directory.CreateDirectory(GetCoreTempDirectory());
         Directory.CreateDirectory(GetCoreCacheDirectory());
-        Directory.CreateDirectory(GetManagedCoreModulesDirectory());
+        Directory.CreateDirectory(GetDevelopmentCoreModulesDirectory());
     }
 
     public static string SanitizeFileName(string value) => AppStorageKeyPolicy.SanitizeFileName(value);

@@ -10,10 +10,6 @@ public readonly record struct FrameInputRecord(long Frame, IReadOnlyDictionary<s
     {
     }
 
-    public byte Player1ButtonsMask => GetButtonsMask("p1");
-
-    public byte Player2ButtonsMask => GetButtonsMask("p2");
-
     public byte GetButtonsMask(string portId) =>
         ButtonsByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
 
