@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
@@ -14,12 +13,7 @@ internal sealed record MainWindowActiveInputWriteRequest(
     float Value);
 
 internal sealed record MainWindowActiveInputPlan(
-    IReadOnlyDictionary<string, byte> DesiredLegacyMasksByPort,
-    IReadOnlyList<MainWindowActiveInputWriteRequest> WriteRequests)
-{
-    public byte GetDesiredLegacyMask(string portId) =>
-        DesiredLegacyMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-}
+    IReadOnlyList<MainWindowActiveInputWriteRequest> WriteRequests);
 
 internal sealed class MainWindowActiveInputRuntimeController
 {
@@ -95,12 +89,7 @@ internal sealed class MainWindowActiveInputRuntimeController
                 writeRequests);
         }
 
-        return new MainWindowActiveInputPlan(
-            inputBindingSchema.GetSupportedPorts().ToDictionary(
-                port => port.PortId,
-                port => BuildLegacyMask(port.PortId, desiredActions.GetActions(port.PortId), inputBindingSchema),
-                StringComparer.OrdinalIgnoreCase),
-            writeRequests);
+        return new MainWindowActiveInputPlan(writeRequests);
     }
 
     public void ApplyPlan(
@@ -184,18 +173,6 @@ internal sealed class MainWindowActiveInputRuntimeController
             target.Add(actionId);
         else
             target.Remove(actionId);
-    }
-
-    private static byte BuildLegacyMask(string portId, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
-    {
-        byte mask = 0;
-        foreach (var actionId in actionIds)
-        {
-            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
-                mask |= bit;
-        }
-
-        return mask;
     }
 
     private static IReadOnlySet<string> EmptyActions { get; } =

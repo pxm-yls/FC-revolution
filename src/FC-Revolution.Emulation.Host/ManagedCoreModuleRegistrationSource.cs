@@ -60,7 +60,8 @@ public sealed class DirectoryManagedCoreModuleRegistrationSource : IEmulatorCore
 
     public IReadOnlyList<IEmulatorCoreModule> LoadModules() =>
         EnumerateAssemblyPaths()
-            .SelectMany(path => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(path))
+            .SelectMany(path => InternalCoreLoaderRegistry.LoadModules(
+                new InternalCoreLoadTarget(CoreBinaryKinds.ManagedDotNet, path)))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();
@@ -131,7 +132,11 @@ public sealed class RegistryManagedCoreModuleRegistrationSource : IEmulatorCoreM
     public IReadOnlyList<IEmulatorCoreModule> LoadModules() =>
         _packageService
             .GetInstalledPackages(_getResourceRootPath())
-            .SelectMany(package => ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(package.EntryAssemblyPath, package.FactoryType))
+            .SelectMany(package => InternalCoreLoaderRegistry.LoadModules(
+                new InternalCoreLoadTarget(
+                    package.Manifest.BinaryKind,
+                    package.EntryAssemblyPath,
+                    package.FactoryType)))
             .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();

@@ -25,13 +25,6 @@ internal sealed record InputDesiredActions(
         new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 }
 
-internal sealed record InputDesiredMasks(
-    IReadOnlyDictionary<string, byte> MasksByPort)
-{
-    public byte GetMask(string portId) =>
-        MasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-}
-
 internal sealed record InputActionTransition(string ActionId, bool DesiredPressed);
 
 internal sealed record TurboPulseDecision(bool NextTurboPulseActive, bool ShouldRefreshActiveInputState);
@@ -115,33 +108,6 @@ internal sealed class MainWindowInputStateController
             StringComparer.OrdinalIgnoreCase));
     }
 
-    public InputDesiredMasks BuildDesiredMasks(
-        IReadOnlySet<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
-        IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
-        bool turboPulseActive,
-        CoreInputBindingSchema inputBindingSchema)
-    {
-        var desiredActions = BuildDesiredActions(pressedKeys, effectiveKeyMap, extraBindings, turboPulseActive);
-        return new InputDesiredMasks(
-            inputBindingSchema.GetSupportedPorts().ToDictionary(
-                port => port.PortId,
-                port => BuildLegacyMask(port.PortId, desiredActions.GetActions(port.PortId), inputBindingSchema),
-                StringComparer.OrdinalIgnoreCase));
-    }
-
-    public InputDesiredMasks BuildDesiredMasks(
-        IReadOnlySet<Key> pressedKeys,
-        IReadOnlyDictionary<Key, (string PortId, string ActionId)> effectiveKeyMap,
-        IReadOnlyList<ResolvedExtraInputBinding> extraBindings,
-        bool turboPulseActive) =>
-        BuildDesiredMasks(
-            pressedKeys,
-            effectiveKeyMap,
-            extraBindings,
-            turboPulseActive,
-            CoreInputBindingSchema.CreateFallback());
-
     public IReadOnlyList<InputActionTransition> BuildActionTransitions(
         IReadOnlySet<string> desiredActions,
         IReadOnlySet<string> currentActions,
@@ -196,18 +162,6 @@ internal sealed class MainWindowInputStateController
         }
 
         return actions;
-    }
-
-    private static byte BuildLegacyMask(string portId, IEnumerable<string> actionIds, CoreInputBindingSchema inputBindingSchema)
-    {
-        byte mask = 0;
-        foreach (var actionId in actionIds)
-        {
-            if (inputBindingSchema.TryGetLegacyBitMask(portId, actionId, out var bit))
-                mask |= bit;
-        }
-
-        return mask;
     }
 
     private static bool TryResolveProfilePort(

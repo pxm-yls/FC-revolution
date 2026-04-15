@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using FC_Revolution.UI.ViewModels;
 
 namespace FC_Revolution.UI.Tests;
@@ -5,13 +6,13 @@ namespace FC_Revolution.UI.Tests;
 public sealed class GameWindowInputStateControllerTests
 {
     [Fact]
-    public void ApplyDesiredLocalInputMask_UpdatesCombinedMask_WhenLocalInputAllowed()
+    public void ApplyDesiredLocalInputActions_UpdatesCombinedMask_WhenLocalInputAllowed()
     {
         var controller = new GameWindowInputStateController();
 
-        var changes = controller.ApplyDesiredLocalInputMask(
+        var changes = controller.ApplyDesiredLocalInputActions(
             portId: "p1",
-            desiredMask: (byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB),
+            desiredActions: ActionSet(FallbackInputTestData.ActionA, FallbackInputTestData.ActionB),
             allowLocalInput: true);
 
         Assert.Collection(
@@ -29,20 +30,21 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.True(change.Pressed);
             });
 
-        var snapshot = controller.Snapshot;
-        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), snapshot.GetCombinedMask("p1"));
-        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), snapshot.GetLocalMask("p1"));
+        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), controller.GetCombinedMask("p1"));
     }
 
     [Fact]
-    public void ApplyDesiredLocalInputMask_ClearsStoredLocalMask_WhenLocalInputBlocked()
+    public void ApplyDesiredLocalInputActions_ClearsStoredLocalState_WhenLocalInputBlocked()
     {
         var controller = new GameWindowInputStateController();
-        _ = controller.ApplyDesiredLocalInputMask("p1", FallbackInputTestData.MaskA, allowLocalInput: true);
+        _ = controller.ApplyDesiredLocalInputActions(
+            "p1",
+            ActionSet(FallbackInputTestData.ActionA),
+            allowLocalInput: true);
 
-        var changes = controller.ApplyDesiredLocalInputMask(
+        var changes = controller.ApplyDesiredLocalInputActions(
             portId: "p1",
-            desiredMask: (byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB),
+            desiredActions: ActionSet(FallbackInputTestData.ActionA, FallbackInputTestData.ActionB),
             allowLocalInput: false);
 
         Assert.Collection(
@@ -54,16 +56,17 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.False(change.Pressed);
             });
 
-        var snapshot = controller.Snapshot;
-        Assert.Equal(0, snapshot.GetCombinedMask("p1"));
-        Assert.Equal(0, snapshot.GetLocalMask("p1"));
+        Assert.Equal(0, controller.GetCombinedMask("p1"));
     }
 
     [Fact]
     public void RemoteTransitions_RebuildCombinedMask_AcrossAcquireAndRelease()
     {
         var controller = new GameWindowInputStateController();
-        _ = controller.ApplyDesiredLocalInputMask("p1", FallbackInputTestData.MaskA, allowLocalInput: true);
+        _ = controller.ApplyDesiredLocalInputActions(
+            "p1",
+            ActionSet(FallbackInputTestData.ActionA),
+            allowLocalInput: true);
 
         var acquireChanges = controller.RebuildCombinedState("p1", allowLocalInput: false);
         Assert.Collection(
@@ -105,9 +108,9 @@ public sealed class GameWindowInputStateControllerTests
                 Assert.True(change.Pressed);
             });
 
-        var snapshot = controller.Snapshot;
-        Assert.Equal(FallbackInputTestData.MaskA, snapshot.GetCombinedMask("p1"));
-        Assert.Equal(FallbackInputTestData.MaskA, snapshot.GetLocalMask("p1"));
-        Assert.Equal(0, snapshot.GetRemoteMask("p1"));
+        Assert.Equal(FallbackInputTestData.MaskA, controller.GetCombinedMask("p1"));
     }
+
+    private static IReadOnlySet<string> ActionSet(params string[] actionIds) =>
+        new HashSet<string>(actionIds, System.StringComparer.OrdinalIgnoreCase);
 }

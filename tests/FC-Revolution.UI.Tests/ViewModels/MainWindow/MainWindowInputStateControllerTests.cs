@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
@@ -97,10 +100,9 @@ public sealed class MainWindowInputStateControllerTests
     }
 
     [Fact]
-    public void BuildDesiredMasks_RespectsTurboPulseAndComboBindings()
+    public void BuildDesiredActions_RespectsTurboPulseAndComboBindings()
     {
         var controller = new MainWindowInputStateController();
-        var schema = CoreInputBindingSchema.CreateFallback();
         var pressedKeys = new HashSet<Key> { Key.Z, Key.Q, Key.W };
         var effectiveKeyMap = new Dictionary<Key, (string PortId, string ActionId)>
         {
@@ -113,24 +115,22 @@ public sealed class MainWindowInputStateControllerTests
             new("p2", Key.W, ExtraInputBindingKind.Combo, FallbackInputTestData.ActionIds(FallbackInputTestData.ActionSelect, FallbackInputTestData.ActionStart))
         };
 
-        var withoutTurboPulse = controller.BuildDesiredMasks(
+        var withoutTurboPulse = controller.BuildDesiredActions(
             pressedKeys,
             effectiveKeyMap,
             extraBindings,
-            turboPulseActive: false,
-            schema);
-        var withTurboPulse = controller.BuildDesiredMasks(
+            turboPulseActive: false);
+        var withTurboPulse = controller.BuildDesiredActions(
             pressedKeys,
             effectiveKeyMap,
             extraBindings,
-            turboPulseActive: true,
-            schema);
+            turboPulseActive: true);
 
-        Assert.Equal(FallbackInputTestData.MaskA, withoutTurboPulse.GetMask("p1"));
-        Assert.Equal((byte)(FallbackInputTestData.MaskSelect | FallbackInputTestData.MaskStart), withoutTurboPulse.GetMask("p2"));
+        AssertActions(withoutTurboPulse.GetActions("p1"), FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA));
+        AssertActions(withoutTurboPulse.GetActions("p2"), FallbackInputTestData.ActionIds(FallbackInputTestData.ActionSelect, FallbackInputTestData.ActionStart));
 
-        Assert.Equal((byte)(FallbackInputTestData.MaskA | FallbackInputTestData.MaskB), withTurboPulse.GetMask("p1"));
-        Assert.Equal((byte)(FallbackInputTestData.MaskSelect | FallbackInputTestData.MaskStart), withTurboPulse.GetMask("p2"));
+        AssertActions(withTurboPulse.GetActions("p1"), FallbackInputTestData.ActionIds(FallbackInputTestData.ActionA, FallbackInputTestData.ActionB));
+        AssertActions(withTurboPulse.GetActions("p2"), FallbackInputTestData.ActionIds(FallbackInputTestData.ActionSelect, FallbackInputTestData.ActionStart));
     }
 
     [Fact]
@@ -195,6 +195,16 @@ public sealed class MainWindowInputStateControllerTests
 
         Assert.True(activeTurbo.NextTurboPulseActive);
         Assert.True(activeTurbo.ShouldRefreshActiveInputState);
+    }
+
+    private static void AssertActions(
+        IReadOnlySet<string> actual,
+        IReadOnlyCollection<string> expected)
+    {
+        Assert.Equal(
+            expected.OrderBy(static actionId => actionId, StringComparer.OrdinalIgnoreCase),
+            actual.OrderBy(static actionId => actionId, StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed class HighIndexInputSchema : IInputSchema

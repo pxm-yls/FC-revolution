@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using FC_Revolution.UI.Infrastructure;
 
 namespace FC_Revolution.UI.ViewModels;
@@ -9,21 +8,6 @@ internal readonly record struct GameWindowInputStateChange(
     string PortId,
     string ActionId,
     bool Pressed);
-
-internal readonly record struct GameWindowInputStateSnapshot(
-    IReadOnlyDictionary<string, byte> CombinedMasksByPort,
-    IReadOnlyDictionary<string, byte> LocalMasksByPort,
-    IReadOnlyDictionary<string, byte> RemoteMasksByPort)
-{
-    public byte GetCombinedMask(string portId) =>
-        CombinedMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-
-    public byte GetLocalMask(string portId) =>
-        LocalMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-
-    public byte GetRemoteMask(string portId) =>
-        RemoteMasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-}
 
 internal sealed class GameWindowInputStateController
 {
@@ -41,11 +25,6 @@ internal sealed class GameWindowInputStateController
         : this(CoreInputBindingSchema.CreateFallback())
     {
     }
-
-    public GameWindowInputStateSnapshot Snapshot => new(
-        BuildMaskMap(GetCombinedMask),
-        BuildMaskMap(GetLocalMask),
-        BuildMaskMap(GetRemoteMask));
 
     public byte GetCombinedMask(string portId) => BuildLegacyMask(portId, GetCombinedActions(portId));
 
@@ -71,27 +50,6 @@ internal sealed class GameWindowInputStateController
         }
 
         return changes;
-    }
-
-    public IReadOnlyList<GameWindowInputStateChange> ApplyDesiredLocalInputMask(
-        string portId,
-        byte desiredMask,
-        bool allowLocalInput)
-    {
-        if (!TryNormalizePortId(portId, out var normalizedPortId))
-            return Array.Empty<GameWindowInputStateChange>();
-
-        HashSet<string> desiredActions = new(StringComparer.OrdinalIgnoreCase);
-        foreach (var actionId in _inputBindingSchema.GetBindableActionIds(normalizedPortId))
-        {
-            if (_inputBindingSchema.TryGetLegacyBitMask(normalizedPortId, actionId, out var bit) &&
-                (desiredMask & bit) != 0)
-            {
-                desiredActions.Add(actionId);
-            }
-        }
-
-        return ApplyDesiredLocalInputActions(normalizedPortId, desiredActions, allowLocalInput);
     }
 
     public IReadOnlyList<GameWindowInputStateChange> SetRemoteActionState(
@@ -161,10 +119,6 @@ internal sealed class GameWindowInputStateController
         changes.Add(new GameWindowInputStateChange(portId, actionId, desired));
     }
 
-    private byte GetLocalMask(string portId) => BuildLegacyMask(portId, GetLocalActions(portId));
-
-    private byte GetRemoteMask(string portId) => BuildLegacyMask(portId, GetRemoteActions(portId));
-
     private byte BuildLegacyMask(string portId, IEnumerable<string> actionIds)
     {
         byte mask = 0;
@@ -176,12 +130,6 @@ internal sealed class GameWindowInputStateController
 
         return mask;
     }
-
-    private Dictionary<string, byte> BuildMaskMap(Func<string, byte> getMask) =>
-        _inputBindingSchema.GetSupportedPorts().ToDictionary(
-            port => port.PortId,
-            port => getMask(port.PortId),
-            StringComparer.OrdinalIgnoreCase);
 
     private HashSet<string> GetCombinedActions(string portId) =>
         GetOrCreateActions(_combinedActionsByPort, portId);

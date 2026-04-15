@@ -51,8 +51,6 @@ public sealed class MainWindowActiveInputWorkflowControllerTests
             inputBindingSchema);
 
         Assert.Empty(decision.ApplyPlan.WriteRequests);
-        Assert.Equal((byte)0, decision.ApplyPlan.GetDesiredLegacyMask("p1"));
-        Assert.Equal((byte)0, decision.ApplyPlan.GetDesiredLegacyMask("p2"));
         Assert.False(decision.LegacyMirror.TurboPulseActive);
         Assert.Empty(decision.LegacyMirror.PressedKeys);
     }

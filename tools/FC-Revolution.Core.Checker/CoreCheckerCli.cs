@@ -352,7 +352,7 @@ public static class CoreCheckerCli
               - check is the default command when only options are provided.
               - --package validates a core package inside an isolated temporary resource root.
               - --resource-root checks already-installed cores in an existing runtime root.
-              - --probe-dir can be repeated to inspect loose managed core assemblies.
+              - --probe-dir can be repeated to inspect loose core entry assemblies (currently managed-dotnet only).
             """);
     }
 

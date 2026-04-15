@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.Loader;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Storage;
 
@@ -64,7 +62,7 @@ public static class ManagedCoreRuntime
     {
         var resolvedOptions = ResolveOptions(options);
 
-        var installDirectory = Path.GetFullPath(AppObjectStorage.GetManagedCoreModulesDirectory(
+        var installDirectory = Path.GetFullPath(AppObjectStorage.GetDevelopmentCoreModulesDirectory(
             string.IsNullOrWhiteSpace(resolvedOptions.ResourceRootPath)
                 ? AppObjectStorage.GetResourceRoot()
                 : resolvedOptions.ResourceRootPath));
@@ -72,13 +70,14 @@ public static class ManagedCoreRuntime
 
         foreach (var assemblyPath in EnumerateAssemblyPaths(resolvedOptions.ProbeDirectories))
         {
-            foreach (var descriptor in DiscoverModuleDescriptorsFromAssemblyPath(assemblyPath))
+            foreach (var descriptor in InternalCoreLoaderRegistry.DiscoverModules(
+                         new InternalCoreLoadTarget(CoreBinaryKinds.ManagedDotNet, assemblyPath)))
             {
-                var canUninstall = IsPathUnderDirectory(assemblyPath, installDirectory);
+                var canUninstall = IsPathUnderDirectory(descriptor.LoadTarget.EntryPath, installDirectory);
                 entries[descriptor.Manifest.CoreId] = new ManagedCoreCatalogEntry(
                     descriptor.Manifest,
-                    assemblyPath,
-                    descriptor.ModuleTypeName,
+                    descriptor.LoadTarget.EntryPath,
+                    descriptor.LoadTarget.ModuleTypeName,
                     ManagedCoreCatalogSourceKind.ProbeDirectory,
                     canUninstall,
                     InstallDirectory: null,
@@ -137,45 +136,6 @@ public static class ManagedCoreRuntime
             "managed-core-runtime-probe-directories",
             () => probeDirectories);
         return source.LoadModules();
-    }
-
-    private static IReadOnlyList<DiscoveredManagedCoreModuleDescriptor> DiscoverModuleDescriptorsFromAssemblyPath(string assemblyPath)
-    {
-        var loadContext = new ManagedCoreInspectionLoadContext(assemblyPath);
-        try
-        {
-            var assembly = loadContext.LoadFromAssemblyPath(Path.GetFullPath(assemblyPath));
-            return assembly
-                .GetTypes()
-                .Where(type =>
-                    type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IEmulatorCoreModule).IsAssignableFrom(type) &&
-                    type.GetConstructor(Type.EmptyTypes) != null)
-                .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IEmulatorCoreModule)Activator.CreateInstance(type)!).Manifest,
-                    type.FullName ?? type.Name))
-                .ToList();
-        }
-        catch (ReflectionTypeLoadException ex)
-        {
-            return ex.Types
-                .Where(type =>
-                    type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IEmulatorCoreModule).IsAssignableFrom(type) &&
-                    type.GetConstructor(Type.EmptyTypes) != null)
-                .Select(type => new DiscoveredManagedCoreModuleDescriptor(
-                    ((IEmulatorCoreModule)Activator.CreateInstance(type!)!).Manifest,
-                    type!.FullName ?? type.Name))
-                .ToList();
-        }
-        catch
-        {
-            return [];
-        }
-        finally
-        {
-            loadContext.Unload();
-        }
     }
 
     private static IEnumerable<string> EnumerateAssemblyPaths(IReadOnlyList<string> directories)
@@ -244,27 +204,4 @@ public static class ManagedCoreRuntime
     private sealed record ResolvedManagedCoreRuntimeOptions(
         string ResourceRootPath,
         IReadOnlyList<string> ProbeDirectories);
-
-    private sealed record DiscoveredManagedCoreModuleDescriptor(
-        CoreManifest Manifest,
-        string ModuleTypeName);
-
-    private sealed class ManagedCoreInspectionLoadContext(string assemblyPath) : AssemblyLoadContext(isCollectible: true)
-    {
-        private readonly AssemblyDependencyResolver _resolver = new(assemblyPath);
-
-        protected override Assembly? Load(AssemblyName assemblyName)
-        {
-            foreach (var assembly in AssemblyLoadContext.Default.Assemblies)
-            {
-                if (AssemblyName.ReferenceMatchesDefinition(assembly.GetName(), assemblyName))
-                    return assembly;
-            }
-
-            var resolvedPath = _resolver.ResolveAssemblyToPath(assemblyName);
-            return string.IsNullOrWhiteSpace(resolvedPath)
-                ? null
-                : LoadFromAssemblyPath(resolvedPath);
-        }
-    }
 }

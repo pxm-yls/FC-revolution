@@ -26,10 +26,6 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
             [],
             inputBindingSchema);
 
-        Assert.Equal(FallbackInputTestData.MaskA, plan.DesiredLegacyMasksByPort["p1"]);
-        Assert.Equal((byte)0, plan.DesiredLegacyMasksByPort["p2"]);
-        Assert.Equal(FallbackInputTestData.MaskA, plan.GetDesiredLegacyMask("p1"));
-        Assert.Equal((byte)0, plan.GetDesiredLegacyMask("p2"));
         var write = Assert.Single(plan.WriteRequests);
         Assert.Equal("p1", write.PortId);
         Assert.Equal("a", write.ActionId);
@@ -83,7 +79,6 @@ public sealed class MainWindowActiveInputRuntimeControllerTests
             inputBindingSchema);
 
         var write = Assert.Single(plan.WriteRequests);
-        Assert.Equal((byte)0, plan.GetDesiredLegacyMask("p1"));
         Assert.Equal("p1", write.PortId);
         Assert.Equal("a", write.ActionId);
         Assert.False(write.DesiredPressed);
