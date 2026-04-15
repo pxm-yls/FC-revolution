@@ -5,14 +5,14 @@ public sealed class LayeredFrameData
     public LayeredFrameData(
         int frameWidth,
         int frameHeight,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         uint[] palette,
         BackgroundTileRenderItem[] backgroundTiles,
         SpriteRenderItem[] sprites,
         bool showBackground,
         bool showSprites,
-        bool showBackgroundLeft8,
-        bool showSpritesLeft8,
+        bool showBackgroundInFirstTileColumn,
+        bool showSpritesInFirstTileColumn,
         MotionTextureData? motionTexture = null)
     {
         if (frameWidth <= 0)
@@ -23,14 +23,14 @@ public sealed class LayeredFrameData
 
         FrameWidth = frameWidth;
         FrameHeight = frameHeight;
-        ChrAtlas = chrAtlas ?? throw new ArgumentNullException(nameof(chrAtlas));
+        TileAtlas = tileAtlas ?? throw new ArgumentNullException(nameof(tileAtlas));
         Palette = palette ?? throw new ArgumentNullException(nameof(palette));
         BackgroundTiles = backgroundTiles ?? throw new ArgumentNullException(nameof(backgroundTiles));
         Sprites = sprites ?? throw new ArgumentNullException(nameof(sprites));
         ShowBackground = showBackground;
         ShowSprites = showSprites;
-        ShowBackgroundLeft8 = showBackgroundLeft8;
-        ShowSpritesLeft8 = showSpritesLeft8;
+        ShowBackgroundInFirstTileColumn = showBackgroundInFirstTileColumn;
+        ShowSpritesInFirstTileColumn = showSpritesInFirstTileColumn;
         if (motionTexture is not null && (motionTexture.Width != frameWidth || motionTexture.Height != frameHeight))
             throw new ArgumentException("Motion texture dimensions must match the frame size.", nameof(motionTexture));
 
@@ -41,7 +41,7 @@ public sealed class LayeredFrameData
 
     public int FrameHeight { get; }
 
-    public byte[] ChrAtlas { get; }
+    public byte[] TileAtlas { get; }
 
     public uint[] Palette { get; }
 
@@ -53,9 +53,9 @@ public sealed class LayeredFrameData
 
     public bool ShowSprites { get; }
 
-    public bool ShowBackgroundLeft8 { get; }
+    public bool ShowBackgroundInFirstTileColumn { get; }
 
-    public bool ShowSpritesLeft8 { get; }
+    public bool ShowSpritesInFirstTileColumn { get; }
 
     public MotionTextureData? MotionTexture { get; }
 }

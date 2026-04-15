@@ -67,13 +67,13 @@ public static class ReferenceFrameRenderer
                     if ((uint)pixelX >= (uint)frameData.FrameWidth)
                         continue;
 
-                    if (!frameData.ShowBackgroundLeft8 && pixelX < LayeredFrameBuilder.TileSize)
+                    if (!frameData.ShowBackgroundInFirstTileColumn && pixelX < LayeredFrameBuilder.TileSize)
                         continue;
 
                     if (pixelY < clipTop || pixelY >= clipBottom)
                         continue;
 
-                    byte colorIndex = ReadAtlasColor(frameData.ChrAtlas, tile.TileId, localX, localY);
+                    byte colorIndex = ReadAtlasColor(frameData.TileAtlas, tile.TileId, localX, localY);
                     if (colorIndex == 0)
                         continue;
 
@@ -106,11 +106,11 @@ public static class ReferenceFrameRenderer
                     if ((uint)pixelX >= (uint)frameData.FrameWidth)
                         continue;
 
-                    if (!frameData.ShowSpritesLeft8 && pixelX < LayeredFrameBuilder.TileSize)
+                    if (!frameData.ShowSpritesInFirstTileColumn && pixelX < LayeredFrameBuilder.TileSize)
                         continue;
 
                     int sampleX = sprite.FlipH != 0 ? (LayeredFrameBuilder.TileSize - 1 - localX) : localX;
-                    byte colorIndex = ReadAtlasColor(frameData.ChrAtlas, sprite.TileId, sampleX, sampleY);
+                    byte colorIndex = ReadAtlasColor(frameData.TileAtlas, sprite.TileId, sampleX, sampleY);
                     if (colorIndex == 0)
                         continue;
 

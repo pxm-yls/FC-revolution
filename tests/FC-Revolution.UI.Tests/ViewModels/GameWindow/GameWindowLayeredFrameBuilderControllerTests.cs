@@ -67,6 +67,6 @@ public sealed class GameWindowLayeredFrameBuilderControllerTests
             [],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 }

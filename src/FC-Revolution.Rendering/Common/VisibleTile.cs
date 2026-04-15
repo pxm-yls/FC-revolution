@@ -10,9 +10,9 @@ public readonly record struct VisibleTile
 
     public byte PaletteId { get; init; }
 
-    public int LogicalNametableIndex { get; init; }
+    public int LogicalPlaneIndex { get; init; }
 
-    public int PhysicalNametableIndex { get; init; }
+    public int PhysicalPlaneIndex { get; init; }
 
     public int TileX { get; init; }
 
@@ -22,5 +22,5 @@ public readonly record struct VisibleTile
 
     public int ClipBottom { get; init; }
 
-    public bool UseBackgroundPatternTableHighBank { get; init; }
+    public bool UseUpperBackgroundTileBank { get; init; }
 }

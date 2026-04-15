@@ -1,5 +1,4 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Infrastructure;
 using FC_Revolution.UI.Models;
@@ -12,28 +11,28 @@ public sealed class GameWindowInputBindingResolverTests
     [Fact]
     public void BuildKeyMap_MapsBindingsAndUsesLastAssignmentForDuplicateKey()
     {
-        var inputMaps = new Dictionary<int, Dictionary<NesButton, Key>>
+        var inputMaps = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
         {
-            [0] = new()
+            ["p1"] = new(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X
+                ["a"] = Key.Z,
+                ["b"] = Key.X
             },
-            [1] = new()
+            ["p2"] = new(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.Start] = Key.Z
+                ["start"] = Key.Z
             }
         };
 
-        var keyMap = GameWindowInputBindingResolver.BuildKeyMap(NesInputTestAdapter.BuildBindingsByPort(inputMaps));
+        var keyMap = GameWindowInputBindingResolver.BuildKeyMap(inputMaps);
 
         var startBinding = keyMap[Key.Z];
         Assert.Equal("p2", startBinding.PortId);
-        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.Start), startBinding.ActionId);
+        Assert.Equal("start", startBinding.ActionId);
 
         var secondaryBinding = keyMap[Key.X];
         Assert.Equal("p1", secondaryBinding.PortId);
-        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.B), secondaryBinding.ActionId);
+        Assert.Equal("b", secondaryBinding.ActionId);
     }
 
     [Fact]
@@ -115,7 +114,7 @@ public sealed class GameWindowInputBindingResolverTests
                 PortId = "p1",
                 Kind = "UnknownKind",
                 Key = Key.Q.ToString(),
-                Buttons = [NesInputTestAdapter.ActionId(NesButton.A), "BAD", NesInputTestAdapter.ActionId(NesButton.A)],
+                Buttons = ["a", "BAD", "a"],
                 TurboHz = 100
             },
             new ExtraInputBindingProfile
@@ -123,14 +122,14 @@ public sealed class GameWindowInputBindingResolverTests
                 PortId = "p2",
                 Kind = ExtraInputBindingKind.Combo.ToString(),
                 Key = Key.W.ToString(),
-                Buttons = [NesInputTestAdapter.ActionId(NesButton.B)]
+                Buttons = ["b"]
             },
             new ExtraInputBindingProfile
             {
                 PortId = "p1",
                 Kind = ExtraInputBindingKind.Combo.ToString(),
                 Key = Key.None.ToString(),
-                Buttons = [NesInputTestAdapter.ActionId(NesButton.A), NesInputTestAdapter.ActionId(NesButton.B)]
+                Buttons = ["a", "b"]
             }
         };
 
@@ -142,7 +141,7 @@ public sealed class GameWindowInputBindingResolverTests
         Assert.Equal(ExtraInputBindingKind.Turbo, binding.Kind);
         Assert.Equal(30, binding.TurboHz);
         var actionId = Assert.Single(binding.ActionIds);
-        Assert.Equal(NesInputTestAdapter.ActionId(NesButton.A), actionId);
+        Assert.Equal("a", actionId);
     }
 
     [Fact]
@@ -150,7 +149,7 @@ public sealed class GameWindowInputBindingResolverTests
     {
         var keyMap = new Dictionary<Key, (string PortId, string ActionId)>
         {
-            [Key.Z] = ("p1", NesInputTestAdapter.ActionId(NesButton.A))
+            [Key.Z] = ("p1", "a")
         };
         var extraBindings = new[]
         {
@@ -158,12 +157,12 @@ public sealed class GameWindowInputBindingResolverTests
                 PortId: "p1",
                 Key: Key.Q,
                 Kind: ExtraInputBindingKind.Combo,
-                ActionIds: NesInputTestAdapter.ActionIds(NesButton.A, NesButton.B)),
+                ActionIds: ["a", "b"]),
             new GameWindowResolvedExtraInputBinding(
                 PortId: "p2",
                 Key: Key.Z,
                 Kind: ExtraInputBindingKind.Turbo,
-                ActionIds: NesInputTestAdapter.ActionIds(NesButton.Start))
+                ActionIds: ["start"])
         };
 
         var handledKeys = GameWindowInputBindingResolver.BuildHandledKeys(keyMap, extraBindings);

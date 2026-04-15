@@ -49,14 +49,14 @@ public sealed class MotionVectorGeneratorTests
             fineScrollY: 3,
             coarseScrollX: 5,
             coarseScrollY: 2,
-            nametableSelect: 0);
+            backgroundPlaneSelect: 0);
 
         var current = new FrameMetadata(
             fineScrollX: 5,
             fineScrollY: 1,
             coarseScrollX: 6,
             coarseScrollY: 4,
-            nametableSelect: 0);
+            backgroundPlaneSelect: 0);
 
         Vector2 vector = MotionVectorGenerator.GenerateBackgroundMotionVector(current, previous, scaleX: 2f, scaleY: 0.5f);
 
@@ -71,14 +71,14 @@ public sealed class MotionVectorGeneratorTests
             fineScrollY: 7,
             coarseScrollX: 31,
             coarseScrollY: 29,
-            nametableSelect: 0b11);
+            backgroundPlaneSelect: 0b11);
 
         var current = new FrameMetadata(
             fineScrollX: 0,
             fineScrollY: 0,
             coarseScrollX: 0,
             coarseScrollY: 0,
-            nametableSelect: 0);
+            backgroundPlaneSelect: 0);
 
         Vector2 vector = MotionVectorGenerator.GenerateBackgroundMotionVector(current, previous, scaleX: 1f, scaleY: 1f);
 

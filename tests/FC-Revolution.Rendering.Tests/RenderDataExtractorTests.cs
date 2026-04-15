@@ -32,7 +32,7 @@ public sealed class RenderDataExtractorTests
         ppu.Oam[6] = 0x83;
         ppu.Oam[7] = 88;
 
-        SetScrollState(ppu, fineX: 3, fineY: 2, coarseX: 5, coarseY: 4, nametableSelect: 1);
+        SetScrollState(ppu, fineX: 3, fineY: 2, coarseX: 5, coarseY: 4, backgroundPlaneSelect: 1);
 
         var previous = new FrameMetadata(
             sprites:
@@ -78,21 +78,21 @@ public sealed class RenderDataExtractorTests
         ppu.Oam[3] = 30;
         ppu.PaletteRam[1] = 0x21;
 
-        SetScrollState(ppu, fineX: 1, fineY: 0, coarseX: 4, coarseY: 0, nametableSelect: 0);
+        SetScrollState(ppu, fineX: 1, fineY: 0, coarseX: 4, coarseY: 0, backgroundPlaneSelect: 0);
 
         var extractor = new RenderDataExtractor();
         FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), screenWidth: 16, screenHeight: 8);
 
         Assert.Equal(1, metadata.FineScrollX);
         Assert.Equal(4, metadata.CoarseScrollX);
-        Assert.Equal(0, metadata.NametableSelect);
-        Assert.Equal(FrameMirroringMode.Vertical, metadata.MirrorMode);
+        Assert.Equal(0, metadata.BackgroundPlaneSelect);
+        Assert.Equal(BackgroundPlaneLayoutMode.SharedLeftRight, metadata.BackgroundPlaneLayout);
         Assert.Equal(64, metadata.Sprites.Length);
         Assert.Equal((byte)20, metadata.Sprites[0].Y);
         Assert.Equal((byte)7, metadata.Sprites[0].TileId);
         Assert.Equal((byte)0x41, metadata.Sprites[0].Attrs);
         Assert.Equal((byte)30, metadata.Sprites[0].X);
-        Assert.Equal(0xAB, metadata.PatternTable[0x0123]);
+        Assert.Equal(0xAB, metadata.TileGraphicsBytes[0x0123]);
         Assert.Equal(0xFF4C9AEC, metadata.Palette[1]);
 
         Assert.Equal(3, metadata.VisibleTiles.Count);
@@ -109,7 +109,7 @@ public sealed class RenderDataExtractorTests
         ppu.Oam[1] = 5;
         ppu.Oam[2] = 0;
         ppu.Oam[3] = 24;
-        SetScrollState(ppu, fineX: 5, fineY: 1, coarseX: 2, coarseY: 1, nametableSelect: 0);
+        SetScrollState(ppu, fineX: 5, fineY: 1, coarseX: 2, coarseY: 1, backgroundPlaneSelect: 0);
 
         var previous = new FrameMetadata(
             sprites:
@@ -120,7 +120,7 @@ public sealed class RenderDataExtractorTests
             fineScrollY: 2,
             coarseScrollX: 1,
             coarseScrollY: 0,
-            nametableSelect: 0);
+            backgroundPlaneSelect: 0);
 
         var extractor = new RenderDataExtractor();
         FrameMetadata metadata = extractor.Extract(RenderSnapshotTestAdapter.FromPpu(ppu.CaptureRenderStateSnapshot()), previousFrame: previous);
@@ -139,7 +139,7 @@ public sealed class RenderDataExtractorTests
         ppu.Oam[1] = 5;
         ppu.Oam[2] = 0;
         ppu.Oam[3] = 24;
-        SetScrollState(ppu, fineX: 5, fineY: 1, coarseX: 2, coarseY: 1, nametableSelect: 0);
+        SetScrollState(ppu, fineX: 5, fineY: 1, coarseX: 2, coarseY: 1, backgroundPlaneSelect: 0);
 
         var previous = new FrameMetadata(
             sprites:
@@ -150,7 +150,7 @@ public sealed class RenderDataExtractorTests
             fineScrollY: 2,
             coarseScrollX: 1,
             coarseScrollY: 0,
-            nametableSelect: 0);
+            backgroundPlaneSelect: 0);
 
         var extractor = new RenderDataExtractor();
         FrameMetadata metadata = extractor.Extract(
@@ -164,14 +164,14 @@ public sealed class RenderDataExtractorTests
         Assert.Equal(new System.Numerics.Vector2(20f, 1f), metadata.MotionVectors[0]);
     }
 
-    private static void SetScrollState(Ppu2C02 ppu, int fineX, int fineY, int coarseX, int coarseY, int nametableSelect)
+    private static void SetScrollState(Ppu2C02 ppu, int fineX, int fineY, int coarseX, int coarseY, int backgroundPlaneSelect)
     {
         ppu.WriteRegister(0x2005, (byte)((coarseX << 3) | fineX));
         ppu.WriteRegister(0x2005, (byte)((coarseY << 3) | fineY));
 
         ushort v = (ushort)(
             ((fineY & 0x07) << 12) |
-            ((nametableSelect & 0x03) << 10) |
+            ((backgroundPlaneSelect & 0x03) << 10) |
             ((coarseY & 0x1F) << 5) |
             (coarseX & 0x1F));
 
@@ -185,20 +185,20 @@ public sealed class RenderDataExtractorTests
         Assert.Equal(expected.FineScrollY, actual.FineScrollY);
         Assert.Equal(expected.CoarseScrollX, actual.CoarseScrollX);
         Assert.Equal(expected.CoarseScrollY, actual.CoarseScrollY);
-        Assert.Equal(expected.NametableSelect, actual.NametableSelect);
-        Assert.Equal(expected.MirrorMode, actual.MirrorMode);
-        Assert.Equal(expected.UseBackgroundPatternTableHighBank, actual.UseBackgroundPatternTableHighBank);
-        Assert.Equal(expected.UseSpritePatternTableHighBank, actual.UseSpritePatternTableHighBank);
-        Assert.Equal(expected.Use8x16Sprites, actual.Use8x16Sprites);
+        Assert.Equal(expected.BackgroundPlaneSelect, actual.BackgroundPlaneSelect);
+        Assert.Equal(expected.BackgroundPlaneLayout, actual.BackgroundPlaneLayout);
+        Assert.Equal(expected.UseUpperBackgroundTileBank, actual.UseUpperBackgroundTileBank);
+        Assert.Equal(expected.UseUpperSpriteTileBank, actual.UseUpperSpriteTileBank);
+        Assert.Equal(expected.UseTallSprites, actual.UseTallSprites);
         Assert.Equal(expected.ShowBackground, actual.ShowBackground);
         Assert.Equal(expected.ShowSprites, actual.ShowSprites);
-        Assert.Equal(expected.ShowBackgroundLeft8, actual.ShowBackgroundLeft8);
-        Assert.Equal(expected.ShowSpritesLeft8, actual.ShowSpritesLeft8);
+        Assert.Equal(expected.ShowBackgroundInFirstTileColumn, actual.ShowBackgroundInFirstTileColumn);
+        Assert.Equal(expected.ShowSpritesInFirstTileColumn, actual.ShowSpritesInFirstTileColumn);
         Assert.Equal(expected.BackgroundMotionVector, actual.BackgroundMotionVector);
 
         Assert.True(expected.Sprites.SequenceEqual(actual.Sprites));
-        Assert.True(expected.Nametable.SequenceEqual(actual.Nametable));
-        Assert.True(expected.PatternTable.SequenceEqual(actual.PatternTable));
+        Assert.True(expected.BackgroundPlaneBytes.SequenceEqual(actual.BackgroundPlaneBytes));
+        Assert.True(expected.TileGraphicsBytes.SequenceEqual(actual.TileGraphicsBytes));
         Assert.True(expected.Palette.SequenceEqual(actual.Palette));
         Assert.True(expected.MotionVectors.SequenceEqual(actual.MotionVectors));
 
@@ -216,13 +216,13 @@ public sealed class RenderDataExtractorTests
         Assert.Equal(expected.ScreenY, actual.ScreenY);
         Assert.Equal(expected.TileId, actual.TileId);
         Assert.Equal(expected.PaletteId, actual.PaletteId);
-        Assert.Equal(expected.LogicalNametableIndex, actual.LogicalNametableIndex);
-        Assert.Equal(expected.PhysicalNametableIndex, actual.PhysicalNametableIndex);
+        Assert.Equal(expected.LogicalPlaneIndex, actual.LogicalPlaneIndex);
+        Assert.Equal(expected.PhysicalPlaneIndex, actual.PhysicalPlaneIndex);
         Assert.Equal(expected.TileX, actual.TileX);
         Assert.Equal(expected.TileY, actual.TileY);
         Assert.Equal(expected.ClipTop, actual.ClipTop);
         Assert.Equal(expected.ClipBottom, actual.ClipBottom);
-        Assert.Equal(expected.UseBackgroundPatternTableHighBank, actual.UseBackgroundPatternTableHighBank);
+        Assert.Equal(expected.UseUpperBackgroundTileBank, actual.UseUpperBackgroundTileBank);
     }
 
     private sealed class TestCartridge : ICartridge

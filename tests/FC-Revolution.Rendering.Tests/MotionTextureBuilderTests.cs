@@ -13,8 +13,8 @@ public sealed class MotionTextureBuilderTests
             backgroundMotionVector: new Vector2(3f, -2f),
             showBackground: true,
             showSprites: false,
-            showBackgroundLeft8: false,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: false,
+            showSpritesInFirstTileColumn: true);
 
         LayeredFrameData frameData = LayeredFrameBuilder.Build(metadata, 16, 2);
 
@@ -38,7 +38,7 @@ public sealed class MotionTextureBuilderTests
                 new SpriteEntry { X = 0, Y = 0, TileId = 1, Attrs = 0x00 },
                 new SpriteEntry { X = 0, Y = 0, TileId = 2, Attrs = 0x00 }
             ],
-            patternTable: BuildPatternTable(
+            tileGraphicsBytes: BuildPatternTable(
                 (1, BuildTile((0, 0, 1))),
                 (2, BuildSolidTile(1))),
             backgroundMotionVector: new Vector2(1f, 1f),
@@ -49,8 +49,8 @@ public sealed class MotionTextureBuilderTests
             ],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         MotionTextureData texture = LayeredFrameBuilder.BuildMotionTexture(metadata, 8, 8);
 
@@ -67,7 +67,7 @@ public sealed class MotionTextureBuilderTests
             [
                 new SpriteEntry { X = 0, Y = 0, TileId = 1, Attrs = 0x20 }
             ],
-            patternTable: BuildPatternTable(
+            tileGraphicsBytes: BuildPatternTable(
                 (0, BuildTile((0, 0, 1))),
                 (1, BuildSolidTile(1))),
             backgroundMotionVector: new Vector2(1f, 0f),
@@ -81,8 +81,8 @@ public sealed class MotionTextureBuilderTests
             ],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         MotionTextureData texture = LayeredFrameBuilder.BuildMotionTexture(metadata, 8, 8);
 
@@ -98,7 +98,7 @@ public sealed class MotionTextureBuilderTests
             [
                 new SpriteEntry { X = 6, Y = 0, TileId = 1, Attrs = 0x00 }
             ],
-            patternTable: BuildPatternTable((1, BuildSolidTile(1))),
+            tileGraphicsBytes: BuildPatternTable((1, BuildSolidTile(1))),
             backgroundMotionVector: new Vector2(1f, 1f),
             motionVectors:
             [
@@ -106,8 +106,8 @@ public sealed class MotionTextureBuilderTests
             ],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: false);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: false);
 
         MotionTextureData texture = LayeredFrameBuilder.BuildMotionTexture(metadata, 10, 2);
 

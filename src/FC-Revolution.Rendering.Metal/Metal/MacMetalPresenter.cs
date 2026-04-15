@@ -76,15 +76,15 @@ public sealed class MacMetalPresenter : IDisposable
         if (_presenter == IntPtr.Zero)
             throw new ObjectDisposedException(nameof(MacMetalPresenter));
 
-        fixed (byte* chrAtlas = frameData.ChrAtlas)
+        fixed (byte* tileAtlas = frameData.TileAtlas)
         fixed (uint* palette = frameData.Palette)
         fixed (BackgroundTileRenderItem* backgroundTiles = frameData.BackgroundTiles)
         fixed (SpriteRenderItem* sprites = frameData.Sprites)
         {
             bool presented = MacMetalBridge.PresentLayeredFrame(
                 _presenter,
-                (IntPtr)chrAtlas,
-                (uint)frameData.ChrAtlas.Length,
+                (IntPtr)tileAtlas,
+                (uint)frameData.TileAtlas.Length,
                 (IntPtr)palette,
                 (uint)frameData.Palette.Length,
                 (IntPtr)backgroundTiles,
@@ -93,8 +93,8 @@ public sealed class MacMetalPresenter : IDisposable
                 (uint)frameData.Sprites.Length,
                 frameData.ShowBackground ? (byte)1 : (byte)0,
                 frameData.ShowSprites ? (byte)1 : (byte)0,
-                frameData.ShowBackgroundLeft8 ? (byte)1 : (byte)0,
-                frameData.ShowSpritesLeft8 ? (byte)1 : (byte)0);
+                frameData.ShowBackgroundInFirstTileColumn ? (byte)1 : (byte)0,
+                frameData.ShowSpritesInFirstTileColumn ? (byte)1 : (byte)0);
             RefreshDiagnostics();
             return presented;
         }

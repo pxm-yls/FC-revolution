@@ -25,7 +25,7 @@ public sealed class MacMetalOffscreenRendererTests
         LayeredFrameData frameData = CreateLayeredFrameData(
             frameWidth: 24,
             frameHeight: 8,
-            chrAtlas: LayeredFrameBuilder.BuildChrAtlas(patternTable),
+            tileAtlas: LayeredFrameBuilder.BuildTileAtlas(patternTable),
             palette:
             [
                 0xFF010101u, 0xFF101010u, 0xFF202020u, 0xFF303030u,
@@ -51,8 +51,8 @@ public sealed class MacMetalOffscreenRendererTests
             ],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: false,
-            showSpritesLeft8: false);
+            showBackgroundInFirstTileColumn: false,
+            showSpritesInFirstTileColumn: false);
 
         uint[] reference = ReferenceFrameRenderer.Render(frameData);
         uint[] gpuFrame = MacMetalOffscreenRenderer.Render(frameData);
@@ -71,7 +71,7 @@ public sealed class MacMetalOffscreenRendererTests
         LayeredFrameData frameData = CreateLayeredFrameData(
             frameWidth: 24,
             frameHeight: 8,
-            chrAtlas: LayeredFrameBuilder.BuildChrAtlas(patternTable),
+            tileAtlas: LayeredFrameBuilder.BuildTileAtlas(patternTable),
             palette:
             [
                 0xFF010101u, 0xFF202020u, 0xFF303030u, 0xFF404040u,
@@ -92,8 +92,8 @@ public sealed class MacMetalOffscreenRendererTests
             sprites: [],
             showBackground: true,
             showSprites: false,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         uint[] gpuFrame = MacMetalOffscreenRenderer.Render(frameData, MacUpscaleMode.Spatial, 48, 16);
 
@@ -111,7 +111,7 @@ public sealed class MacMetalOffscreenRendererTests
         LayeredFrameData frameData = CreateLayeredFrameData(
             frameWidth: 16,
             frameHeight: 8,
-            chrAtlas: LayeredFrameBuilder.BuildChrAtlas(patternTable),
+            tileAtlas: LayeredFrameBuilder.BuildTileAtlas(patternTable),
             palette:
             [
                 0xFF010101u, 0xFF202020u, 0xFF303030u, 0xFF404040u,
@@ -131,8 +131,8 @@ public sealed class MacMetalOffscreenRendererTests
             sprites: [],
             showBackground: true,
             showSprites: false,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         uint[] noneA = MacMetalOffscreenRenderer.Render(frameData, MacUpscaleMode.None, 16, 8);
         uint[] spatialA = MacMetalOffscreenRenderer.Render(frameData, MacUpscaleMode.Spatial, 32, 16);
@@ -188,7 +188,7 @@ public sealed class MacMetalOffscreenRendererTests
         LayeredFrameData frameData = CreateLayeredFrameData(
             frameWidth: 16,
             frameHeight: 8,
-            chrAtlas: LayeredFrameBuilder.BuildChrAtlas(BuildPatternTable((0, BuildSolidTile(1)))),
+            tileAtlas: LayeredFrameBuilder.BuildTileAtlas(BuildPatternTable((0, BuildSolidTile(1)))),
             palette:
             [
                 0xFF010101u, 0xFF202020u, 0xFF303030u, 0xFF404040u,
@@ -208,8 +208,8 @@ public sealed class MacMetalOffscreenRendererTests
             sprites: [],
             showBackground: true,
             showSprites: false,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         uint[] none = MacMetalOffscreenRenderer.Render(frameData, MacUpscaleMode.None, 16, 8);
         uint[] temporal = MacMetalOffscreenRenderer.Render(frameData, MacUpscaleMode.Temporal, 16, 8);
@@ -228,7 +228,7 @@ public sealed class MacMetalOffscreenRendererTests
             TryCreateLayeredFrameDataWithMotionTexture(
                 frameWidth: 16,
                 frameHeight: 8,
-                chrAtlas: LayeredFrameBuilder.BuildChrAtlas(BuildPatternTable((0, BuildSolidTile(1)))),
+                tileAtlas: LayeredFrameBuilder.BuildTileAtlas(BuildPatternTable((0, BuildSolidTile(1)))),
                 palette:
                 [
                     0xFF010101u, 0xFF202020u, 0xFF303030u, 0xFF404040u,
@@ -248,8 +248,8 @@ public sealed class MacMetalOffscreenRendererTests
                 sprites: [],
                 showBackground: true,
                 showSprites: false,
-                showBackgroundLeft8: true,
-                showSpritesLeft8: true,
+                showBackgroundInFirstTileColumn: true,
+                showSpritesInFirstTileColumn: true,
                 motionTexture: motionTexture,
                 frameData: out LayeredFrameData? frameData,
                 expectedMotionBytes: out byte[]? expectedMotionBytes),
@@ -320,26 +320,26 @@ public sealed class MacMetalOffscreenRendererTests
     private static LayeredFrameData CreateLayeredFrameData(
         int frameWidth,
         int frameHeight,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         uint[] palette,
         BackgroundTileRenderItem[] backgroundTiles,
         SpriteRenderItem[] sprites,
         bool showBackground,
         bool showSprites,
-        bool showBackgroundLeft8,
-        bool showSpritesLeft8)
+        bool showBackgroundInFirstTileColumn,
+        bool showSpritesInFirstTileColumn)
     {
         if (!TryCreateLayeredFrameDataWithMotionTexture(
                 frameWidth,
                 frameHeight,
-                chrAtlas,
+                tileAtlas,
                 palette,
                 backgroundTiles,
                 sprites,
                 showBackground,
                 showSprites,
-                showBackgroundLeft8,
-                showSpritesLeft8,
+                showBackgroundInFirstTileColumn,
+                showSpritesInFirstTileColumn,
                 motionTexture: null,
                 frameData: out LayeredFrameData? frameData,
                 expectedMotionBytes: out _))
@@ -353,14 +353,14 @@ public sealed class MacMetalOffscreenRendererTests
     private static bool TryCreateLayeredFrameDataWithMotionTexture(
         int frameWidth,
         int frameHeight,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         uint[] palette,
         BackgroundTileRenderItem[] backgroundTiles,
         SpriteRenderItem[] sprites,
         bool showBackground,
         bool showSprites,
-        bool showBackgroundLeft8,
-        bool showSpritesLeft8,
+        bool showBackgroundInFirstTileColumn,
+        bool showSpritesInFirstTileColumn,
         TemporalMotionTextureInput? motionTexture,
         out LayeredFrameData? frameData,
         out byte[]? expectedMotionBytes)
@@ -373,14 +373,14 @@ public sealed class MacMetalOffscreenRendererTests
                     constructor.GetParameters(),
                     frameWidth,
                     frameHeight,
-                    chrAtlas,
+                    tileAtlas,
                     palette,
                     backgroundTiles,
                     sprites,
                     showBackground,
                     showSprites,
-                    showBackgroundLeft8,
-                    showSpritesLeft8,
+                    showBackgroundInFirstTileColumn,
+                    showSpritesInFirstTileColumn,
                     motionTexture,
                     out object?[]? arguments,
                     out bool consumedMotionTexture))
@@ -410,14 +410,14 @@ public sealed class MacMetalOffscreenRendererTests
         ParameterInfo[] parameters,
         int frameWidth,
         int frameHeight,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         uint[] palette,
         BackgroundTileRenderItem[] backgroundTiles,
         SpriteRenderItem[] sprites,
         bool showBackground,
         bool showSprites,
-        bool showBackgroundLeft8,
-        bool showSpritesLeft8,
+        bool showBackgroundInFirstTileColumn,
+        bool showSpritesInFirstTileColumn,
         TemporalMotionTextureInput? motionTexture,
         out object?[]? arguments,
         out bool consumedMotionTexture)
@@ -442,9 +442,9 @@ public sealed class MacMetalOffscreenRendererTests
                 continue;
             }
 
-            if (name.Equals("chrAtlas", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("tileAtlas", StringComparison.OrdinalIgnoreCase))
             {
-                arguments[index] = chrAtlas;
+                arguments[index] = tileAtlas;
                 continue;
             }
 
@@ -478,15 +478,15 @@ public sealed class MacMetalOffscreenRendererTests
                 continue;
             }
 
-            if (name.Equals("showBackgroundLeft8", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("showBackgroundInFirstTileColumn", StringComparison.OrdinalIgnoreCase))
             {
-                arguments[index] = showBackgroundLeft8;
+                arguments[index] = showBackgroundInFirstTileColumn;
                 continue;
             }
 
-            if (name.Equals("showSpritesLeft8", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("showSpritesInFirstTileColumn", StringComparison.OrdinalIgnoreCase))
             {
-                arguments[index] = showSpritesLeft8;
+                arguments[index] = showSpritesInFirstTileColumn;
                 continue;
             }
 

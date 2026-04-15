@@ -1,5 +1,4 @@
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FCRevolution.Emulation.Abstractions;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
@@ -77,32 +76,31 @@ internal sealed class GameWindowViewModelTestHost : IDisposable
         IReadOnlyList<ExtraInputBindingProfile>? extraInputBindings = null,
         IEmulatorCoreSession? coreSession = null)
     {
-        var inputMaps = new Dictionary<int, Dictionary<NesButton, Key>>
+        var inputBindingsByPort = new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
         {
-            [0] = new Dictionary<NesButton, Key>
+            ["p1"] = new(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.Z,
-                [NesButton.B] = Key.X,
-                [NesButton.Start] = Key.Enter,
-                [NesButton.Select] = Key.RightShift,
-                [NesButton.Up] = Key.Up,
-                [NesButton.Down] = Key.Down,
-                [NesButton.Left] = Key.Left,
-                [NesButton.Right] = Key.Right,
+                ["a"] = Key.Z,
+                ["b"] = Key.X,
+                ["start"] = Key.Enter,
+                ["select"] = Key.RightShift,
+                ["up"] = Key.Up,
+                ["down"] = Key.Down,
+                ["left"] = Key.Left,
+                ["right"] = Key.Right,
             },
-            [1] = new Dictionary<NesButton, Key>
+            ["p2"] = new(StringComparer.OrdinalIgnoreCase)
             {
-                [NesButton.A] = Key.U,
-                [NesButton.B] = Key.O,
-                [NesButton.Start] = Key.RightCtrl,
-                [NesButton.Select] = Key.Space,
-                [NesButton.Up] = Key.I,
-                [NesButton.Down] = Key.K,
-                [NesButton.Left] = Key.J,
-                [NesButton.Right] = Key.L,
+                ["a"] = Key.U,
+                ["b"] = Key.O,
+                ["start"] = Key.RightCtrl,
+                ["select"] = Key.Space,
+                ["up"] = Key.I,
+                ["down"] = Key.K,
+                ["left"] = Key.J,
+                ["right"] = Key.L,
             }
         };
-        var inputBindingsByPort = NesInputTestAdapter.BuildBindingsByPort(inputMaps);
 
         return coreSession == null
             ? new GameWindowViewModel("Test Game", romPath, GameAspectRatioMode.Native, inputBindingsByPort, extraInputBindings)

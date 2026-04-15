@@ -15,7 +15,7 @@ public sealed class ReferenceFrameRendererTests
                 new SpriteEntry { X = 0, Y = 0, TileId = 1, Attrs = 0x20 },
                 new SpriteEntry { X = 0, Y = 0, TileId = 2, Attrs = 0x00 }
             ],
-            patternTable: BuildPatternTable(
+            tileGraphicsBytes: BuildPatternTable(
                 (1, BuildSolidTile(1)),
                 (2, BuildSolidTile(2))),
             palette:
@@ -35,8 +35,8 @@ public sealed class ReferenceFrameRendererTests
             ],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         uint[] frame = ReferenceFrameRenderer.Render(metadata, 8, 8);
 
@@ -47,7 +47,7 @@ public sealed class ReferenceFrameRendererTests
     public void Render_HonorsBackgroundLeft8Mask()
     {
         var metadata = new FrameMetadata(
-            patternTable: BuildPatternTable((0, BuildSolidTile(1))),
+            tileGraphicsBytes: BuildPatternTable((0, BuildSolidTile(1))),
             palette:
             [
                 0xFF010101u, 0xFF020202u, 0xFF030303u, 0xFF040404u,
@@ -66,8 +66,8 @@ public sealed class ReferenceFrameRendererTests
             ],
             showBackground: true,
             showSprites: false,
-            showBackgroundLeft8: false,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: false,
+            showSpritesInFirstTileColumn: true);
 
         uint[] frame = ReferenceFrameRenderer.Render(metadata, 16, 8);
 
@@ -83,7 +83,7 @@ public sealed class ReferenceFrameRendererTests
             [
                 new SpriteEntry { X = 24, Y = 40, TileId = 0x05, Attrs = 0xC2 }
             ],
-            use8x16Sprites: true);
+            useTallSprites: true);
 
         LayeredFrameData frameData = LayeredFrameBuilder.Build(metadata, 32, 32);
 

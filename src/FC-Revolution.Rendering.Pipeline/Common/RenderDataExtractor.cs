@@ -13,7 +13,7 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        SpriteEntry[] sprites = ExtractSprites(snapshot.OamBytes);
+        SpriteEntry[] sprites = ExtractSprites(snapshot.SpriteBytes);
         VisibleTile[] visibleTiles = ResolveVisibleTiles(snapshot, screenWidth, screenHeight);
         // Motion vectors are expressed in the current internal render pixel space,
         // so changes in internal render resolution scale the previous->current delta.
@@ -26,38 +26,38 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
                 currentFineScrollY: snapshot.FineScrollY,
                 currentCoarseScrollX: snapshot.CoarseScrollX,
                 currentCoarseScrollY: snapshot.CoarseScrollY,
-                currentNametableSelect: snapshot.NametableSelect,
+                currentBackgroundPlaneSelect: snapshot.BackgroundPlaneSelect,
                 previousFineScrollX: previousFrame.FineScrollX,
                 previousFineScrollY: previousFrame.FineScrollY,
                 previousCoarseScrollX: previousFrame.CoarseScrollX,
                 previousCoarseScrollY: previousFrame.CoarseScrollY,
-                previousNametableSelect: previousFrame.NametableSelect,
+                previousBackgroundPlaneSelect: previousFrame.BackgroundPlaneSelect,
                 scaleX: motionScaleX,
                 scaleY: motionScaleY);
 
         return new FrameMetadata(
             sprites: sprites,
-            nametable: snapshot.NametableBytes,
-            patternTable: snapshot.PatternTableBytes,
+            backgroundPlaneBytes: snapshot.BackgroundPlaneBytes,
+            tileGraphicsBytes: snapshot.TileGraphicsBytes,
             palette: snapshot.PaletteColors,
             backgroundMotionVector: backgroundMotionVector,
             motionVectors: previousFrame is null
                 ? new Vector2[sprites.Length]
                 : MotionVectorGenerator.GenerateSpriteMotionVectors(sprites, previousFrame.Sprites, motionScaleX, motionScaleY),
             visibleTiles: visibleTiles,
-            mirrorMode: snapshot.MirroringMode,
+            backgroundPlaneLayout: snapshot.BackgroundPlaneLayout,
             fineScrollX: snapshot.FineScrollX,
             fineScrollY: snapshot.FineScrollY,
             coarseScrollX: snapshot.CoarseScrollX,
             coarseScrollY: snapshot.CoarseScrollY,
-            nametableSelect: snapshot.NametableSelect,
-            useBackgroundPatternTableHighBank: snapshot.UseBackgroundPatternTableHighBank,
-            useSpritePatternTableHighBank: snapshot.UseSpritePatternTableHighBank,
-            use8x16Sprites: snapshot.Use8x16Sprites,
+            backgroundPlaneSelect: snapshot.BackgroundPlaneSelect,
+            useUpperBackgroundTileBank: snapshot.UseUpperBackgroundTileBank,
+            useUpperSpriteTileBank: snapshot.UseUpperSpriteTileBank,
+            useTallSprites: snapshot.UseTallSprites,
             showBackground: snapshot.ShowBackground,
             showSprites: snapshot.ShowSprites,
-            showBackgroundLeft8: snapshot.ShowBackgroundLeft8,
-            showSpritesLeft8: snapshot.ShowSpritesLeft8);
+            showBackgroundInFirstTileColumn: snapshot.ShowBackgroundInFirstTileColumn,
+            showSpritesInFirstTileColumn: snapshot.ShowSpritesInFirstTileColumn);
     }
 
     private static VisibleTile[] ResolveVisibleTiles(
@@ -68,17 +68,16 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
         if (!snapshot.HasCapturedBackgroundScanlineStates)
         {
             return VisibleTileResolver.ResolveArray(
-                snapshot.NametableBytes,
-                snapshot.PatternTableBytes,
+                snapshot.BackgroundPlaneBytes,
                 snapshot.FineScrollX,
                 snapshot.FineScrollY,
                 snapshot.CoarseScrollX,
                 snapshot.CoarseScrollY,
-                snapshot.NametableSelect,
-                snapshot.MirroringMode,
+                snapshot.BackgroundPlaneSelect,
+                snapshot.BackgroundPlaneLayout,
                 screenWidth,
                 screenHeight,
-                useBackgroundPatternTableHighBank: snapshot.UseBackgroundPatternTableHighBank);
+                useUpperBackgroundTileBank: snapshot.UseUpperBackgroundTileBank);
         }
 
         int scanlineCount = Math.Min(screenHeight, snapshot.BackgroundScanlineStates.Length);
@@ -100,14 +99,13 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
             {
                 int stripHeight = scanline - stripStart;
                 totalVisibleTiles += VisibleTileResolver.GetVisibleTileCount(
-                    snapshot.NametableBytes,
-                    snapshot.PatternTableBytes,
+                    snapshot.BackgroundPlaneBytes,
                     currentState.FineScrollX,
                     currentState.FineScrollY,
                     currentState.CoarseScrollX,
                     currentState.CoarseScrollY,
-                    currentState.NametableSelect,
-                    snapshot.MirroringMode,
+                    currentState.BackgroundPlaneSelect,
+                    snapshot.BackgroundPlaneLayout,
                     screenWidth,
                     stripHeight);
             }
@@ -140,20 +138,19 @@ public sealed class RenderDataExtractor : IRenderDataExtractor
                 writeIndex = VisibleTileResolver.ResolveInto(
                     visibleTiles,
                     writeIndex,
-                    snapshot.NametableBytes,
-                    snapshot.PatternTableBytes,
+                    snapshot.BackgroundPlaneBytes,
                     currentState.FineScrollX,
                     currentState.FineScrollY,
                     currentState.CoarseScrollX,
                     currentState.CoarseScrollY,
-                    currentState.NametableSelect,
-                    snapshot.MirroringMode,
+                    currentState.BackgroundPlaneSelect,
+                    snapshot.BackgroundPlaneLayout,
                     screenWidth,
                     stripHeight,
                     screenOffsetY: stripStart,
                     clipTop: stripStart,
                     clipBottom: scanline,
-                    useBackgroundPatternTableHighBank: currentState.UseBackgroundPatternTableHighBank);
+                    useUpperBackgroundTileBank: currentState.UseUpperBackgroundTileBank);
             }
 
             if (reachedEnd)

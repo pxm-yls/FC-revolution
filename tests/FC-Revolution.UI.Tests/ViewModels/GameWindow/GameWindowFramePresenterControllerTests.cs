@@ -70,6 +70,6 @@ public sealed class GameWindowFramePresenterControllerTests
             [],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 }

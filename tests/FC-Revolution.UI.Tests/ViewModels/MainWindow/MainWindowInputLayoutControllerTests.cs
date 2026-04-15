@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Avalonia.Input;
-using FCRevolution.Core.Input;
 using FC_Revolution.UI.Models;
 using FC_Revolution.UI.ViewModels;
 
@@ -18,13 +17,13 @@ public sealed class MainWindowInputLayoutControllerTests
         var layout = InputBindingLayoutProfile.CreateDefault();
         layout.A.CenterX = 355;
         layout.A.CenterY = 149;
-        var globalEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.A) };
-        var romEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.A) };
+        var globalEntries = new List<InputBindingEntry> { CreateInputBinding("a", "A") };
+        var romEntries = new List<InputBindingEntry> { CreateInputBinding("a", "A") };
         var notified = new List<string>();
 
         controller.MoveInputBindingLayoutSlot(
             layout,
-            NesInputTestAdapter.ActionId(NesButton.A),
+            "a",
             deltaX: 20,
             deltaY: 20,
             globalEntries,
@@ -46,8 +45,8 @@ public sealed class MainWindowInputLayoutControllerTests
     {
         var controller = new MainWindowInputLayoutController();
         var layout = InputBindingLayoutProfile.CreateDefault();
-        var globalEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.A) };
-        var romEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.B) };
+        var globalEntries = new List<InputBindingEntry> { CreateInputBinding("a", "A") };
+        var romEntries = new List<InputBindingEntry> { CreateInputBinding("b", "B") };
         var notified = new List<string>();
         var beforeLeftCircleX = layout.LeftCircleX;
 
@@ -87,8 +86,8 @@ public sealed class MainWindowInputLayoutControllerTests
         modifiedLayout.BridgeY = 12;
         modifiedLayout.A.CenterX = 42;
         modifiedLayout.A.CenterY = 43;
-        var globalEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.A) };
-        var romEntries = new List<InputBindingEntry> { CreateInputBinding(NesButton.A) };
+        var globalEntries = new List<InputBindingEntry> { CreateInputBinding("a", "A") };
+        var romEntries = new List<InputBindingEntry> { CreateInputBinding("a", "A") };
         var notified = new List<string>();
         var saveCalls = 0;
         var defaults = InputBindingLayoutProfile.CreateDefault();
@@ -110,12 +109,12 @@ public sealed class MainWindowInputLayoutControllerTests
         Assert.Contains(nameof(MainWindowViewModel.InputLayoutBridgeMargin), notified);
     }
 
-    private static InputBindingEntry CreateInputBinding(NesButton button) =>
+    private static InputBindingEntry CreateInputBinding(string actionId, string actionName) =>
         new(
             portId: "p1",
             portLabel: "1P",
-            actionId: NesInputTestAdapter.ActionId(button),
-            actionName: button.ToString(),
+            actionId: actionId,
+            actionName: actionName,
             selectedKey: Key.Z,
             availableKeys: ConfigurableKeys);
 }

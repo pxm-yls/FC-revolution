@@ -7,9 +7,9 @@ public interface IFrameMetadata
 {
     ReadOnlySpan<SpriteEntry> Sprites { get; }
 
-    ReadOnlySpan<byte> Nametable { get; }
+    ReadOnlySpan<byte> BackgroundPlaneBytes { get; }
 
-    ReadOnlySpan<byte> PatternTable { get; }
+    ReadOnlySpan<byte> TileGraphicsBytes { get; }
 
     ReadOnlySpan<uint> Palette { get; }
 
@@ -27,7 +27,7 @@ public interface IFrameMetadata
 
     IReadOnlyList<VisibleTile> VisibleTiles { get; }
 
-    FrameMirroringMode MirrorMode { get; }
+    BackgroundPlaneLayoutMode BackgroundPlaneLayout { get; }
 
     int FineScrollX { get; }
 
@@ -37,19 +37,19 @@ public interface IFrameMetadata
 
     int CoarseScrollY { get; }
 
-    int NametableSelect { get; }
+    int BackgroundPlaneSelect { get; }
 
-    bool UseBackgroundPatternTableHighBank { get; }
+    bool UseUpperBackgroundTileBank { get; }
 
-    bool UseSpritePatternTableHighBank { get; }
+    bool UseUpperSpriteTileBank { get; }
 
-    bool Use8x16Sprites { get; }
+    bool UseTallSprites { get; }
 
     bool ShowBackground { get; }
 
     bool ShowSprites { get; }
 
-    bool ShowBackgroundLeft8 { get; }
+    bool ShowBackgroundInFirstTileColumn { get; }
 
-    bool ShowSpritesLeft8 { get; }
+    bool ShowSpritesInFirstTileColumn { get; }
 }

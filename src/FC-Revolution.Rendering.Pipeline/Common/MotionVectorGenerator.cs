@@ -28,12 +28,12 @@ public static class MotionVectorGenerator
             currentFineScrollY: current.FineScrollY,
             currentCoarseScrollX: current.CoarseScrollX,
             currentCoarseScrollY: current.CoarseScrollY,
-            currentNametableSelect: current.NametableSelect,
+            currentBackgroundPlaneSelect: current.BackgroundPlaneSelect,
             previousFineScrollX: previous.FineScrollX,
             previousFineScrollY: previous.FineScrollY,
             previousCoarseScrollX: previous.CoarseScrollX,
             previousCoarseScrollY: previous.CoarseScrollY,
-            previousNametableSelect: previous.NametableSelect,
+            previousBackgroundPlaneSelect: previous.BackgroundPlaneSelect,
             scaleX: scaleX,
             scaleY: scaleY);
     }
@@ -47,19 +47,19 @@ public static class MotionVectorGenerator
         int currentFineScrollY,
         int currentCoarseScrollX,
         int currentCoarseScrollY,
-        int currentNametableSelect,
+        int currentBackgroundPlaneSelect,
         int previousFineScrollX,
         int previousFineScrollY,
         int previousCoarseScrollX,
         int previousCoarseScrollY,
-        int previousNametableSelect,
+        int previousBackgroundPlaneSelect,
         float scaleX,
         float scaleY)
     {
-        int currentScrollX = ComputeAbsoluteScrollX(currentFineScrollX, currentCoarseScrollX, currentNametableSelect);
-        int currentScrollY = ComputeAbsoluteScrollY(currentFineScrollY, currentCoarseScrollY, currentNametableSelect);
-        int previousScrollX = ComputeAbsoluteScrollX(previousFineScrollX, previousCoarseScrollX, previousNametableSelect);
-        int previousScrollY = ComputeAbsoluteScrollY(previousFineScrollY, previousCoarseScrollY, previousNametableSelect);
+        int currentScrollX = ComputeAbsoluteScrollX(currentFineScrollX, currentCoarseScrollX, currentBackgroundPlaneSelect);
+        int currentScrollY = ComputeAbsoluteScrollY(currentFineScrollY, currentCoarseScrollY, currentBackgroundPlaneSelect);
+        int previousScrollX = ComputeAbsoluteScrollX(previousFineScrollX, previousCoarseScrollX, previousBackgroundPlaneSelect);
+        int previousScrollY = ComputeAbsoluteScrollY(previousFineScrollY, previousCoarseScrollY, previousBackgroundPlaneSelect);
 
         int scrollDeltaX = ComputeWrappedDelta(currentScrollX, previousScrollX, ScrollWidthPixels);
         int scrollDeltaY = ComputeWrappedDelta(currentScrollY, previousScrollY, ScrollHeightPixels);
@@ -106,16 +106,16 @@ public static class MotionVectorGenerator
         return vectors;
     }
 
-    private static int ComputeAbsoluteScrollX(int fineScrollX, int coarseScrollX, int nametableSelect)
+    private static int ComputeAbsoluteScrollX(int fineScrollX, int coarseScrollX, int backgroundPlaneSelect)
     {
-        int nametableX = nametableSelect & 0x01;
-        return (nametableX * 32 * 8) + (coarseScrollX * 8) + fineScrollX;
+        int planeX = backgroundPlaneSelect & 0x01;
+        return (planeX * 32 * 8) + (coarseScrollX * 8) + fineScrollX;
     }
 
-    private static int ComputeAbsoluteScrollY(int fineScrollY, int coarseScrollY, int nametableSelect)
+    private static int ComputeAbsoluteScrollY(int fineScrollY, int coarseScrollY, int backgroundPlaneSelect)
     {
-        int nametableY = (nametableSelect >> 1) & 0x01;
-        return (nametableY * 30 * 8) + (coarseScrollY * 8) + fineScrollY;
+        int planeY = (backgroundPlaneSelect >> 1) & 0x01;
+        return (planeY * 30 * 8) + (coarseScrollY * 8) + fineScrollY;
     }
 
     private static int ComputeWrappedDelta(int current, int previous, int period)

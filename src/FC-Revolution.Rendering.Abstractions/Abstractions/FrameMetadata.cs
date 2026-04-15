@@ -6,8 +6,8 @@ namespace FCRevolution.Rendering.Abstractions;
 public sealed class FrameMetadata : IFrameMetadata
 {
     private readonly SpriteEntry[] _sprites;
-    private readonly byte[] _nametable;
-    private readonly byte[] _patternTable;
+    private readonly byte[] _backgroundPlaneBytes;
+    private readonly byte[] _tileGraphicsBytes;
     private readonly uint[] _palette;
     private readonly Vector2 _backgroundMotionVector;
     private readonly Vector2[] _motionVectors;
@@ -15,53 +15,53 @@ public sealed class FrameMetadata : IFrameMetadata
 
     public FrameMetadata(
         SpriteEntry[]? sprites = null,
-        byte[]? nametable = null,
-        byte[]? patternTable = null,
+        byte[]? backgroundPlaneBytes = null,
+        byte[]? tileGraphicsBytes = null,
         uint[]? palette = null,
         Vector2 backgroundMotionVector = default,
         Vector2[]? motionVectors = null,
         VisibleTile[]? visibleTiles = null,
-        FrameMirroringMode mirrorMode = FrameMirroringMode.Horizontal,
+        BackgroundPlaneLayoutMode backgroundPlaneLayout = BackgroundPlaneLayoutMode.SharedTopBottom,
         int fineScrollX = 0,
         int fineScrollY = 0,
         int coarseScrollX = 0,
         int coarseScrollY = 0,
-        int nametableSelect = 0,
-        bool useBackgroundPatternTableHighBank = false,
-        bool useSpritePatternTableHighBank = false,
-        bool use8x16Sprites = false,
+        int backgroundPlaneSelect = 0,
+        bool useUpperBackgroundTileBank = false,
+        bool useUpperSpriteTileBank = false,
+        bool useTallSprites = false,
         bool showBackground = true,
         bool showSprites = true,
-        bool showBackgroundLeft8 = true,
-        bool showSpritesLeft8 = true)
+        bool showBackgroundInFirstTileColumn = true,
+        bool showSpritesInFirstTileColumn = true)
     {
         _sprites = sprites ?? [];
-        _nametable = nametable ?? [];
-        _patternTable = patternTable ?? [];
+        _backgroundPlaneBytes = backgroundPlaneBytes ?? [];
+        _tileGraphicsBytes = tileGraphicsBytes ?? [];
         _palette = palette ?? [];
         _backgroundMotionVector = backgroundMotionVector;
         _motionVectors = motionVectors ?? [];
         _visibleTiles = visibleTiles ?? [];
-        MirrorMode = mirrorMode;
+        BackgroundPlaneLayout = backgroundPlaneLayout;
         FineScrollX = fineScrollX;
         FineScrollY = fineScrollY;
         CoarseScrollX = coarseScrollX;
         CoarseScrollY = coarseScrollY;
-        NametableSelect = nametableSelect;
-        UseBackgroundPatternTableHighBank = useBackgroundPatternTableHighBank;
-        UseSpritePatternTableHighBank = useSpritePatternTableHighBank;
-        Use8x16Sprites = use8x16Sprites;
+        BackgroundPlaneSelect = backgroundPlaneSelect;
+        UseUpperBackgroundTileBank = useUpperBackgroundTileBank;
+        UseUpperSpriteTileBank = useUpperSpriteTileBank;
+        UseTallSprites = useTallSprites;
         ShowBackground = showBackground;
         ShowSprites = showSprites;
-        ShowBackgroundLeft8 = showBackgroundLeft8;
-        ShowSpritesLeft8 = showSpritesLeft8;
+        ShowBackgroundInFirstTileColumn = showBackgroundInFirstTileColumn;
+        ShowSpritesInFirstTileColumn = showSpritesInFirstTileColumn;
     }
 
     public ReadOnlySpan<SpriteEntry> Sprites => _sprites;
 
-    public ReadOnlySpan<byte> Nametable => _nametable;
+    public ReadOnlySpan<byte> BackgroundPlaneBytes => _backgroundPlaneBytes;
 
-    public ReadOnlySpan<byte> PatternTable => _patternTable;
+    public ReadOnlySpan<byte> TileGraphicsBytes => _tileGraphicsBytes;
 
     public ReadOnlySpan<uint> Palette => _palette;
 
@@ -71,7 +71,7 @@ public sealed class FrameMetadata : IFrameMetadata
 
     public IReadOnlyList<VisibleTile> VisibleTiles => _visibleTiles;
 
-    public FrameMirroringMode MirrorMode { get; }
+    public BackgroundPlaneLayoutMode BackgroundPlaneLayout { get; }
 
     public int FineScrollX { get; }
 
@@ -81,19 +81,19 @@ public sealed class FrameMetadata : IFrameMetadata
 
     public int CoarseScrollY { get; }
 
-    public int NametableSelect { get; }
+    public int BackgroundPlaneSelect { get; }
 
-    public bool UseBackgroundPatternTableHighBank { get; }
+    public bool UseUpperBackgroundTileBank { get; }
 
-    public bool UseSpritePatternTableHighBank { get; }
+    public bool UseUpperSpriteTileBank { get; }
 
-    public bool Use8x16Sprites { get; }
+    public bool UseTallSprites { get; }
 
     public bool ShowBackground { get; }
 
     public bool ShowSprites { get; }
 
-    public bool ShowBackgroundLeft8 { get; }
+    public bool ShowBackgroundInFirstTileColumn { get; }
 
-    public bool ShowSpritesLeft8 { get; }
+    public bool ShowSpritesInFirstTileColumn { get; }
 }

@@ -101,7 +101,7 @@ public static class MacMetalOffscreenRenderer
             TryGetTemporalMotionTexturePayload(frameData, out motionTexturePayload);
         byte[]? motionTextureBytes = hasTemporalMotionTexture ? motionTexturePayload.Bytes : null;
 
-        fixed (byte* chrAtlas = frameData.ChrAtlas)
+        fixed (byte* tileAtlas = frameData.TileAtlas)
         fixed (uint* palette = frameData.Palette)
         fixed (BackgroundTileRenderItem* backgroundTiles = frameData.BackgroundTiles)
         fixed (SpriteRenderItem* sprites = frameData.Sprites)
@@ -111,8 +111,8 @@ public static class MacMetalOffscreenRenderer
             if (hasTemporalMotionTexture)
             {
                 return MacMetalBridge.RenderLayeredFrameOffscreenExWithMotionTexture(
-                    (IntPtr)chrAtlas,
-                    (uint)frameData.ChrAtlas.Length,
+                    (IntPtr)tileAtlas,
+                    (uint)frameData.TileAtlas.Length,
                     (IntPtr)palette,
                     (uint)frameData.Palette.Length,
                     (IntPtr)backgroundTiles,
@@ -121,8 +121,8 @@ public static class MacMetalOffscreenRenderer
                     (uint)frameData.Sprites.Length,
                     frameData.ShowBackground ? (byte)1 : (byte)0,
                     frameData.ShowSprites ? (byte)1 : (byte)0,
-                    frameData.ShowBackgroundLeft8 ? (byte)1 : (byte)0,
-                    frameData.ShowSpritesLeft8 ? (byte)1 : (byte)0,
+                    frameData.ShowBackgroundInFirstTileColumn ? (byte)1 : (byte)0,
+                    frameData.ShowSpritesInFirstTileColumn ? (byte)1 : (byte)0,
                     (uint)frameData.FrameWidth,
                     (uint)frameData.FrameHeight,
                     upscaleMode,
@@ -137,8 +137,8 @@ public static class MacMetalOffscreenRenderer
             }
 
             return MacMetalBridge.RenderLayeredFrameOffscreenEx(
-                (IntPtr)chrAtlas,
-                (uint)frameData.ChrAtlas.Length,
+                (IntPtr)tileAtlas,
+                (uint)frameData.TileAtlas.Length,
                 (IntPtr)palette,
                 (uint)frameData.Palette.Length,
                 (IntPtr)backgroundTiles,
@@ -147,8 +147,8 @@ public static class MacMetalOffscreenRenderer
                 (uint)frameData.Sprites.Length,
                 frameData.ShowBackground ? (byte)1 : (byte)0,
                 frameData.ShowSprites ? (byte)1 : (byte)0,
-                frameData.ShowBackgroundLeft8 ? (byte)1 : (byte)0,
-                frameData.ShowSpritesLeft8 ? (byte)1 : (byte)0,
+                frameData.ShowBackgroundInFirstTileColumn ? (byte)1 : (byte)0,
+                frameData.ShowSpritesInFirstTileColumn ? (byte)1 : (byte)0,
                 (uint)frameData.FrameWidth,
                 (uint)frameData.FrameHeight,
                 upscaleMode,

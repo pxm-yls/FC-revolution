@@ -599,8 +599,8 @@ internal sealed class SampleManagedCoreSession : IEmulatorCoreSession
             [],
             showBackground: true,
             showSprites: true,
-            showBackgroundLeft8: true,
-            showSpritesLeft8: true);
+            showBackgroundInFirstTileColumn: true,
+            showSpritesInFirstTileColumn: true);
 
         public void ResetTemporalHistory()
         {

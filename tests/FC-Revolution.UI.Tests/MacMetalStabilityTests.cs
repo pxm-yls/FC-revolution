@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Input;
 using Avalonia.Platform;
-using FCRevolution.Core.Input;
 using FCRevolution.Rendering.Abstractions;
 using FCRevolution.Rendering.Metal;
 using FC_Revolution.UI.Controls;
@@ -583,32 +582,31 @@ public class MacMetalStabilityTests
             "Test Game",
             romPath,
             GameAspectRatioMode.Native,
-            NesInputTestAdapter.BuildBindingsByPort(
-                new Dictionary<int, Dictionary<NesButton, Key>>
+            new Dictionary<string, Dictionary<string, Key>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["p1"] = new(StringComparer.OrdinalIgnoreCase)
                 {
-                    [0] = new Dictionary<NesButton, Key>
-                    {
-                        [NesButton.A] = Key.Z,
-                        [NesButton.B] = Key.X,
-                        [NesButton.Start] = Key.Enter,
-                        [NesButton.Select] = Key.RightShift,
-                        [NesButton.Up] = Key.Up,
-                        [NesButton.Down] = Key.Down,
-                        [NesButton.Left] = Key.Left,
-                        [NesButton.Right] = Key.Right,
-                    },
-                    [1] = new Dictionary<NesButton, Key>
-                    {
-                        [NesButton.A] = Key.U,
-                        [NesButton.B] = Key.O,
-                        [NesButton.Start] = Key.RightCtrl,
-                        [NesButton.Select] = Key.Space,
-                        [NesButton.Up] = Key.I,
-                        [NesButton.Down] = Key.K,
-                        [NesButton.Left] = Key.J,
-                        [NesButton.Right] = Key.L,
-                    }
-                }),
+                    ["a"] = Key.Z,
+                    ["b"] = Key.X,
+                    ["start"] = Key.Enter,
+                    ["select"] = Key.RightShift,
+                    ["up"] = Key.Up,
+                    ["down"] = Key.Down,
+                    ["left"] = Key.Left,
+                    ["right"] = Key.Right,
+                },
+                ["p2"] = new(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["a"] = Key.U,
+                    ["b"] = Key.O,
+                    ["start"] = Key.RightCtrl,
+                    ["select"] = Key.Space,
+                    ["up"] = Key.I,
+                    ["down"] = Key.K,
+                    ["left"] = Key.J,
+                    ["right"] = Key.L,
+                }
+            },
             upscaleMode: upscaleMode);
 
     private static void InvokeLoadRom(GameWindowViewModel vm, string romPath)

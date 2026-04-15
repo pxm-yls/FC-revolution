@@ -10,7 +10,7 @@ public readonly struct SpriteRenderItem
         uint flipH,
         uint flipV,
         uint behindBackground,
-        uint originalOamIndex)
+        uint originalSpriteIndex)
     {
         ScreenX = screenX;
         ScreenY = screenY;
@@ -19,7 +19,7 @@ public readonly struct SpriteRenderItem
         FlipH = flipH;
         FlipV = flipV;
         BehindBackground = behindBackground;
-        OriginalOamIndex = originalOamIndex;
+        OriginalSpriteIndex = originalSpriteIndex;
     }
 
     public readonly float ScreenX;
@@ -36,5 +36,5 @@ public readonly struct SpriteRenderItem
 
     public readonly uint BehindBackground;
 
-    public readonly uint OriginalOamIndex;
+    public readonly uint OriginalSpriteIndex;
 }

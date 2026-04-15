@@ -17,21 +17,21 @@ public static class LayeredFrameBuilder
         int frameHeight = FrameRenderDefaults.Height)
     {
         ArgumentNullException.ThrowIfNull(metadata);
-        byte[] chrAtlas = BuildChrAtlas(metadata.PatternTable);
+        byte[] tileAtlas = BuildTileAtlas(metadata.TileGraphicsBytes);
         SpriteRenderItem[] sprites = BuildSprites(metadata);
-        MotionTextureData motionTexture = BuildMotionTexture(metadata, chrAtlas, sprites, frameWidth, frameHeight);
+        MotionTextureData motionTexture = BuildMotionTexture(metadata, tileAtlas, sprites, frameWidth, frameHeight);
 
         return new LayeredFrameData(
             frameWidth,
             frameHeight,
-            chrAtlas,
+            tileAtlas,
             metadata.Palette.ToArray(),
             BuildBackground(metadata, frameHeight),
             sprites,
             metadata.ShowBackground,
             metadata.ShowSprites,
-            metadata.ShowBackgroundLeft8,
-            metadata.ShowSpritesLeft8,
+            metadata.ShowBackgroundInFirstTileColumn,
+            metadata.ShowSpritesInFirstTileColumn,
             motionTexture);
     }
 
@@ -41,15 +41,15 @@ public static class LayeredFrameBuilder
         int frameHeight = FrameRenderDefaults.Height)
     {
         ArgumentNullException.ThrowIfNull(metadata);
-        byte[] chrAtlas = BuildChrAtlas(metadata.PatternTable);
+        byte[] tileAtlas = BuildTileAtlas(metadata.TileGraphicsBytes);
         SpriteRenderItem[] sprites = BuildSprites(metadata);
-        return BuildMotionTexture(metadata, chrAtlas, sprites, frameWidth, frameHeight);
+        return BuildMotionTexture(metadata, tileAtlas, sprites, frameWidth, frameHeight);
     }
 
-    public static byte[] BuildChrAtlas(ReadOnlySpan<byte> patternTable)
+    public static byte[] BuildTileAtlas(ReadOnlySpan<byte> tileGraphicsBytes)
     {
         var atlas = new byte[AtlasPixelCount];
-        int tileCount = Math.Min(512, patternTable.Length / 16);
+        int tileCount = Math.Min(512, tileGraphicsBytes.Length / 16);
 
         for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
         {
@@ -61,8 +61,8 @@ public static class LayeredFrameBuilder
 
             for (int row = 0; row < TileSize; row++)
             {
-                byte plane0 = patternTable[tileOffset + row];
-                byte plane1 = patternTable[tileOffset + row + 8];
+                byte plane0 = tileGraphicsBytes[tileOffset + row];
+                byte plane1 = tileGraphicsBytes[tileOffset + row + 8];
                 int atlasRowOffset = (atlasBaseY + row) * AtlasWidth;
 
                 for (int column = 0; column < TileSize; column++)
@@ -79,7 +79,7 @@ public static class LayeredFrameBuilder
 
     private static MotionTextureData BuildMotionTexture(
         IFrameMetadata metadata,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         SpriteRenderItem[] sprites,
         int frameWidth,
         int frameHeight)
@@ -95,8 +95,8 @@ public static class LayeredFrameBuilder
         var backgroundOpaque = new bool[pixelCount];
 
         FillBackgroundMotion(metadata, packedVectors, frameWidth, frameHeight);
-        MarkBackgroundOpaquePixels(metadata, chrAtlas, backgroundOpaque, frameWidth, frameHeight);
-        ApplySpriteMotion(metadata, chrAtlas, sprites, packedVectors, backgroundOpaque, frameWidth, frameHeight);
+        MarkBackgroundOpaquePixels(metadata, tileAtlas, backgroundOpaque, frameWidth, frameHeight);
+        ApplySpriteMotion(metadata, tileAtlas, sprites, packedVectors, backgroundOpaque, frameWidth, frameHeight);
 
         return new MotionTextureData(frameWidth, frameHeight, packedVectors);
     }
@@ -108,7 +108,7 @@ public static class LayeredFrameBuilder
         for (int i = 0; i < metadata.VisibleTiles.Count; i++)
         {
             var tile = metadata.VisibleTiles[i];
-            uint tileBankOffset = tile.UseBackgroundPatternTableHighBank ? 256u : 0u;
+            uint tileBankOffset = tile.UseUpperBackgroundTileBank ? 256u : 0u;
             float clipTop = tile.ClipTop;
             float clipBottom = tile.ClipBottom <= tile.ClipTop ? frameHeight : tile.ClipBottom;
             result[i] = new BackgroundTileRenderItem(
@@ -138,7 +138,7 @@ public static class LayeredFrameBuilder
             int rowComponentIndex = y * frameWidth * 2;
             for (int x = 0; x < frameWidth; x++)
             {
-                if (!metadata.ShowBackgroundLeft8 && x < TileSize)
+                if (!metadata.ShowBackgroundInFirstTileColumn && x < TileSize)
                     continue;
 
                 MotionTextureData.WriteVector(packedVectors, rowComponentIndex + (x * 2), backgroundMotion);
@@ -148,7 +148,7 @@ public static class LayeredFrameBuilder
 
     private static void MarkBackgroundOpaquePixels(
         IFrameMetadata metadata,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         bool[] backgroundOpaque,
         int frameWidth,
         int frameHeight)
@@ -162,7 +162,7 @@ public static class LayeredFrameBuilder
             int originY = tile.ScreenY;
             int clipTop = tile.ClipTop;
             int clipBottom = tile.ClipBottom <= tile.ClipTop ? frameHeight : tile.ClipBottom;
-            uint tileId = (tile.UseBackgroundPatternTableHighBank ? 256u : 0u) + tile.TileId;
+            uint tileId = (tile.UseUpperBackgroundTileBank ? 256u : 0u) + tile.TileId;
 
             for (int localY = 0; localY < TileSize; localY++)
             {
@@ -179,10 +179,10 @@ public static class LayeredFrameBuilder
                     if ((uint)pixelX >= (uint)frameWidth)
                         continue;
 
-                    if (!metadata.ShowBackgroundLeft8 && pixelX < TileSize)
+                    if (!metadata.ShowBackgroundInFirstTileColumn && pixelX < TileSize)
                         continue;
 
-                    if (ReadAtlasColor(chrAtlas, tileId, localX, localY) == 0)
+                    if (ReadAtlasColor(tileAtlas, tileId, localX, localY) == 0)
                         continue;
 
                     backgroundOpaque[(pixelY * frameWidth) + pixelX] = true;
@@ -194,8 +194,8 @@ public static class LayeredFrameBuilder
     private static SpriteRenderItem[] BuildSprites(IFrameMetadata metadata)
     {
         ReadOnlySpan<SpriteEntry> sprites = metadata.Sprites;
-        bool use8x16Sprites = metadata.Use8x16Sprites;
-        int spritesPerEntry = use8x16Sprites ? 2 : 1;
+        bool useTallSprites = metadata.UseTallSprites;
+        int spritesPerEntry = useTallSprites ? 2 : 1;
         var spriteItems = new SpriteRenderItem[sprites.Length * spritesPerEntry];
         int spriteItemIndex = 0;
 
@@ -207,9 +207,9 @@ public static class LayeredFrameBuilder
             bool behindBackground = (sprite.Attrs & 0x20) != 0;
             uint paletteBaseIndex = (uint)(((sprite.Attrs & 0x03) + 4) << 2);
 
-            if (!use8x16Sprites)
+            if (!useTallSprites)
             {
-                uint tileId = (metadata.UseSpritePatternTableHighBank ? 256u : 0u) + sprite.TileId;
+                uint tileId = (metadata.UseUpperSpriteTileBank ? 256u : 0u) + sprite.TileId;
                 spriteItems[spriteItemIndex++] = new SpriteRenderItem(
                     sprite.X,
                     sprite.Y,
@@ -274,7 +274,7 @@ public static class LayeredFrameBuilder
 
     private static void ApplySpriteMotion(
         IFrameMetadata metadata,
-        byte[] chrAtlas,
+        byte[] tileAtlas,
         SpriteRenderItem[] sprites,
         ushort[] packedVectors,
         bool[] backgroundOpaque,
@@ -289,8 +289,8 @@ public static class LayeredFrameBuilder
         for (int spriteIndex = sprites.Length - 1; spriteIndex >= 0; spriteIndex--)
         {
             var sprite = sprites[spriteIndex];
-            Vector2 spriteMotion = sprite.OriginalOamIndex < motionVectors.Length
-                ? motionVectors[(int)sprite.OriginalOamIndex]
+            Vector2 spriteMotion = sprite.OriginalSpriteIndex < motionVectors.Length
+                ? motionVectors[(int)sprite.OriginalSpriteIndex]
                 : Vector2.Zero;
             int originX = (int)sprite.ScreenX;
             int originY = (int)sprite.ScreenY;
@@ -308,11 +308,11 @@ public static class LayeredFrameBuilder
                     if ((uint)pixelX >= (uint)frameWidth)
                         continue;
 
-                    if (!metadata.ShowSpritesLeft8 && pixelX < TileSize)
+                    if (!metadata.ShowSpritesInFirstTileColumn && pixelX < TileSize)
                         continue;
 
                     int sampleX = sprite.FlipH != 0 ? (TileSize - 1 - localX) : localX;
-                    if (ReadAtlasColor(chrAtlas, sprite.TileId, sampleX, sampleY) == 0)
+                    if (ReadAtlasColor(tileAtlas, sprite.TileId, sampleX, sampleY) == 0)
                         continue;
 
                     int pixelIndex = (pixelY * frameWidth) + pixelX;
