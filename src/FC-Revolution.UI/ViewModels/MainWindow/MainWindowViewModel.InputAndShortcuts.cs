@@ -420,7 +420,7 @@ public partial class MainWindowViewModel
             _romLock,
             _inputStateWriter,
             (portId, actionId, pressed) =>
-                _legacyReplayInputMirror.UpdateActionState(_inputBindingSchema, portId, actionId, pressed));
+                _replayInputStateMirror.UpdateActionState(portId, actionId, pressed));
         ApplyLegacyActiveInputRuntimeMirror(refreshResult.LegacyMirrorBeforeApply);
         ApplyLegacyActiveInputRuntimeMirror(refreshResult.LegacyMirrorAfterApply);
     }

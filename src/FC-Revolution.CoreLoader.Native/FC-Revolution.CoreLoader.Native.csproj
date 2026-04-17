@@ -1,14 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>FCRevolution.Emulation.Host</RootNamespace>
+    <RootNamespace>FCRevolution.CoreLoader.Native</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FC-Revolution.CoreLoader.Native\FC-Revolution.CoreLoader.Native.csproj" />
     <ProjectReference Include="..\FC-Revolution.Emulation.Abstractions\FC-Revolution.Emulation.Abstractions.csproj" />
-    <ProjectReference Include="..\FC-Revolution.Storage\FC-Revolution.Storage.csproj" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:FCRevolution.Core.Workbench.ViewModels"
+        x:Class="FCRevolution.Core.Workbench.Views.CoreWorkbenchWindow"
+        x:DataType="vm:CoreWorkbenchViewModel"
+        mc:Ignorable="d"
+        Width="1380"
+        Height="900"
+        MinWidth="1120"
+        MinHeight="720"
+        Title="FC-Revolution Core Workbench"
+        Background="#0E131B">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="18">
+    <Border Grid.Row="0"
+            Background="#151C26"
+            BorderBrush="#273244"
+            BorderThickness="1"
+            CornerRadius="18"
+            Padding="18">
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+          <TextBlock Text="Resource Root" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+          <TextBox Text="{Binding ResourceRootPath}" Watermark="Path to resource root" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+          <TextBlock Text="Package Path (Optional)" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+          <TextBox Text="{Binding PackagePath}" Watermark="Path to *.fcrcore.zip for isolated package workspace" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
+          <TextBlock Text="Probe Directories" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+          <TextBox Text="{Binding ProbeDirectoriesText}"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   Height="86"
+                   Watermark="One directory per line. These paths are passed into the shared host runtime unchanged." />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="10">
+          <Button Content="Refresh Catalog" Command="{Binding RefreshCatalogCommand}" MinWidth="132" />
+          <Button Content="Run Smoke Check" Command="{Binding RunSmokeCheckCommand}" MinWidth="132" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="2"
+                   Grid.Column="1"
+                   Text="{Binding StatusText}"
+                   Foreground="#8FD3FF"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" Margin="0,14,0,14" ColumnDefinitions="2*,2*,*" ColumnSpacing="12">
+      <StackPanel Grid.Column="0" Spacing="6">
+        <TextBlock Text="Requested Core ID" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+        <TextBox Text="{Binding SelectedCoreId}" Watermark="Leave empty to use host default resolution" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="6">
+        <TextBlock Text="ROM / Media Path" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+        <TextBox Text="{Binding RomPath}" Watermark="Optional media path for smoke check" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="2" Spacing="6">
+        <TextBlock Text="Frames To Run" FontSize="13" FontWeight="SemiBold" Foreground="#D5E0EF" />
+        <TextBox Text="{Binding FramesToRunText}" Watermark="0" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Grid.Row="2" ColumnDefinitions="1.25*,*" ColumnSpacing="14">
+      <Border Grid.Column="0"
+              Background="#151C26"
+              BorderBrush="#273244"
+              BorderThickness="1"
+              CornerRadius="18"
+              Padding="16">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <TextBlock Text="Catalog"
+                     FontSize="16"
+                     FontWeight="Bold"
+                     Foreground="#F2F6FC" />
+
+          <ListBox Grid.Row="1"
+                   ItemsSource="{Binding CatalogEntries}"
+                   SelectedItem="{Binding SelectedEntry}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:CoreWorkbenchCatalogEntryViewModel">
+                <Border Margin="0,0,0,10"
+                        Padding="14"
+                        CornerRadius="14"
+                        Background="#10161E"
+                        BorderBrush="#223044"
+                        BorderThickness="1">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold" Foreground="#F2F6FC" />
+                    <TextBlock Text="{Binding CoreId}" Foreground="#8FD3FF" />
+                    <TextBlock Text="{Binding SystemId, StringFormat='System: {0}'}" Foreground="#C7D3E4" />
+                    <TextBlock Text="{Binding BinaryKind, StringFormat='Binary: {0}'}" Foreground="#C7D3E4" />
+                    <TextBlock Text="{Binding SourceLabel, StringFormat='Source: {0}'}" Foreground="#C7D3E4" />
+                    <TextBlock Text="{Binding LoaderStatusLabel, StringFormat='Loader: {0}'}" Foreground="#FFD38A" />
+                    <TextBlock Text="{Binding LoadSupportReason}" Foreground="#FFB4A2" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="14">
+        <Border Grid.Row="0"
+                Background="#151C26"
+                BorderBrush="#273244"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16">
+          <Grid RowDefinitions="Auto,*" RowSpacing="10">
+            <TextBlock Text="Selected Core Detail"
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Foreground="#F2F6FC" />
+            <TextBox Grid.Row="1"
+                     Text="{Binding SelectedEntrySummary}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Height="240" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="#151C26"
+                BorderBrush="#273244"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16">
+          <Grid RowDefinitions="Auto,*" RowSpacing="10">
+            <TextBlock Text="Smoke Check Output"
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Foreground="#F2F6FC" />
+            <TextBox Grid.Row="1"
+                     Text="{Binding SmokeSummary}"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

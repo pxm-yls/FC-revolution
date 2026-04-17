@@ -97,16 +97,18 @@ public static class ManagedCoreRuntime
         var packageService = new ManagedCorePackageService();
         foreach (var package in packageService.GetInstalledPackages(resolvedOptions.ResourceRootPath))
         {
-            var isLoadSupported = InternalCoreLoaderRegistry.SupportsBinaryKind(package.Manifest.BinaryKind);
+            var loadSupport = InternalCoreLoaderRegistry.GetLoadSupport(
+                new InternalCoreLoadTarget(
+                    package.Manifest.BinaryKind,
+                    package.EntryPath,
+                    package.ActivationType));
             entries[package.Manifest.CoreId] = new ManagedCoreCatalogEntry(
                 package.Manifest,
                 package.EntryPath,
                 package.ActivationType,
                 package.IsBundled ? ManagedCoreCatalogSourceKind.BundledPackage : ManagedCoreCatalogSourceKind.InstalledPackage,
-                IsLoadSupported: isLoadSupported,
-                LoadSupportReason: isLoadSupported
-                    ? null
-                    : $"当前宿主尚未注册 binaryKind='{package.Manifest.BinaryKind}' 的核心 loader。",
+                IsLoadSupported: loadSupport.IsSupported,
+                LoadSupportReason: loadSupport.Reason,
                 CanUninstall: !package.IsBundled,
                 package.InstallDirectory,
                 package.ManifestPath);

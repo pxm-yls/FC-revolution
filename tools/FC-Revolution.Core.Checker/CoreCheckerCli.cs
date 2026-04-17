@@ -1,6 +1,4 @@
 using FCRevolution.Emulation.Host;
-using FCRevolution.Storage;
-
 namespace FCRevolution.Core.Checker;
 
 internal enum CoreCheckerCommandKind
@@ -46,7 +44,10 @@ public static class CoreCheckerCli
 
         try
         {
-            using var workspace = CoreCheckerWorkspace.Create(options);
+            using var workspace = CoreRuntimeWorkspace.Create(new CoreRuntimeWorkspaceOptions(
+                ResourceRootPath: options.ResourceRootPath,
+                ProbeDirectories: options.ProbeDirectories,
+                PackagePath: options.PackagePath));
             return options.Command switch
             {
                 CoreCheckerCommandKind.List => await ExecuteListAsync(options, workspace, stdout),
@@ -63,7 +64,7 @@ public static class CoreCheckerCli
 
     private static async Task<int> ExecuteListAsync(
         CoreCheckerOptions options,
-        CoreCheckerWorkspace workspace,
+        CoreRuntimeWorkspace workspace,
         TextWriter stdout)
     {
         var entries = ManagedCoreRuntime.LoadCatalogEntries(workspace.RuntimeOptions);
@@ -92,7 +93,7 @@ public static class CoreCheckerCli
 
     private static async Task<int> ExecuteCheckAsync(
         CoreCheckerOptions options,
-        CoreCheckerWorkspace workspace,
+        CoreRuntimeWorkspace workspace,
         TextWriter stdout,
         TextWriter stderr)
     {
@@ -373,76 +374,5 @@ public static class CoreCheckerCli
               - --resource-root checks already-installed cores in an existing runtime root.
               - --probe-dir can be repeated to inspect loose core entry assemblies (currently managed-dotnet only).
             """);
-    }
-
-    internal sealed class CoreCheckerWorkspace : IDisposable
-    {
-        private readonly string _originalResourceRoot;
-        private readonly string? _cleanupDirectory;
-
-        private CoreCheckerWorkspace(
-            string resourceRootPath,
-            IReadOnlyList<string> probeDirectories,
-            string originalResourceRoot,
-            string? cleanupDirectory)
-        {
-            ResourceRootPath = resourceRootPath;
-            RuntimeOptions = new ManagedCoreRuntimeOptions(
-                ResourceRootPath: resourceRootPath,
-                ProbeDirectories: probeDirectories);
-            _originalResourceRoot = originalResourceRoot;
-            _cleanupDirectory = cleanupDirectory;
-        }
-
-        public string ResourceRootPath { get; }
-
-        public ManagedCoreRuntimeOptions RuntimeOptions { get; }
-
-        public static CoreCheckerWorkspace Create(CoreCheckerOptions options)
-        {
-            ArgumentNullException.ThrowIfNull(options);
-
-            var originalResourceRoot = AppObjectStorage.GetResourceRoot();
-            var probeDirectories = options.ProbeDirectories
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(Path.GetFullPath)
-                .Distinct(GetPathComparer())
-                .ToList();
-
-            if (!string.IsNullOrWhiteSpace(options.PackagePath))
-            {
-                var tempRoot = Path.Combine(Path.GetTempPath(), $"fc-core-checker-{Guid.NewGuid():N}");
-                Directory.CreateDirectory(tempRoot);
-                new ManagedCorePackageService().InstallPackage(options.PackagePath, tempRoot);
-                return new CoreCheckerWorkspace(tempRoot, probeDirectories, originalResourceRoot, cleanupDirectory: tempRoot);
-            }
-
-            var resourceRootPath = AppObjectStorage.NormalizeConfiguredResourceRoot(
-                string.IsNullOrWhiteSpace(options.ResourceRootPath)
-                    ? originalResourceRoot
-                    : options.ResourceRootPath);
-            return new CoreCheckerWorkspace(resourceRootPath, probeDirectories, originalResourceRoot, cleanupDirectory: null);
-        }
-
-        public void Dispose()
-        {
-            AppObjectStorage.ConfigureResourceRoot(_originalResourceRoot);
-
-            if (string.IsNullOrWhiteSpace(_cleanupDirectory) || !Directory.Exists(_cleanupDirectory))
-                return;
-
-            try
-            {
-                Directory.Delete(_cleanupDirectory, recursive: true);
-            }
-            catch
-            {
-                // Best-effort cleanup for isolated checker workspaces.
-            }
-        }
-
-        private static StringComparer GetPathComparer() => OperatingSystem.IsWindows()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
     }
 }

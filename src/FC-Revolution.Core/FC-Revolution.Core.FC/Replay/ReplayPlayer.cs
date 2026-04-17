@@ -1,22 +1,24 @@
 using FCRevolution.Core.Input;
 using FCRevolution.Core.State;
+using FCRevolution.Storage;
 
 namespace FCRevolution.Core.Replay;
 
 /// <summary>Rebuilds emulator state at arbitrary frame positions using a base snapshot and input log.</summary>
 public sealed class ReplayPlayer
 {
-    private static readonly NesButton[] Buttons =
-    [
-        NesButton.A,
-        NesButton.B,
-        NesButton.Select,
-        NesButton.Start,
-        NesButton.Up,
-        NesButton.Down,
-        NesButton.Left,
-        NesButton.Right,
-    ];
+    private static readonly IReadOnlyDictionary<string, NesButton> LegacyButtonsByActionId =
+        new Dictionary<string, NesButton>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a"] = NesButton.A,
+            ["b"] = NesButton.B,
+            ["select"] = NesButton.Select,
+            ["start"] = NesButton.Start,
+            ["up"] = NesButton.Up,
+            ["down"] = NesButton.Down,
+            ["left"] = NesButton.Left,
+            ["right"] = NesButton.Right,
+        };
 
     private readonly string _romPath;
     private readonly byte[] _baseState;
@@ -50,8 +52,8 @@ public sealed class ReplayPlayer
             if (record.Frame > targetFrame)
                 break;
 
-            _console.SetControllerMask(0, record.GetButtonsMask("p1"));
-            _console.SetControllerMask(1, record.GetButtonsMask("p2"));
+            _console.SetControllerMask(0, BuildControllerMask(record, "p1"));
+            _console.SetControllerMask(1, BuildControllerMask(record, "p2"));
             lastFrameBuffer = _console.RunFrame();
         }
 
@@ -73,8 +75,8 @@ public sealed class ReplayPlayer
             if (record.Frame > endFrame)
                 break;
 
-            _console.SetControllerMask(0, record.GetButtonsMask("p1"));
-            _console.SetControllerMask(1, record.GetButtonsMask("p2"));
+            _console.SetControllerMask(0, BuildControllerMask(record, "p1"));
+            _console.SetControllerMask(1, BuildControllerMask(record, "p2"));
             var frameBuffer = _console.RunFrame();
             if (record.Frame >= startFrame)
                 frames.Add((uint[])frameBuffer.Clone());
@@ -87,5 +89,17 @@ public sealed class ReplayPlayer
     {
         _console.LoadState(_baseState);
         _console.Start();
+    }
+
+    private static byte BuildControllerMask(FrameInputRecord record, string portId)
+    {
+        byte mask = 0;
+        foreach (var actionId in record.GetPressedActions(portId))
+        {
+            if (LegacyButtonsByActionId.TryGetValue(actionId, out var button))
+                mask |= (byte)button;
+        }
+
+        return mask;
     }
 }

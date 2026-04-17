@@ -4,6 +4,7 @@
     <Project Path="src/FC-Revolution.Backend.Hosting/FC-Revolution.Backend.Hosting.csproj" />
     <Project Path="src/FC-Revolution.Backend/FC-Revolution.Backend.csproj" />
     <Project Path="src/FC-Revolution.FC.LegacyAdapters/FC-Revolution.FC.LegacyAdapters.csproj" />
+    <Project Path="src/FC-Revolution.CoreLoader.Native/FC-Revolution.CoreLoader.Native.csproj" />
     <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.FC/Managed/FC-Revolution.Core.Nes.Managed.csproj" />
     <Project Path="src/FC-Revolution.Core/FC-Revolution.Core.Sample.Managed/FC-Revolution.Core.Sample.Managed.csproj" />
     <Project Path="src/FC-Revolution.Contracts/FC-Revolution.Contracts.csproj" />
@@ -16,6 +17,7 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj" />
+    <Project Path="tools/FC-Revolution.Core.Workbench/FC-Revolution.Core.Workbench.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FC-Revolution.Backend.Hosting.Tests/FC-Revolution.Backend.Hosting.Tests.csproj" />

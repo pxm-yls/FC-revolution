@@ -1100,6 +1100,9 @@ fc-revolution-core-foo/
 15. replay log 的纯文件格式与 snapshot 基准帧读取也已从 FC/NES 边界下沉到 [FrameInputRecord.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/FrameInputRecord.cs)、[ReplayLogWriter.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogWriter.cs)、[ReplayLogReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/ReplayLogReader.cs) 与 [StateSnapshotFrameReader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Storage/StateSnapshotFrameReader.cs)。`TimelineInputLogWriter` 与 `TimelineVideoExporter.BuildReplayPlan(...)` 已直接使用通用 helper，`NesReplayLogWriter` 这层空壳已删除；当前剩余的 NES 专用部分主要只剩 replay 渲染执行本身。
 16. timeline repository 的 bridge DTO / contract 也已抽成 [TimelineBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/TimelineBridgeContracts.cs)，`LegacyTimelineRepositoryAdapter` 现在实现 `ITimelineRepositoryBridge`，`LegacyTimelineManifestHandle` 实现 `ITimelineManifestHandle`；UI 本地 `GameWindowTimelinePersistenceController`、`GameWindowPreviewNodeFactory` 与 `LegacyTimelineSessionAdapter` 已改成只依赖通用 `TimelinePreviewEntry` / `ITimelineManifestHandle` / `ITimelineRepositoryBridge`。这样 UI 侧已经不再直接吃 `LegacyTimelinePreviewEntry` / `LegacyTimelineManifestHandle` 这类 FC 命名 bridge DTO。
 17. `FC-Revolution.UI` 现已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期依赖：timeline repository、replay frame renderer 与 ROM mapper inspector 分别经由 [LegacyFeatureBridgeLoader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.UI/Infrastructure/LegacyFeatureBridgeLoader.cs) 按 [LegacyFeatureBridgeContracts.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Abstractions/LegacyFeatureBridgeContracts.cs) 反射加载 runtime-only adapter；同时 backend HTTP / WebSocket 入口已允许任意非空 `portId` 透传，只在 legacy `player -> p1/p2` 兼容边界继续做 fallback，`StartGameSession`、LAN runtime 和 `SessionLifecycleService` 也已开始用真实 `InputSchema` 生成启动期的 `inputBindingsByPort`，不再无条件退回 `p1/p2`。
+18. `CoreCheckerCli` 中原先用于 `--package` 的隔离安装工作区逻辑已经下沉为共享 [CoreRuntimeWorkspace.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreRuntimeWorkspace.cs)。现在 CLI checker 与图形化 `Core Workbench` 会共用同一套 resource-root / probe-dir / isolated-package runtime 入口，而不再各自复制一套临时 package install 流程。
+19. 图形化 [FC-Revolution.Core.Workbench.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Workbench/FC-Revolution.Core.Workbench.csproj) 已落地为 MVP：它通过共享 runtime 暴露 resource root、probe directories、`*.fcrcore.zip` 临时工作区、catalog 刷新与 smoke check，不再需要从主程序复制第二套 loader/package/probe-path 逻辑。
+20. [FC-Revolution.CoreLoader.Native.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.CoreLoader.Native/FC-Revolution.CoreLoader.Native.csproj) 已完成首个 `native-cabi` package-first 宿主端口：当前能通过 `NativeLibrary.Load + FCR_GetCoreApi` 完成 ABI version 校验、manifest 读取、最小 session 装载，并由 [CoreCheckerCliTests.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tests/FC-Revolution.Core.Checker.Tests/CoreCheckerCliTests.cs) 中动态编译的 fake native core 跑通 install/load/media/smoke 闭环。
 
 当前仍未完成：
 
@@ -1107,6 +1110,7 @@ fc-revolution-core-foo/
 2. timeline 的纯存储路径层、replay log 文件格式层、snapshot base-frame 读取层与 bridge contract 层已经通用化，UI 对 `FC-Revolution.FC.LegacyAdapters` 的编译期依赖也已移除；但 `LegacyFeatureBridgeLoader` 仍通过硬编码类型名加载 `FC-Revolution.FC.LegacyAdapters`，而 `LegacyTimelineRepositoryAdapter` / `LegacyReplayFrameRenderer` / `LegacyRomMapperInspector` 本身仍是 FC/NES 专用实现。也就是说，当前剩下的主要是实现注入与 NES 专用 replay / mapper 能力，而不再是 DTO / file-format 或项目引用层的耦合。
 3. 远控 generic button 写路径虽已在 `BackendContractClient`、HTTP `/buttons` 兼容入口与 WebSocket `button` 边界层优先走 `input` 协议，backend WebSocket/lease internals 也已切到 `portId-first`，而且任意非空 `portId` 已可透传到 runtime；但 contracts 仍保留 `RemoteControlPorts` / `p1/p2` 端口命名以及 `SetButtonState` / `/buttons` compatibility shell，WebPad 与会话摘要/UI 状态也仍然保留 `Player1/Player2` 双槽位假设，尚未升级为真正的系统无关动作协议。
 4. 主窗口虽然已经有默认核心选择、来源目录管理/重载、本地 DLL 导入/卸载与来源摘要 UI，但还缺远程下载 / 更新 / 版本管理闭环以及更完整的 manifest 展示，当前仍停留在基础挂载能力。
+5. `Core Workbench` 与 `native-cabi` 都已经进入 MVP 阶段，但 `Core Workbench` 仍未接入 preview/export/debug 等更完整的核心开发工作流，而 native loader 也还没有 loose probe-dir 发现、 richer input/video capability 映射与外部核心仓库样板。
 
 ### Phase 4：调试、时间线、渲染能力下沉为 capability
 
@@ -1219,6 +1223,12 @@ fc-revolution-core-foo/
 2. 不存在测试工具专用的第二套 loader / package / probe-path 逻辑
 3. 核心作者可在主程序仓库之外完成核心开发、测试与打包
 
+当前进展（截至 `2026-04-17`）：
+
+1. 图形化 `FC-Revolution.Core.Workbench` MVP 已存在，并已加入 solution。
+2. `CoreRuntimeWorkspace` 已把 `--package` 临时安装工作区从 CLI 下沉到共享 Host Runtime，因此 `Core Workbench` 与 CLI checker 已共用同一套 package/probe/resource-root 逻辑。
+3. 当前未完成的部分是 preview/export/debug workflow 与外部核心仓库试点。
+
 ### Phase 7：引入 native C ABI 加载器
 
 工作项：
@@ -1231,6 +1241,12 @@ fc-revolution-core-foo/
 退出标准：
 
 1. 宿主能加载一个最小 native demo core
+
+当前进展（截至 `2026-04-17`）：
+
+1. `FC-Revolution.CoreLoader.Native` 已落地。
+2. `native-cabi` 已接入 internal loader registry，并支持 package-first `install -> load -> create session -> load media -> run frame -> capture state` 的最小闭环。
+3. 当前剩余的是 loose probe-dir native discovery、 richer capability bridge、跨平台/跨仓库样板与更完整的 native ABI 文档化。
 
 ### Phase 8：核心下载与安装服务
 

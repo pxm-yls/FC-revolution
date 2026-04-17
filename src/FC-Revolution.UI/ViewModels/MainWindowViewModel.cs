@@ -285,7 +285,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private volatile int _frameTimeMicros;
     private volatile bool _emuThreadAlive;
     private volatile uint[]? _pendingFrame;
-    private readonly MainWindowLegacyReplayInputMirrorController _legacyReplayInputMirror = new();
+    private readonly MainWindowReplayInputStateMirrorController _replayInputStateMirror = new();
     private uint[]? _lastFrame;
     private RomLibraryItem? _currentRom;
     private RomLibraryItem? _pendingLaunchRom;
@@ -2668,7 +2668,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 PreviewSourceWidth,
                 PreviewSourceHeight);
 
-            _legacyReplayInputMirror.Reset();
+            _replayInputStateMirror.Reset();
             _activeInputRuntime.RefreshContext(isRomLoaded: false, activeRomPath: null);
             ApplyLegacyActiveInputRuntimeMirror(_activeInputWorkflowController.BuildLegacyMirror(_activeInputRuntime));
             ApplyTimelineMode();
@@ -2961,7 +2961,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (TimelineMode != TimelineModeOption.FullTimeline || !_replayLogWriter.IsOpen)
             return;
 
-        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _legacyReplayInputMirror.MasksByPort);
+        _replayLogWriter.Append(_timeTravelService.CurrentFrame, _replayInputStateMirror.BuildSnapshot());
     }
 
     private void ReopenReplayLog(bool resetFile)
@@ -2982,7 +2982,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _replayLogWriter.Open(
             inputLogPath,
             resetFile,
-            _inputBindingSchema.GetSupportedPorts().Select(port => port.PortId));
+            _inputBindingSchema);
     }
 
     private void ApplyTimelineMode()

@@ -257,6 +257,12 @@ internal sealed class CoreInputBindingSchema
     public IReadOnlyList<string> GetBindableActionIds(string? portId) =>
         GetBindableActions(portId).Select(static action => action.ActionId).ToArray();
 
+    public IReadOnlyList<string> GetSupportedActionIds(string? portId) =>
+        TryNormalizePortId(portId, out var normalizedPortId) &&
+        _supportedActionsByPort.TryGetValue(normalizedPortId, out var actions)
+            ? actions.OrderBy(static actionId => actionId, StringComparer.OrdinalIgnoreCase).ToArray()
+            : Array.Empty<string>();
+
     public string GetPortDisplayName(string? portId)
     {
         if (TryNormalizePortId(portId, out var normalizedPortId))

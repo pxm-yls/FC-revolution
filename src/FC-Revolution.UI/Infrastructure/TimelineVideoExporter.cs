@@ -1,23 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using FCRevolution.Emulation.Abstractions;
 using FCRevolution.Rendering.Abstractions;
-using FCRevolution.Storage;
 
 namespace FC_Revolution.UI.Infrastructure;
 
 internal static class TimelineVideoExporter
 {
-    internal readonly record struct ReplayInputRecord(long Frame, IReadOnlyDictionary<string, byte> MasksByPort)
-    {
-        public byte GetMask(string portId) =>
-            MasksByPort.TryGetValue(portId, out var mask) ? mask : (byte)0;
-    }
-
-    internal readonly record struct ReplayExportPlan(long BaseFrame, ReplayInputRecord[] Records);
-
     public static string ExportMp4(
         string romPath,
         string snapshotPath,
@@ -75,24 +64,5 @@ internal static class TimelineVideoExporter
             intervalMs: 1000 / 60,
             frames);
         return outputPath;
-    }
-
-    internal static ReplayExportPlan BuildReplayPlan(byte[] snapshotBytes, string inputLogPath, long startFrame, long endFrame)
-    {
-        if (endFrame < startFrame)
-            throw new ArgumentOutOfRangeException(nameof(endFrame), "结束帧不能早于起始帧。");
-
-        var baseFrame = StateSnapshotFrameReader.HasHeader(snapshotBytes)
-            ? StateSnapshotFrameReader.ReadFrame(snapshotBytes)
-            : startFrame;
-        var records = ReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame)
-            .Select(record => new ReplayInputRecord(
-                record.Frame,
-                new Dictionary<string, byte>(record.ButtonsByPort, StringComparer.OrdinalIgnoreCase)))
-            .ToArray();
-
-        return new ReplayExportPlan(
-            baseFrame,
-            records);
     }
 }

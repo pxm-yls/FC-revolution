@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Loader;
+using FCRevolution.CoreLoader.Native;
 using FCRevolution.Emulation.Abstractions;
 
 namespace FCRevolution.Emulation.Host;
@@ -13,6 +14,15 @@ internal sealed record InternalDiscoveredCoreLoadTarget(
     CoreManifest Manifest,
     InternalCoreLoadTarget LoadTarget);
 
+internal sealed record InternalCoreLoadSupport(
+    bool IsSupported,
+    string? Reason)
+{
+    public static InternalCoreLoadSupport Ready() => new(true, null);
+
+    public static InternalCoreLoadSupport Unsupported(string reason) => new(false, reason);
+}
+
 internal interface IInternalCoreLoader
 {
     string BinaryKind { get; }
@@ -20,6 +30,8 @@ internal interface IInternalCoreLoader
     IReadOnlyList<IEmulatorCoreModule> LoadModules(InternalCoreLoadTarget target);
 
     IReadOnlyList<InternalDiscoveredCoreLoadTarget> DiscoverModules(InternalCoreLoadTarget target);
+
+    InternalCoreLoadSupport GetLoadSupport(InternalCoreLoadTarget target);
 }
 
 internal static class InternalCoreLoaderRegistry
@@ -27,7 +39,8 @@ internal static class InternalCoreLoaderRegistry
     private static readonly IReadOnlyDictionary<string, IInternalCoreLoader> Loaders =
         new Dictionary<string, IInternalCoreLoader>(StringComparer.OrdinalIgnoreCase)
         {
-            [CoreBinaryKinds.ManagedDotNet] = new ManagedDotNetInternalCoreLoader()
+            [CoreBinaryKinds.ManagedDotNet] = new ManagedDotNetInternalCoreLoader(),
+            [CoreBinaryKinds.NativeCabi] = new NativeCabiInternalCoreLoader()
         };
 
     public static IReadOnlyList<IEmulatorCoreModule> LoadModules(InternalCoreLoadTarget target)
@@ -48,6 +61,17 @@ internal static class InternalCoreLoaderRegistry
 
     public static bool SupportsBinaryKind(string? binaryKind) =>
         !string.IsNullOrWhiteSpace(binaryKind) && Loaders.ContainsKey(binaryKind);
+
+    public static InternalCoreLoadSupport GetLoadSupport(InternalCoreLoadTarget target)
+    {
+        if (!TryGetLoader(target.BinaryKind, out var loader))
+        {
+            return InternalCoreLoadSupport.Unsupported(
+                $"当前宿主尚未注册 binaryKind='{target.BinaryKind}' 的核心 loader。");
+        }
+
+        return loader.GetLoadSupport(target);
+    }
 
     private static bool TryGetLoader(string? binaryKind, out IInternalCoreLoader loader)
     {
@@ -79,6 +103,30 @@ internal sealed class ManagedDotNetInternalCoreLoader : IInternalCoreLoader
                 descriptor.Manifest,
                 target with { ModuleTypeName = descriptor.ModuleTypeName }))
             .ToList();
+    }
+
+    public InternalCoreLoadSupport GetLoadSupport(InternalCoreLoadTarget target)
+    {
+        if (string.IsNullOrWhiteSpace(target.EntryPath))
+            return InternalCoreLoadSupport.Unsupported("Managed core entry path is required.");
+
+        if (!File.Exists(target.EntryPath))
+            return InternalCoreLoadSupport.Unsupported($"Managed core assembly not found: {target.EntryPath}");
+
+        var descriptors = ManagedDotNetCoreModuleDiscovery.Discover(target.EntryPath);
+        if (descriptors.Count == 0)
+            return InternalCoreLoadSupport.Unsupported("No IEmulatorCoreModule types were discovered in the target assembly.");
+
+        if (string.IsNullOrWhiteSpace(target.ModuleTypeName))
+            return InternalCoreLoadSupport.Ready();
+
+        var matched = descriptors.Any(descriptor =>
+            string.Equals(descriptor.ModuleTypeName, target.ModuleTypeName, StringComparison.Ordinal) ||
+            string.Equals(descriptor.ModuleTypeName.Split('.').Last(), target.ModuleTypeName, StringComparison.Ordinal));
+        return matched
+            ? InternalCoreLoadSupport.Ready()
+            : InternalCoreLoadSupport.Unsupported(
+                $"Managed core type '{target.ModuleTypeName}' was not found in assembly '{target.EntryPath}'.");
     }
 }
 

@@ -1,4 +1,3 @@
-using CoreFrameInputRecord = FCRevolution.Core.Replay.FrameInputRecord;
 using ReplayPlayer = FCRevolution.Core.Replay.ReplayPlayer;
 using StorageReplayLogReader = FCRevolution.Storage.ReplayLogReader;
 using StateSnapshotFrameReader = FCRevolution.Storage.StateSnapshotFrameReader;
@@ -20,10 +19,8 @@ public static class NesReplayInterop
         var baseFrame = StateSnapshotFrameReader.HasHeader(snapshotBytes)
             ? StateSnapshotFrameReader.ReadFrame(snapshotBytes)
             : startFrame;
-        var legacyRecords = StorageReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame)
-            .Select(record => new CoreFrameInputRecord(record.Frame, record.GetButtonsMask("p1"), record.GetButtonsMask("p2")))
-            .ToArray();
-        var player = new ReplayPlayer(romPath, snapshotBytes, legacyRecords);
+        var records = StorageReplayLogReader.ReadRange(inputLogPath, baseFrame, endFrame).ToArray();
+        var player = new ReplayPlayer(romPath, snapshotBytes, records);
         return player.RenderFrameRange(startFrame, endFrame);
     }
 }

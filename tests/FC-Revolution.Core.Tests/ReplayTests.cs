@@ -2,6 +2,9 @@ using FCRevolution.Core;
 using FCRevolution.Core.Input;
 using FCRevolution.Core.Replay;
 using FCRevolution.Core.Timeline.Persistence;
+using StorageFrameInputRecord = FCRevolution.Storage.FrameInputRecord;
+using StorageReplayLogReader = FCRevolution.Storage.ReplayLogReader;
+using StorageReplayLogWriter = FCRevolution.Storage.ReplayLogWriter;
 
 namespace FC_Revolution.Core.Tests;
 
@@ -14,25 +17,26 @@ public class ReplayLogTests
 
         try
         {
-            using (var writer = new ReplayLogWriter())
+            using (var writer = new StorageReplayLogWriter())
             {
                 writer.Open(path, resetFile: true);
-                writer.Append(new FrameInputRecord(1, 0x01, 0x00));
-                writer.Append(new FrameInputRecord(2, 0x03, 0x00));
+                writer.Append(ReplayTestData.CreateRecord(1, ("p1", "a")));
+                writer.Append(ReplayTestData.CreateRecord(2, ("p1", "a"), ("p1", "b")));
                 writer.Flush();
             }
 
-            var records = ReplayLogReader.ReadAll(path);
+            var records = StorageReplayLogReader.ReadAll(path);
             Assert.Collection(records,
                 first =>
                 {
                     Assert.Equal(1, first.Frame);
-                    Assert.Equal(0x01, first.GetButtonsMask("p1"));
+                    Assert.True(first.IsActionPressed("p1", "a"));
                 },
                 second =>
                 {
                     Assert.Equal(2, second.Frame);
-                    Assert.Equal(0x03, second.GetButtonsMask("p1"));
+                    Assert.True(second.IsActionPressed("p1", "a"));
+                    Assert.True(second.IsActionPressed("p1", "b"));
                 });
         }
         finally
@@ -49,28 +53,70 @@ public class ReplayLogTests
 
         try
         {
-            using (var writer = new ReplayLogWriter())
+            using (var writer = new StorageReplayLogWriter())
             {
                 writer.Open(path, resetFile: true);
-                writer.Append(new FrameInputRecord(1, 0x01, 0x00));
-                writer.Append(new FrameInputRecord(2, 0x02, 0x00));
-                writer.Append(new FrameInputRecord(3, 0x03, 0x00));
-                writer.Append(new FrameInputRecord(4, 0x04, 0x00));
+                writer.Append(ReplayTestData.CreateRecord(1, ("p1", "a")));
+                writer.Append(ReplayTestData.CreateRecord(2, ("p1", "b")));
+                writer.Append(ReplayTestData.CreateRecord(3, ("p1", "a"), ("p1", "b")));
+                writer.Append(ReplayTestData.CreateRecord(4, ("p1", "select")));
                 writer.Flush();
             }
 
-            var records = ReplayLogReader.ReadRange(path, startExclusiveFrame: 1, endInclusiveFrame: 3).ToList();
+            var records = StorageReplayLogReader.ReadRange(path, startExclusiveFrame: 1, endInclusiveFrame: 3).ToList();
 
             Assert.Collection(records,
                 first =>
                 {
                     Assert.Equal(2, first.Frame);
-                    Assert.Equal(0x02, first.GetButtonsMask("p1"));
+                    Assert.True(first.IsActionPressed("p1", "b"));
                 },
                 second =>
                 {
                     Assert.Equal(3, second.Frame);
-                    Assert.Equal(0x03, second.GetButtonsMask("p1"));
+                    Assert.True(second.IsActionPressed("p1", "a"));
+                    Assert.True(second.IsActionPressed("p1", "b"));
+                });
+        }
+        finally
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void ReplayLogReader_ReadAll_TranslatesLegacyMaskRecordsToActions()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"legacy-replay-{Guid.NewGuid():N}.bin");
+
+        try
+        {
+            using (var stream = File.Create(path))
+            {
+                stream.Write("FCRL"u8);
+                stream.WriteByte(2);
+                stream.WriteByte(2);
+                ReplayTestData.WriteSizedString(stream, "p1");
+                ReplayTestData.WriteSizedString(stream, "p2");
+                ReplayTestData.WriteLegacyRecord(stream, 1, 0x01, 0x00);
+                ReplayTestData.WriteLegacyRecord(stream, 2, 0x82, 0x00);
+                stream.Flush();
+            }
+
+            var records = StorageReplayLogReader.ReadAll(path);
+
+            Assert.Collection(
+                records,
+                first =>
+                {
+                    Assert.True(first.IsActionPressed("p1", "a"));
+                    Assert.False(first.IsActionPressed("p1", "b"));
+                },
+                second =>
+                {
+                    Assert.True(second.IsActionPressed("p1", "b"));
+                    Assert.True(second.IsActionPressed("p1", "right"));
                 });
         }
         finally
@@ -96,9 +142,9 @@ public class ReplayPlayerTests
 
             var records = new[]
             {
-                new FrameInputRecord(1, (byte)NesButton.A, 0),
-                new FrameInputRecord(2, 0, 0),
-                new FrameInputRecord(3, (byte)NesButton.Right, 0),
+                ReplayTestData.CreateRecord(1, ("p1", "a")),
+                ReplayTestData.CreateRecord(2),
+                ReplayTestData.CreateRecord(3, ("p1", "right")),
             };
 
             var player = new ReplayPlayer(romPath, baseState, records);
@@ -127,7 +173,9 @@ public class ReplayPlayerTests
             var baseState = nes.SaveState();
 
             var records = Enumerable.Range(1, 5)
-                .Select(frame => new FrameInputRecord(frame, frame % 2 == 0 ? (byte)NesButton.A : (byte)0, 0))
+                .Select(frame => frame % 2 == 0
+                    ? ReplayTestData.CreateRecord(frame, ("p1", "a"))
+                    : ReplayTestData.CreateRecord(frame))
                 .ToArray();
 
             var player = new ReplayPlayer(romPath, baseState, records);
@@ -159,9 +207,9 @@ public class ReplayPlayerTests
 
             var records = new[]
             {
-                new FrameInputRecord(baseFrame, 0, 0),
-                new FrameInputRecord(baseFrame + 1, (byte)NesButton.A, 0),
-                new FrameInputRecord(baseFrame + 2, (byte)NesButton.Right, 0),
+                ReplayTestData.CreateRecord(baseFrame),
+                ReplayTestData.CreateRecord(baseFrame + 1, ("p1", "a")),
+                ReplayTestData.CreateRecord(baseFrame + 2, ("p1", "right")),
             };
 
             var player = new ReplayPlayer(romPath, baseState, records);
@@ -234,6 +282,48 @@ public class ReplayPlayerTests
         rom[prgStart + 0x3FFF] = 0x80;
 
         return rom;
+    }
+
+}
+
+internal static class ReplayTestData
+{
+    public static void WriteSizedString(Stream stream, string value)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        stream.WriteByte((byte)bytes.Length);
+        stream.Write(bytes);
+    }
+
+    public static void WriteLegacyRecord(Stream stream, long frame, byte p1Mask, byte p2Mask)
+    {
+        Span<byte> frameBytes = stackalloc byte[8];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(frameBytes, frame);
+        stream.Write(frameBytes);
+        stream.WriteByte(p1Mask);
+        stream.WriteByte(p2Mask);
+    }
+
+    public static StorageFrameInputRecord CreateRecord(long frame, params (string PortId, string ActionId)[] actions)
+    {
+        var actionsByPort = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (portId, actionId) in actions)
+        {
+            if (!actionsByPort.TryGetValue(portId, out var actionSet))
+            {
+                actionSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                actionsByPort[portId] = actionSet;
+            }
+
+            actionSet.Add(actionId);
+        }
+
+        return new StorageFrameInputRecord(
+            frame,
+            actionsByPort.ToDictionary(
+                static pair => pair.Key,
+                static pair => (IReadOnlySet<string>)pair.Value,
+                StringComparer.OrdinalIgnoreCase));
     }
 }
 
