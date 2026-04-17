@@ -27,6 +27,8 @@ internal interface IInternalCoreLoader
 {
     string BinaryKind { get; }
 
+    IReadOnlyList<string> ProbeFileExtensions { get; }
+
     IReadOnlyList<IEmulatorCoreModule> LoadModules(InternalCoreLoadTarget target);
 
     IReadOnlyList<InternalDiscoveredCoreLoadTarget> DiscoverModules(InternalCoreLoadTarget target);
@@ -62,6 +64,21 @@ internal static class InternalCoreLoaderRegistry
     public static bool SupportsBinaryKind(string? binaryKind) =>
         !string.IsNullOrWhiteSpace(binaryKind) && Loaders.ContainsKey(binaryKind);
 
+    public static IReadOnlyList<InternalCoreLoadTarget> BuildProbeTargets(string entryPath)
+    {
+        if (string.IsNullOrWhiteSpace(entryPath))
+            return [];
+
+        var extension = Path.GetExtension(entryPath);
+        if (string.IsNullOrWhiteSpace(extension))
+            return [];
+
+        return Loaders.Values
+            .Where(loader => loader.ProbeFileExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            .Select(loader => new InternalCoreLoadTarget(loader.BinaryKind, entryPath))
+            .ToList();
+    }
+
     public static InternalCoreLoadSupport GetLoadSupport(InternalCoreLoadTarget target)
     {
         if (!TryGetLoader(target.BinaryKind, out var loader))
@@ -89,6 +106,8 @@ internal static class InternalCoreLoaderRegistry
 internal sealed class ManagedDotNetInternalCoreLoader : IInternalCoreLoader
 {
     public string BinaryKind => CoreBinaryKinds.ManagedDotNet;
+
+    public IReadOnlyList<string> ProbeFileExtensions { get; } = [".dll"];
 
     public IReadOnlyList<IEmulatorCoreModule> LoadModules(InternalCoreLoadTarget target) =>
         ManagedCoreAssemblyModuleLoader.LoadModulesFromAssemblyPath(target.EntryPath, target.ModuleTypeName);

@@ -42,6 +42,7 @@
         <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="10">
           <Button Content="Refresh Catalog" Command="{Binding RefreshCatalogCommand}" MinWidth="132" />
           <Button Content="Run Smoke Check" Command="{Binding RunSmokeCheckCommand}" MinWidth="132" />
+          <Button Content="Capture Preview" Command="{Binding CapturePreviewCommand}" MinWidth="132" />
         </StackPanel>
 
         <TextBlock Grid.Row="2"
@@ -110,7 +111,7 @@
         </Grid>
       </Border>
 
-      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="14">
+      <Grid Grid.Column="1" RowDefinitions="Auto,*,*" RowSpacing="14">
         <Border Grid.Row="0"
                 Background="#151C26"
                 BorderBrush="#273244"
@@ -147,6 +148,33 @@
                      IsReadOnly="True"
                      AcceptsReturn="True"
                      TextWrapping="Wrap" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                Background="#151C26"
+                BorderBrush="#273244"
+                BorderThickness="1"
+                CornerRadius="18"
+                Padding="16">
+          <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+            <TextBlock Text="Preview"
+                       FontSize="16"
+                       FontWeight="Bold"
+                       Foreground="#F2F6FC" />
+            <TextBlock Grid.Row="1"
+                       Text="{Binding PreviewSummary}"
+                       Foreground="#8FD3FF"
+                       TextWrapping="Wrap" />
+            <Border Grid.Row="2"
+                    Background="#0D1117"
+                    CornerRadius="12"
+                    Padding="8">
+              <Image Source="{Binding PreviewBitmap}"
+                     Stretch="Uniform"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+            </Border>
           </Grid>
         </Border>
       </Grid>

@@ -138,6 +138,46 @@ public sealed class CoreCheckerCliTests
     }
 
     [Fact]
+    public async Task RunAsync_Check_WhenNativeCoreIsDiscoveredFromProbeDirectory_ReturnsSuccess()
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"fc-core-checker-native-probe-tests-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDirectory);
+
+        try
+        {
+            if (!NativeCabiTestCoreBuilder.IsPlatformSupported)
+                return;
+
+            _ = NativeCabiTestCoreBuilder.BuildLibrary(
+                tempDirectory,
+                "fc.native.probe",
+                exportCoreApi: true);
+
+            var romPath = Path.Combine(tempDirectory, "native-probe.rom");
+            await File.WriteAllBytesAsync(romPath, "native-probe-smoke"u8.ToArray());
+
+            var stdout = new StringWriter();
+            var stderr = new StringWriter();
+            var exitCode = await CoreCheckerCli.RunAsync(
+                ["check", "--probe-dir", tempDirectory, "--core-id", "fc.native.probe", "--rom", romPath, "--frames", "2"],
+                stdout,
+                stderr);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Selected core: fc.native.probe", stdout.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("binary=native-cabi", stdout.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Media load: ok", stdout.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Smoke check passed.", stdout.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(string.Empty, stderr.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(tempDirectory))
+                Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RunAsync_CheckPackage_WhenNativeCoreExportIsMissing_ReturnsValidationFailure()
     {
         var tempDirectory = Path.Combine(Path.GetTempPath(), $"fc-core-checker-native-invalid-tests-{Guid.NewGuid():N}");

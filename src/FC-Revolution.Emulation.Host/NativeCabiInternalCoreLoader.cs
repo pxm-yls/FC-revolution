@@ -7,6 +7,9 @@ internal sealed class NativeCabiInternalCoreLoader : IInternalCoreLoader
 {
     public string BinaryKind => CoreBinaryKinds.NativeCabi;
 
+    public IReadOnlyList<string> ProbeFileExtensions { get; } =
+        [".dll", ".dylib", ".so"];
+
     public IReadOnlyList<IEmulatorCoreModule> LoadModules(InternalCoreLoadTarget target)
     {
         var inspection = NativeCoreModuleLoader.Inspect(target.EntryPath);

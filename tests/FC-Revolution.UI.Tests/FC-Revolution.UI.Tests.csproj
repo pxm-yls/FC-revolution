@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\FC-Revolution.Core\FC-Revolution.Core.FC\Managed\FC-Revolution.Core.Nes.Managed.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.Core\FC-Revolution.Core.Sample.Managed\FC-Revolution.Core.Sample.Managed.csproj" />
     <ProjectReference Include="..\..\src\FC-Revolution.UI\FC-Revolution.UI.csproj" />
+    <ProjectReference Include="..\..\tools\FC-Revolution.Core.Workbench\FC-Revolution.Core.Workbench.csproj" />
   </ItemGroup>
 
   <Target Name="DeleteCopiedUiPdbArtifact" AfterTargets="Build">

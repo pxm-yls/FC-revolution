@@ -1,6 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
+using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FCRevolution.Emulation.Host;
@@ -11,9 +15,15 @@ namespace FCRevolution.Core.Workbench.ViewModels;
 public sealed partial class CoreWorkbenchViewModel : ObservableObject
 {
     private const int DefaultFramesToRun = 2;
+    private readonly Func<CoreRuntimeWorkspaceOptions, CoreRuntimeWorkspace> _createWorkspace;
+    private readonly Func<ManagedCoreRuntimeOptions, string?, CorePreviewFrameCaptureService> _createPreviewService;
 
-    public CoreWorkbenchViewModel()
+    public CoreWorkbenchViewModel(
+        Func<CoreRuntimeWorkspaceOptions, CoreRuntimeWorkspace>? createWorkspace = null,
+        Func<ManagedCoreRuntimeOptions, string?, CorePreviewFrameCaptureService>? createPreviewService = null)
     {
+        _createWorkspace = createWorkspace ?? CoreRuntimeWorkspace.Create;
+        _createPreviewService = createPreviewService ?? CreatePreviewService;
         ResourceRootPath = AppObjectStorage.GetResourceRoot();
     }
 
@@ -47,6 +57,12 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
     private string selectedEntrySummary = "No core selected.";
 
     [ObservableProperty]
+    private string previewSummary = "No preview captured yet.";
+
+    [ObservableProperty]
+    private WriteableBitmap? previewBitmap;
+
+    [ObservableProperty]
     private CoreWorkbenchCatalogEntryViewModel? selectedEntry;
 
     partial void OnSelectedEntryChanged(CoreWorkbenchCatalogEntryViewModel? value)
@@ -72,7 +88,7 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
             var previousCoreId = SelectedEntry?.CoreId ?? SelectedCoreId;
             var result = await Task.Run(() =>
             {
-                using var workspace = CoreRuntimeWorkspace.Create(BuildWorkspaceOptions());
+                using var workspace = _createWorkspace(BuildWorkspaceOptions());
                 var entries = ManagedCoreRuntime.LoadCatalogEntries(workspace.RuntimeOptions)
                     .Select(static entry => new CoreWorkbenchCatalogEntryViewModel(entry))
                     .ToList();
@@ -116,7 +132,7 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
 
             var result = await Task.Run(() =>
             {
-                using var workspace = CoreRuntimeWorkspace.Create(BuildWorkspaceOptions());
+                using var workspace = _createWorkspace(BuildWorkspaceOptions());
                 var smokeResult = CoreSessionSmokeTester.Run(new CoreSessionSmokeTestRequest(
                     CoreId: requestedCoreId,
                     MediaPath: romPath,
@@ -137,10 +153,68 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task CapturePreviewAsync()
+    {
+        StatusText = "Capturing preview frame...";
+        PreviewBitmap = null;
+
+        if (string.IsNullOrWhiteSpace(RomPath))
+        {
+            StatusText = "Preview capture requires a ROM / media path.";
+            return;
+        }
+
+        try
+        {
+            var requestedCoreId = string.IsNullOrWhiteSpace(SelectedCoreId) ? null : SelectedCoreId.Trim();
+            var romPath = RomPath.Trim();
+            var result = await Task.Run(() =>
+            {
+                using var workspace = _createWorkspace(BuildWorkspaceOptions());
+                var previewService = _createPreviewService(workspace.RuntimeOptions, requestedCoreId);
+                WriteableBitmap? previewBitmap = null;
+                var previewResult = previewService.Capture(
+                    new CorePreviewFrameCaptureRequest(
+                        MediaPath: romPath,
+                        TotalFrames: 1,
+                        CaptureStride: 1,
+                        MaxCapturedFrames: 1,
+                        ExpectedWidth: 256,
+                        ExpectedHeight: 240,
+                        TargetRunFps: 60),
+                    capturedFrame => previewBitmap = CreateBitmap(capturedFrame.Frame.Pixels, capturedFrame.Frame.Width, capturedFrame.Frame.Height));
+                return new PreviewCaptureResult(workspace.ResourceRootPath, previewResult, previewBitmap);
+            });
+
+            PreviewBitmap = result.PreviewBitmap;
+            PreviewSummary = BuildPreviewSummary(result.ResourceRootPath, result.PreviewResult);
+            StatusText = "Preview captured.";
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Preview capture failed: {ex.Message}";
+            PreviewSummary = ex.ToString();
+            PreviewBitmap = null;
+        }
+    }
+
     private CoreRuntimeWorkspaceOptions BuildWorkspaceOptions() => new(
         ResourceRootPath: string.IsNullOrWhiteSpace(ResourceRootPath) ? null : ResourceRootPath.Trim(),
         ProbeDirectories: ParseProbeDirectories(),
         PackagePath: string.IsNullOrWhiteSpace(PackagePath) ? null : PackagePath.Trim());
+
+    private static CorePreviewFrameCaptureService CreatePreviewService(
+        ManagedCoreRuntimeOptions runtimeOptions,
+        string? coreId) =>
+        new(() =>
+            ManagedCoreRuntime.TryCreateSession(
+                new CoreSessionLaunchRequest(coreId),
+                out var session,
+                defaultCoreId: coreId,
+                options: runtimeOptions)
+                ? session!
+                : ManagedCoreRuntime.CreateUnavailableSession(coreId));
 
     private IReadOnlyList<string> ParseProbeDirectories() =>
         ProbeDirectoriesText
@@ -212,6 +286,40 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
         return builder.ToString().TrimEnd();
     }
 
+    private static string BuildPreviewSummary(string resourceRootPath, CorePreviewFrameCaptureResult previewResult)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine($"Resource Root: {resourceRootPath}");
+        builder.AppendLine($"Generated Frames: {previewResult.GeneratedFrames}");
+        builder.AppendLine($"Captured Frames: {previewResult.CapturedFrames}");
+        builder.AppendLine($"Elapsed: {previewResult.Elapsed}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private static WriteableBitmap CreateBitmap(uint[] frameBuffer, int width, int height)
+    {
+        var bitmap = new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Opaque);
+
+        using var locked = bitmap.Lock();
+        unsafe
+        {
+            fixed (uint* source = frameBuffer)
+            {
+                Buffer.MemoryCopy(
+                    source,
+                    (void*)locked.Address,
+                    (long)locked.RowBytes * height,
+                    (long)frameBuffer.Length * sizeof(uint));
+            }
+        }
+
+        return bitmap;
+    }
+
     private sealed record RefreshCatalogResult(
         string ResourceRootPath,
         IReadOnlyList<CoreWorkbenchCatalogEntryViewModel> Entries);
@@ -219,4 +327,9 @@ public sealed partial class CoreWorkbenchViewModel : ObservableObject
     private sealed record SmokeCheckResult(
         string ResourceRootPath,
         CoreSessionSmokeTestResult SmokeResult);
+
+    private sealed record PreviewCaptureResult(
+        string ResourceRootPath,
+        CorePreviewFrameCaptureResult PreviewResult,
+        WriteableBitmap? PreviewBitmap);
 }

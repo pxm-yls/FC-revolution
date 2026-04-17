@@ -11,7 +11,7 @@
 
 - 你的方向整体是对的。
 - 当前仓库已经做出了一部分中间层和 package-first 形态，但还没有真正走到“核心只是挂件”。
-- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、package-first 虽已具备内部 `binaryKind` loader dispatch 且 package manifest/registry 已通用化为 `entryPath/activationType`，并新增了 `native-cabi` package-first loader + 最小 smoke test，但 native 路线仍缺 loose probe-dir 发现、更丰富的 ABI/capability 映射与外部仓库验证；同时 `Core Workbench` MVP 虽已落地，独立核心工具链与外部核心仓库试点仍未完成”这三件事。
+- 当前最大的剩余差距已经从“宿主是否还能启动”转移到“legacy adapter 仍是显式 FC/NES provider 兼容层、package-first 虽已具备内部 `binaryKind` loader dispatch 且 package manifest/registry 已通用化为 `entryPath/activationType`，并新增了 `native-cabi` package-first loader + loose probe-dir 发现 + 最小 smoke test，但 native 路线仍缺更丰富的 ABI/capability 映射与外部仓库验证；同时 `Core Workbench` 已在共享运行时之上补到 catalog/smoke/单帧 preview capture，独立核心工具链与外部核心仓库试点仍未完成”这三件事。
 - 本轮之后，`FC-Revolution.UI` 已去掉对 `FC-Revolution.FC.LegacyAdapters` 的编译期程序集依赖，也不再在 UI build/publish 输出中直接复制 `FC-Revolution.FC.LegacyAdapters` 或 `FC-Revolution.Core.Sample.Managed`；legacy bridge 改为可降级的 runtime 兼容层，不再把 FC provider 当作主程序输出物前提，并且 bridge loader 已从“单个 provider 包办全部能力”推进到“按 capability 独立解析 provider，同时兼容旧的聚合 provider”。与此同时，backend WebSocket / heartbeat / claim-release 入口、WebPad 端口选择、`GameSessionSummaryDto`、`MainWindow` 输入绑定链以及 `GameWindow` 本地/远控输入链都已经收敛为 `portId` / `actionId` 驱动，公开 contracts 不再暴露 `Player`。系统/ROM 配置主字段也已切到 `PortInputOverrides`，开发核心探测配置主字段已切到 `CoreProbePaths`；旧的 `ManagedCoreProbePaths`、`InputOverrides`、`PlayerInputOverrides` 与 `ExtraInputBindingProfile.Player` 已不再作为活动模型字段写回磁盘，而是退化为 JSON 读阶段兼容迁移。`CoreInputBindingSchema` 的 player-based 公共辅助入口，以及 `MainWindow/GameWindow` 中只被测试消费的输入 mask helper 面也已清理；当前剩余输入兼容残留主要集中在回放/时间线仍使用的 byte-mask bridge，以及已经被收口到专用 controller 的回放输入镜像。
 - 此外，UI 当前对游戏介质文件的发现/导入已开始从 `CoreManifest.SupportedMediaFilePatterns` 聚合模式，不再把库扫描与文件选择器完全硬编码为 `*.nes`；这把“新增核心时 UI 至少不必再改一轮后缀判断”这件事前移到了 manifest 元数据层。
 - 渲染公共抽象也已经从 `nametable/patternTable/OAM/mirroring` 这类 NES/PPU 术语，收敛为 `backgroundPlane/tileGraphics/spriteBytes/backgroundPlaneLayout` 等 capability 语义；NES 专有 `PpuRenderStateSnapshot` 与 `MirroringMode` 现在只停留在 NES adapter 内部映射，不再直接泄漏到通用渲染抽象层。
@@ -147,7 +147,7 @@
 
 ### 4.1 当前仓库有没有考虑到
 
-考虑到了，但主要停留在方案和枚举层。
+考虑到了，而且已经从方案/枚举进入到宿主 MVP 落地阶段。
 
 现有证据：
 
@@ -161,25 +161,16 @@
 
 ### 4.2 当前真正落地到什么程度
 
-当前真正跑通的是 managed core 路线：
+当前真正跑通的是“两条 loader port 都已有 MVP”：
 
-- Host 主线已抽到 `IEmulatorCoreModule`
-- package-first discovery/runtime 已开始通过 internal loader registry 按 `binaryKind` 分派，但当前唯一已实现的 loader port 仍然是 managed-dotnet
-- assembly discovery
-- package install/export
-- package-first load
-
-当前没有看到真正落地的 native core loader：
-
-- 没有 `src/FC-Revolution.CoreLoader.Native`
-- 没有 native runtime bridge
-- 没有 native session adapter
-- 没有 native core package 安装/加载闭环
+- managed 路线已具备 `IEmulatorCoreModule` 主线、assembly discovery、package install/export、package-first load，以及 probe directory 发现。
+- native 路线也已经落地 [FC-Revolution.CoreLoader.Native.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.CoreLoader.Native/FC-Revolution.CoreLoader.Native.csproj) 与宿主侧 [NativeCabiInternalCoreLoader.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/NativeCabiInternalCoreLoader.cs)，当前能通过 `NativeLibrary.Load + FCR_GetCoreApi` 跑通 manifest inspection、package-first load、最小 session/create/load-media/run-frame/capture-state 闭环。
+- 这一轮之后，shared runtime 里的 probe directory 发现也已经开始按文件扩展名分发到 managed/native 两类内部 loader，见 [InternalCoreLoaderRegistry.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/InternalCoreLoaderRegistry.cs) 与 [ManagedCoreRuntime.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/ManagedCoreRuntime.cs)。
 
 也就是说：
 
 - “未来支持 C++ 核心”这个方向是对的
-- 但当前代码不能说已经具备 C++ 核心接入能力
+- 当前代码已经具备最小 native core 接入能力，但还没有走到完整通用 native capability 端口
 
 ### 4.3 建议优化
 
@@ -391,7 +382,7 @@ App startup
 当前状态：
 
 1. 轻量 CLI checker 首版已可用，见 [FC-Revolution.Core.Checker.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/FC-Revolution.Core.Checker.csproj) 与 [CoreCheckerCli.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Checker/CoreCheckerCli.cs)。
-2. 图形化 `Core Workbench` MVP 已可用，见 [FC-Revolution.Core.Workbench.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Workbench/FC-Revolution.Core.Workbench.csproj) 与 [CoreWorkbenchViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Workbench/ViewModels/CoreWorkbenchViewModel.cs)；它已通过共享 [CoreRuntimeWorkspace.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreRuntimeWorkspace.cs) 复用主程序/CLI 同一套 package/probe/runtime 逻辑。
+2. 图形化 `Core Workbench` MVP 已可用，见 [FC-Revolution.Core.Workbench.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Workbench/FC-Revolution.Core.Workbench.csproj) 与 [CoreWorkbenchViewModel.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tools/FC-Revolution.Core.Workbench/ViewModels/CoreWorkbenchViewModel.cs)；它已通过共享 [CoreRuntimeWorkspace.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CoreRuntimeWorkspace.cs) 复用主程序/CLI 同一套 package/probe/runtime 逻辑，并已补到基于共享 [CorePreviewFrameCaptureService.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.Emulation.Host/CorePreviewFrameCaptureService.cs) 的单帧 preview capture，且有 focused test [CoreWorkbenchViewModelTests.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tests/FC-Revolution.UI.Tests/Tools/CoreWorkbenchViewModelTests.cs) 覆盖。
 3. 外部核心仓库试点尚未启动，因此这个阶段仍未完成。
 
 ### Phase D：补 native-cabi loader（已启动，MVP 已落地）
@@ -401,7 +392,7 @@ App startup
 1. 已新增 [FC-Revolution.CoreLoader.Native.csproj](/Users/pxm/Desktop/Cs/FC/FC-Revolution/src/FC-Revolution.CoreLoader.Native/FC-Revolution.CoreLoader.Native.csproj)。
 2. 已实现 package-first native entrypoint 装载、`FCR_GetCoreApi` 解析与 ABI version 校验。
 3. 已给 native core 建最小 smoke test，见 [CoreCheckerCliTests.cs](/Users/pxm/Desktop/Cs/FC/FC-Revolution/tests/FC-Revolution.Core.Checker.Tests/CoreCheckerCliTests.cs)。
-4. 当前剩余的是 loose probe-dir native 发现、 richer capability bridge，以及外部核心仓库样板。
+4. 当前剩余的是 richer capability bridge，以及外部核心仓库样板。
 
 ## 9. 我的意见汇总
 
@@ -443,19 +434,19 @@ App startup
 如果以你的目标为标准，当前最不一致的 5 个点是：
 
 1. `FC-Revolution.UI` 已改为通过显式 FC adapter/provider 层接入 legacy timeline / replay / mapper，并且这层已迁出 `Core.*` 工程树；其中 timeline storage path、replay log 文件格式、snapshot base-frame 读取，以及 timeline bridge DTO / repository surface 已下沉到通用层，bridge loader 也不再硬编码 FC 类型名，但 repository 实现 / replay 渲染 / mapper 这些能力本身仍是 FC/NES 专用实现，尚未进一步抽成真正系统无关的 capability 服务。
-2. preview 编码、preview asset 管理与 legacy 预览文件处理仍主要驻留在 UI，Shared Host Runtime 还没完全抽干净。
-3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime/package/discovery 虽已具备 internal loader dispatch，installed package schema 也已兼容通用 `entryPath/activationType` 并允许 native package 安装/列目录，但 loose export helper、真正的 native loader 与外部核心仓库试点尚未落地。
-4. 图形化 `Core Workbench` 已作为 MVP 落地，但仍未扩展到 preview/export 等更完整的核心开发工作流，而且外部核心仓库试点也还没有验证。
-5. `native-cabi` 已经成为代码能力，但当前只完成了 package-first 最小 loader/session/smoke 闭环，离完整的通用 native capability 端口还有距离。
+2. preview 编码、preview asset 管理与 legacy 预览文件处理仍主要驻留在 UI；虽然 Shared Host Runtime 已补上 headless 捕帧服务，而 `Core Workbench` 也已能直接调用它做单帧 preview capture，但完整 preview/export 资产工作流还没完全抽干净。
+3. sample managed core 已不再随 `FC-Revolution.UI` 构建直接复制到输出目录，这条历史性耦合已经清除；当前剩余问题不再是“UI 输出是否偷偷内置 sample core”，而是 shared runtime/package/discovery 虽已具备 internal loader dispatch，installed package schema 也已兼容通用 `entryPath/activationType` 并允许 native package 安装/列目录，但 loose export helper、外部核心仓库试点与完整独立交付样板仍未落地。
+4. 图形化 `Core Workbench` 已作为 MVP 落地，并补上了共享运行时驱动的单帧 preview capture；但仍未扩展到 export/debug 等更完整的核心开发工作流，而且外部核心仓库试点也还没有验证。
+5. `native-cabi` 已经成为代码能力，而且 package-first + loose probe-dir 的最小 loader/session/smoke 闭环都已可用；当前剩余的是 richer input/video capability bridge，以及跨仓库样板和更完整的 native ABI 约束文档化。
 
 ## 10. 推荐的下一步
 
 如果要把这个方向继续落地，我建议下一轮优先做的不是“再抽一个接口”，而是：
 
 1. 先继续把 legacy timeline / NES 辅助逻辑从“显式 NES adapter 包”推进到更稳定的 capability / shared runtime 边界；timeline storage path 已经完成通用化，下一步应优先处理 replay/export 与 repository 契约，避免 adapter 层继续膨胀成新的半公共层。
-2. 继续把 preview 编码/preview asset 流程与 Shared Host Runtime 的捕帧服务边界拉直，让主程序、CLI checker 与未来 `Core Workbench` 共用同一套会话驱动。
-3. 在已经落地的 CLI checker + `Core Workbench` 基础上，补 preview/export 等更完整的 shared-runtime 工具工作流，并拿一个外部核心仓库做独立 build / test / pack / install 试点。
-4. 继续把 native loader 从当前 package-first MVP 扩到 loose probe-dir、 richer capability bridge 与跨仓库样板。
+2. 继续把 preview 编码/preview asset 流程与 Shared Host Runtime 的捕帧服务边界拉直，让主程序与 `Core Workbench` 在“捕帧之后”的资产流程上也尽量复用，而不是只共用会话驱动。
+3. 在已经落地的 CLI checker + `Core Workbench` 基础上，补 export/debug 等更完整的 shared-runtime 工具工作流，并拿一个外部核心仓库做独立 build / test / pack / install 试点。
+4. 继续把 native loader 从当前 MVP 扩到 richer capability bridge、跨仓库样板与更完整的 ABI 文档化。
 
 原因很简单：
 

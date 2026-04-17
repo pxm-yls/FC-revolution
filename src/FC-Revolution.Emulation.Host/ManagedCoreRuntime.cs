@@ -75,22 +75,24 @@ public static class ManagedCoreRuntime
                 : resolvedOptions.ResourceRootPath));
         var entries = new Dictionary<string, ManagedCoreCatalogEntry>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var assemblyPath in EnumerateAssemblyPaths(resolvedOptions.ProbeDirectories))
+        foreach (var entryPath in EnumerateProbeEntryPaths(resolvedOptions.ProbeDirectories))
         {
-            foreach (var descriptor in InternalCoreLoaderRegistry.DiscoverModules(
-                         new InternalCoreLoadTarget(CoreBinaryKinds.ManagedDotNet, assemblyPath)))
+            foreach (var target in InternalCoreLoaderRegistry.BuildProbeTargets(entryPath))
             {
-                var canUninstall = IsPathUnderDirectory(descriptor.LoadTarget.EntryPath, installDirectory);
-                entries[descriptor.Manifest.CoreId] = new ManagedCoreCatalogEntry(
-                    descriptor.Manifest,
-                    descriptor.LoadTarget.EntryPath,
-                    descriptor.LoadTarget.ModuleTypeName,
-                    ManagedCoreCatalogSourceKind.ProbeDirectory,
-                    IsLoadSupported: true,
-                    LoadSupportReason: null,
-                    canUninstall,
-                    InstallDirectory: null,
-                    ManifestPath: null);
+                foreach (var descriptor in InternalCoreLoaderRegistry.DiscoverModules(target))
+                {
+                    var canUninstall = IsPathUnderDirectory(descriptor.LoadTarget.EntryPath, installDirectory);
+                    entries[descriptor.Manifest.CoreId] = new ManagedCoreCatalogEntry(
+                        descriptor.Manifest,
+                        descriptor.LoadTarget.EntryPath,
+                        descriptor.LoadTarget.ModuleTypeName,
+                        ManagedCoreCatalogSourceKind.ProbeDirectory,
+                        IsLoadSupported: true,
+                        LoadSupportReason: null,
+                        canUninstall,
+                        InstallDirectory: null,
+                        ManifestPath: null);
+                }
             }
         }
 
@@ -148,13 +150,22 @@ public static class ManagedCoreRuntime
         if (probeDirectories.Count == 0)
             return [];
 
-        var source = new DirectoryManagedCoreModuleRegistrationSource(
-            "managed-core-runtime-probe-directories",
-            () => probeDirectories);
-        return source.LoadModules();
+        var modules = new List<IEmulatorCoreModule>();
+        foreach (var entryPath in EnumerateProbeEntryPaths(probeDirectories))
+        {
+            foreach (var target in InternalCoreLoaderRegistry.BuildProbeTargets(entryPath))
+            {
+                modules.AddRange(InternalCoreLoaderRegistry.LoadModules(target));
+            }
+        }
+
+        return modules
+            .GroupBy(module => module.Manifest.CoreId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToList();
     }
 
-    private static IEnumerable<string> EnumerateAssemblyPaths(IReadOnlyList<string> directories)
+    private static IEnumerable<string> EnumerateProbeEntryPaths(IReadOnlyList<string> directories)
     {
         var comparer = GetPathComparer();
         var seenDirectories = new HashSet<string>(comparer);
@@ -181,7 +192,7 @@ public static class ManagedCoreRuntime
             IEnumerable<string> files;
             try
             {
-                files = Directory.EnumerateFiles(normalizedDirectory, "*.dll", SearchOption.AllDirectories);
+                files = Directory.EnumerateFiles(normalizedDirectory, "*", SearchOption.AllDirectories);
             }
             catch
             {
@@ -191,7 +202,8 @@ public static class ManagedCoreRuntime
             foreach (var file in files.OrderBy(path => path, comparer))
             {
                 var normalizedFile = Path.GetFullPath(file);
-                if (seenFiles.Add(normalizedFile))
+                if (seenFiles.Add(normalizedFile) &&
+                    InternalCoreLoaderRegistry.BuildProbeTargets(normalizedFile).Count > 0)
                     yield return normalizedFile;
             }
         }
